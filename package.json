@@ -1,0 +1,53 @@
+{
+  "name": "tolou-concrete-engineering-suite",
+  "version": "0.9.0",
+  "description": "Tolou Concrete Engineering Suite - professional concrete engineering decision platform",
+  "main": "electron/main.cjs",
+  "author": "Tolou Engineering",
+  "license": "UNLICENSED",
+  "private": true,
+  "scripts": {
+    "start": "electron .",
+    "pack": "electron-builder --dir",
+    "dist:win": "electron-builder --win nsis"
+  },
+  "devDependencies": {
+    "electron": "^38.0.0",
+    "electron-builder": "^26.0.12"
+  },
+  "build": {
+    "appId": "ir.tolou.concrete.engineering",
+    "productName": "Tolou Concrete Engineering Suite",
+    "asar": true,
+    "files": [
+      "electron/**/*",
+      "baseline/Tolou_MASTER_Stage6.5.html",
+      "package.json"
+    ],
+    "directories": {
+      "output": "dist",
+      "buildResources": "build"
+    },
+    "win": {
+      "target": [
+        {
+          "target": "nsis",
+          "arch": [
+            "x64"
+          ]
+        }
+      ]
+    },
+    "nsis": {
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true,
+      "perMachine": false,
+      "createDesktopShortcut": "always",
+      "createStartMenuShortcut": true,
+      "shortcutName": "Tolou Concrete Engineering Suite",
+      "deleteAppDataOnUninstall": false,
+      "runAfterFinish": true,
+      "artifactName": "Tolou-Concrete-Engineering-Suite-Setup-\${version}.\${ext}"
+    }
+  }
+}
