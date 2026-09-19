@@ -1,14 +1,17 @@
-const { app, BrowserWindow, Menu, shell, ipcMain, dialog } = require('electron');
+const { app, BrowserWindow, Menu, shell, ipcMain, dialog, screen } = require('electron');
 const path = require('node:path');
 const { createPersistence } = require('./persistence.cjs');
+const { createWindowState } = require('./window-state.cjs');
 
 const APP_NAME = 'Tolou Concrete Engineering Suite';
+const APP_ID = 'ir.tolou.concrete.engineering';
 const BASELINE_FILE = path.join(__dirname, '..', 'baseline', 'Tolou_MASTER_Stage6.5.html');
 const PRELOAD_FILE = path.join(__dirname, 'preload.cjs');
 
 let persistence;
 let appIsQuitting = false;
 let mainWindow = null;
+let windowState = null;
 
 function persistenceBootstrapScript() {
   return `
@@ -188,10 +191,12 @@ function installApplicationMenu(win) {
 }
 
 function createMainWindow() {
+  const savedWindow = windowState ? windowState.load() : { width: 1440, height: 900, maximized: false };
   const win = new BrowserWindow({
     title: APP_NAME,
-    width: 1440,
-    height: 900,
+    width: savedWindow.width,
+    height: savedWindow.height,
+    ...(Number.isFinite(savedWindow.x) && Number.isFinite(savedWindow.y) ? { x: savedWindow.x, y: savedWindow.y } : {}),
     minWidth: 1100,
     minHeight: 720,
     show: false,
@@ -208,6 +213,10 @@ function createMainWindow() {
 
   mainWindow = win;
   installApplicationMenu(win);
+
+  if (savedWindow.maximized) {
+    win.maximize();
+  }
 
   win.once('ready-to-show', () => {
     win.show();
@@ -245,7 +254,20 @@ function createMainWindow() {
     });
   });
 
+  let stateSaveTimer = null;
+  const scheduleWindowStateSave = () => {
+    clearTimeout(stateSaveTimer);
+    stateSaveTimer = setTimeout(() => {
+      if (windowState) windowState.save(win);
+    }, 250);
+  };
+  win.on('resize', scheduleWindowStateSave);
+  win.on('move', scheduleWindowStateSave);
+  win.on('maximize', scheduleWindowStateSave);
+  win.on('unmaximize', scheduleWindowStateSave);
+
   win.on('closed', () => {
+    clearTimeout(stateSaveTimer);
     if (mainWindow === win) mainWindow = null;
   });
 
@@ -258,8 +280,22 @@ function createMainWindow() {
 
 app.setName(APP_NAME);
 
+const hasSingleInstanceLock = app.requestSingleInstanceLock();
+if (!hasSingleInstanceLock) {
+  app.quit();
+} else {
+  app.on('second-instance', () => {
+    if (!mainWindow || mainWindow.isDestroyed()) return;
+    if (mainWindow.isMinimized()) mainWindow.restore();
+    mainWindow.show();
+    mainWindow.focus();
+  });
+}
+
 app.whenReady().then(() => {
+  if (process.platform === 'win32') app.setAppUserModelId(APP_ID);
   persistence = createPersistence(app, ipcMain);
+  windowState = createWindowState(app, screen);
   createMainWindow();
 
   app.on('activate', () => {
