@@ -29,7 +29,7 @@
 - Add migration and recovery paths.
 - Add user-visible backup/restore where required.
 
-### W3 — Windows Integration 🚧 CORE COMPLETE — FINAL ICON PENDING
+### W3 — Windows Integration ✅ COMPLETE
 - Application icon.
 - Installer icon.
 - Installed executable icon.
@@ -39,7 +39,7 @@
 - User-data location and update-safe storage.
 - File/export dialogs where the current app requires them.
 
-### W4 — Installer & Uninstaller
+### W4 — Installer & Uninstaller 🚧 PACKAGING CONFIG COMPLETE — BUILD PENDING
 - Build a complete Windows installer.
 - Installer must create the desktop shortcut.
 - Installer must create the Start Menu shortcut.
