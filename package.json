@@ -3,7 +3,9 @@
   "version": "0.9.0",
   "description": "Tolou Concrete Engineering Suite - professional concrete engineering decision platform",
   "main": "electron/main.cjs",
-  "author": "Tolou Engineering",
+  "author": {
+    "name": "Tolou Engineering"
+  },
   "license": "UNLICENSED",
   "private": true,
   "scripts": {
@@ -36,7 +38,8 @@
             "x64"
           ]
         }
-      ]
+      ],
+      "requestedExecutionLevel": "asInvoker"
     },
     "nsis": {
       "oneClick": false,
@@ -47,7 +50,11 @@
       "shortcutName": "Tolou Concrete Engineering Suite",
       "deleteAppDataOnUninstall": false,
       "runAfterFinish": true,
-      "artifactName": "Tolou-Concrete-Engineering-Suite-Setup-${version}.${ext}"
-    }
-  }
+      "artifactName": "Tolou-Concrete-Engineering-Suite-Setup-${version}.${ext}",
+      "uninstallDisplayName": "Tolou Concrete Engineering Suite",
+      "warnElevation": true
+    },
+    "executableName": "Tolou Concrete Engineering Suite"
+  },
+  "copyright": "Copyright © 2026 Tolou Engineering"
 }
