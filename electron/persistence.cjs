@@ -32,10 +32,39 @@ function atomicWrite(file, text) {
   fs.writeFileSync(tmp, text, { encoding: 'utf8', flag: 'w' });
   try {
     fs.renameSync(tmp, file);
-  } catch (error) {
+  } catch {
     try { fs.rmSync(file, { force: true }); } catch {}
     fs.renameSync(tmp, file);
   }
+}
+
+function canonicalBody(envelope) {
+  return {
+    format: envelope.format,
+    version: envelope.version,
+    savedAt: envelope.savedAt,
+    storage: envelope.storage
+  };
+}
+
+function validateEnvelope(parsed) {
+  if (!parsed || typeof parsed !== 'object') {
+    return { ok: false, reason: 'INVALID_JSON' };
+  }
+  if (parsed.format !== FORMAT || parsed.version !== VERSION) {
+    return { ok: false, reason: 'UNSUPPORTED_FORMAT' };
+  }
+  if (!parsed.storage || typeof parsed.storage !== 'object' || Array.isArray(parsed.storage)) {
+    return { ok: false, reason: 'INVALID_STORAGE' };
+  }
+  if (typeof parsed.checksum !== 'string' || !parsed.checksum) {
+    return { ok: false, reason: 'MISSING_CHECKSUM' };
+  }
+  const expected = sha256(JSON.stringify(canonicalBody(parsed)));
+  if (expected !== parsed.checksum) {
+    return { ok: false, reason: 'CHECKSUM_MISMATCH' };
+  }
+  return { ok: true, envelope: parsed };
 }
 
 function pruneBackups(backupsDir) {
@@ -44,7 +73,7 @@ function pruneBackups(backupsDir) {
       .filter(name => /^tolou-storage-.*\.json$/i.test(name))
       .map(name => {
         const full = path.join(backupsDir, name);
-        return { name, full, mtime: fs.statSync(full).mtimeMs };
+        return { full, mtime: fs.statSync(full).mtimeMs };
       })
       .sort((a, b) => b.mtime - a.mtime);
 
@@ -60,30 +89,34 @@ function createPersistence(app, ipcMain) {
   const currentFile = path.join(rootDir, 'tolou-storage-v1.json');
   ensureDir(backupsDir);
 
+  function readEnvelopeFrom(file) {
+    const parsed = safeReadJson(file);
+    const validation = validateEnvelope(parsed);
+    return validation.ok ? validation.envelope : null;
+  }
+
   function readCurrent() {
-    const parsed = safeReadJson(currentFile);
-    if (!parsed || parsed.format !== FORMAT || parsed.version !== VERSION || typeof parsed.storage !== 'object') {
+    return readEnvelopeFrom(currentFile);
+  }
+
+  function createInternalBackup(label = 'auto', force = false) {
+    try {
+      if (!fs.existsSync(currentFile)) return null;
+      const stat = fs.statSync(currentFile);
+      if (!force && (Date.now() - stat.mtimeMs) < BACKUP_MIN_INTERVAL_MS) return null;
+
+      const stamp = new Date().toISOString().replace(/[:.]/g, '-');
+      const safeLabel = String(label).replace(/[^a-z0-9_-]/gi, '-').slice(0, 30) || 'backup';
+      const target = path.join(backupsDir, 'tolou-storage-' + safeLabel + '-' + stamp + '.json');
+      fs.copyFileSync(currentFile, target);
+      pruneBackups(backupsDir);
+      return target;
+    } catch {
       return null;
     }
-    return parsed;
   }
 
-  function maybeBackupCurrent(nextText) {
-    try {
-      if (!fs.existsSync(currentFile)) return;
-      const currentText = fs.readFileSync(currentFile, 'utf8');
-      if (currentText === nextText) return;
-
-      const stat = fs.statSync(currentFile);
-      if ((Date.now() - stat.mtimeMs) < BACKUP_MIN_INTERVAL_MS) return;
-
-      const stamp = new Date(stat.mtimeMs).toISOString().replace(/[:.]/g, '-');
-      fs.copyFileSync(currentFile, path.join(backupsDir, 'tolou-storage-' + stamp + '.json'));
-      pruneBackups(backupsDir);
-    } catch {}
-  }
-
-  function saveStorage(storage) {
+  function saveStorage(storage, options = {}) {
     if (!storage || typeof storage !== 'object' || Array.isArray(storage)) {
       throw new Error('Invalid Tolou storage payload.');
     }
@@ -95,18 +128,56 @@ function createPersistence(app, ipcMain) {
       storage
     };
 
-    const canonical = JSON.stringify(body);
-    body.checksum = sha256(canonical);
-    const text = JSON.stringify(body, null, 2);
+    const envelope = {
+      ...body,
+      checksum: sha256(JSON.stringify(body))
+    };
+    const text = JSON.stringify(envelope, null, 2);
 
-    maybeBackupCurrent(text);
+    const existing = fs.existsSync(currentFile) ? fs.readFileSync(currentFile, 'utf8') : null;
+    if (existing !== null && existing !== text) {
+      createInternalBackup(options.backupLabel || 'auto', !!options.forceBackup);
+    }
+
     atomicWrite(currentFile, text);
 
     return {
       ok: true,
-      savedAt: body.savedAt,
-      checksum: body.checksum,
+      savedAt: envelope.savedAt,
+      checksum: envelope.checksum,
       path: currentFile
+    };
+  }
+
+  function exportBackup(targetFile) {
+    const current = readCurrent();
+    if (!current) return { ok: false, reason: 'NO_VALID_MIRROR' };
+    atomicWrite(targetFile, JSON.stringify(current, null, 2));
+    return {
+      ok: true,
+      path: targetFile,
+      savedAt: current.savedAt,
+      checksum: current.checksum
+    };
+  }
+
+  function importBackup(sourceFile) {
+    const parsed = safeReadJson(sourceFile);
+    const validation = validateEnvelope(parsed);
+    if (!validation.ok) {
+      return { ok: false, reason: validation.reason };
+    }
+
+    createInternalBackup('pre-restore', true);
+    const result = saveStorage(validation.envelope.storage, {
+      forceBackup: false,
+      backupLabel: 'restore'
+    });
+
+    return {
+      ...result,
+      restoredFrom: sourceFile,
+      storage: validation.envelope.storage
     };
   }
 
@@ -131,13 +202,8 @@ function createPersistence(app, ipcMain) {
   });
 
   ipcMain.handle('tolou:persistence:create-backup', () => {
-    const current = readCurrent();
-    if (!current) return { ok: false, reason: 'NO_MIRROR' };
-    const stamp = new Date().toISOString().replace(/[:.]/g, '-');
-    const target = path.join(backupsDir, 'tolou-storage-' + stamp + '.json');
-    fs.copyFileSync(currentFile, target);
-    pruneBackups(backupsDir);
-    return { ok: true, path: target };
+    const target = createInternalBackup('manual', true);
+    return target ? { ok: true, path: target } : { ok: false, reason: 'NO_MIRROR' };
   });
 
   return {
@@ -145,7 +211,10 @@ function createPersistence(app, ipcMain) {
     currentFile,
     backupsDir,
     readCurrent,
-    saveStorage
+    saveStorage,
+    exportBackup,
+    importBackup,
+    createInternalBackup
   };
 }
 
