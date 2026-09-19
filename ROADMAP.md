@@ -17,19 +17,19 @@
 
 ## Windows product milestones
 
-### W1 — Windows Application Shell
+### W1 — Windows Application Shell ✅ COMPLETE
 - Wrap the accepted application in a Windows desktop shell.
 - Preserve the current UI and engineering engines.
 - Define application identity, product name and versioning.
 - Establish safe local user-data paths.
 
-### W2 — Persistent Data & Migration
+### W2 — Persistent Data & Migration ✅ CORE COMPLETE
 - Introduce persistence behind an adapter rather than rewriting the engineering core.
 - Preserve existing data where possible.
 - Add migration and recovery paths.
 - Add user-visible backup/restore where required.
 
-### W3 — Windows Integration
+### W3 — Windows Integration 🚧 IN PROGRESS
 - Application icon.
 - Installer icon.
 - Installed executable icon.
