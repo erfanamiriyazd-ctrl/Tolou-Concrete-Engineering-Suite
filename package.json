@@ -10,12 +10,14 @@
   "private": true,
   "scripts": {
     "start": "electron .",
-    "pack": "electron-builder --dir",
-    "dist:win": "electron-builder --win nsis"
+    "pack": "npm run icon:build && electron-builder --dir",
+    "dist:win": "npm run icon:build && electron-builder --win nsis",
+    "icon:build": "node scripts/build-icon.cjs"
   },
   "devDependencies": {
     "electron": "^38.0.0",
-    "electron-builder": "^26.0.12"
+    "electron-builder": "^26.0.12",
+    "svg-to-ico": "^2.0.0"
   },
   "build": {
     "appId": "ir.tolou.concrete.engineering",
@@ -23,6 +25,8 @@
     "asar": true,
     "files": [
       "electron/**/*",
+      "app/**/*",
+      "assets/**/*",
       "baseline/Tolou_MASTER_Stage6.5.html",
       "package.json"
     ],
@@ -39,7 +43,8 @@
           ]
         }
       ],
-      "requestedExecutionLevel": "asInvoker"
+      "requestedExecutionLevel": "asInvoker",
+      "icon": "build/icon.ico"
     },
     "nsis": {
       "oneClick": false,
@@ -52,7 +57,10 @@
       "runAfterFinish": true,
       "artifactName": "Tolou-Concrete-Engineering-Suite-Setup-${version}.${ext}",
       "uninstallDisplayName": "Tolou Concrete Engineering Suite",
-      "warnElevation": true
+      "warnElevation": true,
+      "installerIcon": "build/icon.ico",
+      "uninstallerIcon": "build/icon.ico",
+      "installerHeaderIcon": "build/icon.ico"
     },
     "executableName": "Tolou Concrete Engineering Suite"
   },
