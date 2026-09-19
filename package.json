@@ -47,7 +47,7 @@
       "shortcutName": "Tolou Concrete Engineering Suite",
       "deleteAppDataOnUninstall": false,
       "runAfterFinish": true,
-      "artifactName": "Tolou-Concrete-Engineering-Suite-Setup-\${version}.\${ext}"
+      "artifactName": "Tolou-Concrete-Engineering-Suite-Setup-${version}.${ext}"
     }
   }
 }
