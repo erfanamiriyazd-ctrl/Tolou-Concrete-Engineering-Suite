@@ -5,7 +5,7 @@ const { createWindowState } = require('./window-state.cjs');
 
 const APP_NAME = 'Tolou Concrete Engineering Suite';
 const APP_ID = 'ir.tolou.concrete.engineering';
-const BASELINE_FILE = path.join(__dirname, '..', 'baseline', 'Tolou_MASTER_Stage6.5.html');
+const BASELINE_FILE = path.join(__dirname, '..', 'app', 'index.html');
 const PRELOAD_FILE = path.join(__dirname, 'preload.cjs');
 
 let persistence;
