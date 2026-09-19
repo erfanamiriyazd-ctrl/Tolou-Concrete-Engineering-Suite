@@ -29,7 +29,7 @@
 - Add migration and recovery paths.
 - Add user-visible backup/restore where required.
 
-### W3 — Windows Integration 🚧 IN PROGRESS
+### W3 — Windows Integration 🚧 CORE COMPLETE — FINAL ICON PENDING
 - Application icon.
 - Installer icon.
 - Installed executable icon.
