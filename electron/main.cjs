@@ -37,6 +37,55 @@ ipcMain.on('tolou:sample:seed', (event, existing) => {
 });
 
 
+async function seedQaSampleIntoRenderer(win) {
+  if (!win || win.isDestroyed()) return { ok: false, reason: 'window-unavailable' };
+  try {
+    const existing = await win.webContents.executeJavaScript(`
+      (() => {
+        const storage = {};
+        for (let i = 0; i < localStorage.length; i += 1) {
+          const key = localStorage.key(i);
+          if (key !== null) storage[key] = localStorage.getItem(key);
+        }
+        return storage;
+      })()
+    `, true);
+
+    const beforeMarker = existing?.Tolou_sample_project_v1 || null;
+    const seeded = buildSeededSampleStorage(existing || {});
+    if (!seeded?.result?.ok) return seeded?.result || { ok: false, reason: 'seed-failed' };
+
+    const afterMarker = seeded.storage?.Tolou_sample_project_v1 || null;
+    const changed = beforeMarker !== afterMarker ||
+      Object.keys(seeded.storage || {}).some(key => existing?.[key] !== seeded.storage[key]);
+
+    if (!changed) return { ...seeded.result, changed: false };
+
+    // Persist the same merged snapshot that will be applied to Chromium storage.
+    if (persistence) {
+      persistence.saveStorage(seeded.storage, {
+        backupLabel: 'sample-seed',
+        forceBackup: true
+      });
+    }
+
+    await win.webContents.executeJavaScript(`
+      (() => {
+        const incoming = ${JSON.stringify(seeded.storage)};
+        for (const [key, value] of Object.entries(incoming)) {
+          if (value !== null && value !== undefined) localStorage.setItem(key, String(value));
+        }
+        sessionStorage.setItem('__tolou_sample_seed_reload__', '1');
+        return true;
+      })()
+    `, true);
+
+    return { ...seeded.result, changed: true };
+  } catch (error) {
+    return { ok: false, reason: error?.message || String(error) };
+  }
+}
+
 function persistenceBootstrapScript() {
   return `
     (() => {
@@ -249,7 +298,28 @@ function createMainWindow() {
     }
   });
 
-  win.webContents.on('did-finish-load', () => {
+  win.webContents.on('did-finish-load', async () => {
+    try {
+      const seedResult = await seedQaSampleIntoRenderer(win);
+      if (seedResult?.ok && seedResult.changed) {
+        // Reload exactly once so every renderer module rehydrates from the now-populated localStorage.
+        const shouldReload = await win.webContents.executeJavaScript(
+          `(() => sessionStorage.getItem('__tolou_sample_seed_reload__') === '1')()`,
+          true
+        );
+        if (shouldReload) {
+          await win.webContents.executeJavaScript(
+            `(() => { sessionStorage.removeItem('__tolou_sample_seed_reload__'); return true; })()`,
+            true
+          );
+          win.webContents.reload();
+          return;
+        }
+      }
+    } catch (error) {
+      console.error('Tolou QA sample bootstrap failed:', error);
+    }
+
     win.webContents.executeJavaScript(persistenceBootstrapScript(), true).catch(() => {});
   });
 
