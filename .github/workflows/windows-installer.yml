@@ -2,6 +2,11 @@ name: Tolou Windows Installer
 
 on:
   workflow_dispatch:
+  push:
+    branches:
+      - feature/windows-shell
+    paths:
+      - .github/BUILD_ONCE_0_9_2
 
 jobs:
   build-windows:
