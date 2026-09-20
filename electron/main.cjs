@@ -917,6 +917,53 @@ async function runUiSmoke(win) {
     }catch(error){results.push({name:'D4-save-context-trace',ok:false,error:error?.stack||error?.message||String(error)});failures.push('D4-save-context-trace: '+(error?.message||String(error)));await capture('D4-save-context-trace-error').catch(()=>{})}
   }
 
+  async function stageD4RegisterPathTrace() {
+    await stageD3PersistR0AfterReload();
+    const d3=results.find(r=>r.name==='D3-r0-persistence');
+    if(!d3?.ok){results.push({name:'D4-register-path-trace',ok:false,error:'D3 prerequisite failed'});failures.push('D4-register-path-trace: D3 prerequisite failed');return}
+    try{
+      const seriesId=d3.before?.seriesId;
+      const payload=await win.webContents.executeJavaScript(`
+        (async()=>{
+          const sleep=ms=>new Promise(r=>setTimeout(r,ms));
+          document.querySelector('#nav button[data-view="mix-library"]')?.click(); await sleep(350);
+          if(typeof loadTrialLab==='function') loadTrialLab(); if(typeof mlRender==='function') mlRender(); await sleep(200);
+          const view=document.getElementById('view-mix-library');
+          const edit=[...view.querySelectorAll('button')].find(el=>(el.innerText||'').includes('اصلاح در QC-010')&&(el.getAttribute('onclick')||'').includes(${JSON.stringify(seriesId)}));
+          if(!edit) throw new Error('Real revision edit control unavailable');
+          edit.click(); await sleep(900);
+          const frame=document.getElementById('frame-base'),d=frame?.contentDocument,w=frame?.contentWindow;
+          const manual=d?.getElementById('iran35ManualWc');
+          if(!d||!w||!manual) throw new Error('QC-010 canonical control unavailable');
+          manual.value='0.450';manual.dispatchEvent(new Event('input',{bubbles:true}));manual.dispatchEvent(new Event('change',{bubbles:true}));
+          const calc=[...d.querySelectorAll('button')].find(b=>(b.getAttribute('onclick')||'').replace(/\\s/g,'')==='calculateMix()');
+          calc?.click();await sleep(900);
+          const before=JSON.parse(localStorage.getItem('Tolou_trial_lab_v1')||'{"series":[]}');
+          const beforeSeries=(before.series||[]).find(x=>x.id===${JSON.stringify(seriesId)});
+          const contextBefore=JSON.parse(JSON.stringify(mixEngineContext));
+          const directSnap=w.TolouGetMixSnapshot?.();
+          let registerCalls=0,waitCalls=0,callbackCalls=0,callbackData=null;
+          const originalWait=waitForSnapshot;
+          waitForSnapshot=function(v,cb){waitCalls++;return originalWait(v,r=>{callbackCalls++;callbackData={ok:r?.ok,fingerprint:r?.snapshot?.calculationFingerprint,wcm:r?.snapshot?.wcm};return cb(r)})};
+          const originalRegister=window.TolouRegisterCurrentMix;
+          window.TolouRegisterCurrentMix=function(v){registerCalls++;return originalRegister.apply(this,arguments)};
+          const save=[...d.querySelectorAll('button')].find(b=>/ذخیره/.test((b.innerText||'').trim())&&/saveProject/.test(b.getAttribute('onclick')||''));
+          if(!save) throw new Error('Real Save unavailable');
+          save.click();await sleep(1800);
+          window.TolouRegisterCurrentMix=originalRegister;waitForSnapshot=originalWait;
+          const after=JSON.parse(localStorage.getItem('Tolou_trial_lab_v1')||'{"series":[]}');
+          const afterSeries=(after.series||[]).find(x=>x.id===${JSON.stringify(seriesId)});
+          return {contextBefore,directSnap:{ok:directSnap?.ok,fingerprint:directSnap?.snapshot?.calculationFingerprint,wcm:directSnap?.snapshot?.wcm},registerCalls,waitCalls,callbackCalls,callbackData,beforeCount:beforeSeries?.revisions?.length??null,afterCount:afterSeries?.revisions?.length??null,afterRevisions:(afterSeries?.revisions||[]).map(r=>({revision:r.revision,fingerprint:r.snapshot?.calculationFingerprint,wcm:r.snapshot?.wcm}))};
+        })()
+      `,true);
+      const checks={contextValid:payload.contextBefore?.base?.seriesId===seriesId,directSnapshotValid:payload.directSnap?.ok===true,registerCalled:payload.registerCalls>0,waitForSnapshotCalled:payload.waitCalls>0,callbackReached:payload.callbackCalls>0};
+      const ok=Object.values(checks).every(Boolean);
+      results.push({name:'D4-register-path-trace',ok,checks,seriesId,payload});
+      if(!ok) failures.push('D4-register-path-trace: '+Object.entries(checks).filter(([,v])=>!v).map(([k])=>k).join(', '));
+      await capture('D4-register-path-trace');
+    }catch(error){results.push({name:'D4-register-path-trace',ok:false,error:error?.stack||error?.message||String(error)});failures.push('D4-register-path-trace: '+(error?.message||String(error)));await capture('D4-register-path-trace-error').catch(()=>{})}
+  }
+
   async function stageD4CreateR1FromUi() {
     await stageD3PersistR0AfterReload();
     const d3=results.find(r=>r.name==='D3-r0-persistence');
@@ -2154,6 +2201,7 @@ async function runUiSmoke(win) {
   else if (stage === 'd4-revision-ui-probe') await stageD4RevisionUiProbe();
   else if (stage === 'd4-create-r1-ui') await stageD4CreateR1FromUi();
   else if (stage === 'd4-save-context-trace') await stageD4SaveContextTrace();
+  else if (stage === 'd4-register-path-trace') await stageD4RegisterPathTrace();
   else if (stage === 'd4-wc-control-probe') await stageD4WcControlProbe();
   else if (stage === 'd4-hydration-audit') await stageD4HydrationAudit();
   else if (stage === 'mix-library') await stage2MixLibrary();
