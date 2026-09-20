@@ -47,6 +47,9 @@ ipcRenderer.on('tolou:persistence:apply-restore', (_event, storage) => {
 });
 
 contextBridge.exposeInMainWorld('tolouDesktop', {
+  sample: {
+    bootstrap: (existing) => ipcRenderer.sendSync('tolou:sample:seed', existing || {})
+  },
   persistence: {
     saveSnapshot: (storage) => ipcRenderer.invoke('tolou:persistence:save', storage),
     info: () => ipcRenderer.invoke('tolou:persistence:info'),
