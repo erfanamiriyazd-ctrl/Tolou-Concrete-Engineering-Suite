@@ -95,3 +95,18 @@ Mix Series ID: `MX-DEMO-25-400`
 - All slump values remain within 80–120 mm and air contents within 1–3%.
 - Approval record stores reviewer role, design fingerprint, evidence fingerprint, calibration version, trial IDs, all gate results and the engineering disposition.
 - R0 is allowed to proceed to controlled production only while material revisions, aggregate blend, cement content, design w/cm and acceptance requirements remain unchanged; any such change requires a new revision and new evidence review.
+
+
+## Stage 6 — Production / Batching — COMPLETE
+- Six controlled production batches are linked to approved revision R0 and its exact design/evidence fingerprints.
+- Each batch volume = 7 m³; total sample production volume = 42 m³.
+- Production uses the same Type II cement, material revisions, aggregate blend 44/37/19, design w/cm = 0.475 and max project w/cm = 0.500.
+- Daily aggregate moisture is stored per fraction and used to calculate wet aggregate target masses, aggregate free water and corrected batch water.
+- Cement, aggregate and water target/actual masses carry explicit weighing deviations, tolerances and within-tolerance flags.
+- Every batch stores material lot traceability, operator, QC inspector, plant, line, truck, density, slump, air, temperature, yield and approval linkage.
+- Production release gates verify approval integrity, weighing tolerances, w/cm, slump, air and relative yield.
+- Relative-yield acceptance window for the QA dataset = 0.98–1.02.
+- All six batches pass the configured production-release gates and are released under R0.
+- 28-day production strengths = 33.1 / 33.6 / 32.9 / 33.8 / 32.4 / 33.3 MPa.
+- Mean production 28-day strength = 33.18 MPa, consistent with the Stage-3 required mean strength fcm = 32.53 MPa and the Stage-4 trial mean = 33.18 MPa.
+- Sample dataset version incremented to 5 so previously seeded QA installations receive the corrected Stage-6 production evidence.
