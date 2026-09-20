@@ -1227,8 +1227,11 @@ async function runUiSmoke(win) {
           if(!save)throw new Error('Real Trial save control unavailable');
           mark('trial-save-click');save.click();mark('trial-save-returned');
           const trial=await waitFor('Persisted R1 trial',()=>{
-            const s=(trialLab.series||[]).find(x=>x.id==="${seriesId}");
-            return s?.trials?.find(t=>t.batchNo==='QA-R1-01')||null;
+            const live=(trialLab.series||[]).find(x=>x.id===activeSeriesId);
+            const liveTrial=live?.trials?.find(t=>t.batchNo==='QA-R1-01');
+            if(liveTrial)return liveTrial;
+            const stored=JSON.parse(localStorage.getItem('Tolou_trial_lab_v1')||'{"series":[]}');
+            return (stored.series||[]).find(x=>x.id===activeSeriesId)?.trials?.find(t=>t.batchNo==='QA-R1-01')||null;
           });
           mark('trial-persisted');
           const afterTrial={id:trial.id,revision:trial.revision,batchNo:trial.batchNo,actualWcm:trial.calculated?.actualWcm,fc28:trial.strengths?.['28'],slump:trial.fresh?.slump,evaluation:trial.evaluation};
