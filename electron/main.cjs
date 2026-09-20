@@ -196,7 +196,15 @@ async function runUiSmoke(win) {
         const integrity=window.TolouIntegrityGuard?.auditAll?.()||null;
         const finalValidation=window.TolouFinalValidation?.run?.(pid)||null;
         return JSON.stringify({
-          approval:{valid:approval?.valid??null,status:approval?.status||null,reason:approval?.reason||null,stored:s?.approvalRecord?.evidenceFingerprint||null,current:currentFp},
+          approval:{valid:approval?.valid??null,status:approval?.status||null,reason:approval?.reason||null,stored:s?.approvalRecord?.evidenceFingerprint||null,current:currentFp,
+            runtimePayload:s?{
+              seriesId:s.id,
+              revision:Number(s.approvedRevision),
+              designFingerprint:(s.revisions||[]).find(r=>Number(r.revision)===Number(s.approvedRevision))?.snapshot?.calculationFingerprint || (s.revisions||[]).find(r=>Number(r.revision)===Number(s.approvedRevision))?.snapshot?.canonicalContract?.identity?.calculationFingerprint || null,
+              acceptance:s.acceptance||{},
+              trials:(s.trials||[]).filter(t=>Number(t.revision)===Number(s.approvedRevision)).map(t=>({id:t.id,batchNo:t.batchNo,date:t.date,actual:t.actual,fresh:t.fresh,strengths:t.strengths,hardened:t.hardened,batchChanges:t.batchChanges,updatedAt:t.updatedAt}))
+            }:null
+          },
           e2e:{status:e2e?.status||null,summary:e2e?.summary||null,issues:(e2e?.issues||[]).map(x=>({severity:x.severity,module:x.module,code:x.code,entityId:x.entityId,message:x.message}))},
           contract:{status:contract?.status||null,blocked:contract?.blocked??null,modules:(contract?.modules||[]).map(x=>({module:x.module,fn:x.fn,mode:x.mode,marker:x.marker}))},
           integrity:{status:integrity?.status||null,errors:integrity?.errors??null,warnings:integrity?.warnings??null,issues:(integrity?.rows||[]).flatMap(r=>(r.issues||[]).map(x=>({seriesId:r.seriesId,revision:r.revision,severity:x.severity,code:x.code,path:x.path,message:x.message,value:x.value})))},
