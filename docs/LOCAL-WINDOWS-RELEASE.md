@@ -31,7 +31,7 @@ The release script:
 Expected artifact:
 
 ```text
-dist\Tolou-Concrete-Engineering-Suite-Setup-0.9.5.exe
+dist\Tolou-Concrete-Engineering-Suite-Setup-1.0.0.exe
 ```
 
 The script stops before packaging if the QA gate fails.
