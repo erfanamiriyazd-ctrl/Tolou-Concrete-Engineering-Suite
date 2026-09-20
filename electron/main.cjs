@@ -614,14 +614,17 @@ async function runUiSmoke(win) {
         historyVisible:
           payload.history.includes('QC010-001') || payload.history.includes('OPT-DEMO-001'),
         hydratedUi:
-          payload.kpis.includes('400 kg/m³') &&
-          payload.kpis.includes('5') &&
-          payload.kpis.includes('1') &&
-          payload.kpis.includes('غیرفعال') &&
-          payload.summary.includes('5') &&
-          payload.summary.includes('1') &&
+          payload.kpis.includes('حجم مطلق کامل') &&
+          payload.kpis.includes('0.475') &&
+          (payload.kpis.includes('5') || payload.kpis.includes('۵')) &&
+          payload.kpis.includes('0.500') &&
+          (payload.summary.includes('5') || payload.summary.includes('۵')) &&
+          (payload.summary.includes('1') || payload.summary.includes('۱')) &&
+          payload.summary.includes('غیرمغلوب') &&
           payload.table.includes('0.480') &&
-          payload.table.includes('297.98'),
+          payload.table.includes('400.0') &&
+          payload.table.includes('32.7') &&
+          payload.table.includes('غربالگری'),
         traceability:
           !!payload.study?.designFingerprint &&
           !!payload.study?.evidenceFingerprint
