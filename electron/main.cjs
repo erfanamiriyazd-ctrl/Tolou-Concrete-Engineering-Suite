@@ -412,19 +412,19 @@ async function runUiSmoke(win) {
 
           const frame=document.getElementById('frame-base');
           let ready=false;
-          for(let i=0;i<35;i++){
+          for(let i=0;i<50;i++){
             await sleep(100);
             try{
-              if(frame?.contentDocument?.getElementById('tolouProjectSelect') &&
-                 frame.contentDocument.getElementById('iran35WcMode')){ready=true;break;}
+              const d0=frame?.contentDocument;
+              if(d0?.readyState==='complete' &&
+                 d0.getElementById('tolouProjectSelect') &&
+                 d0.getElementById('iran35WcMode')){ready=true;break;}
             }catch(e){}
           }
           if(!ready) throw new Error('QC-010 did not become ready');
+          await sleep(220);
 
           const d=frame.contentDocument, w=frame.contentWindow;
-          if(typeof w.TolouRefreshProjectLibrary==='function'){
-            w.TolouRefreshProjectLibrary('init'); await sleep(160);
-          }
 
           const calcButton=[...d.querySelectorAll('button')].find(b=>(b.getAttribute('onclick')||'').replace(/\s/g,'')==='calculateMix()');
           if(!calcButton) throw new Error('UI calculate button not found');
