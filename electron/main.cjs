@@ -1212,7 +1212,7 @@ async function runUiSmoke(win) {
           const view=document.getElementById('view-trials');
           await waitFor('Trial Lab view',()=>view?.classList.contains('active'));mark('trial-view-active');
           if(typeof loadTrialLab==='function')loadTrialLab();mark('trial-lab-loaded');
-          const seriesCard=await waitFor('Target trial series UI',()=>[...document.querySelectorAll('#tlSeriesList .tl-series')].find(el=>(el.innerText||'').includes("${seriesId}")));
+          const seriesCard=await waitFor('Target trial series UI',()=>[...document.querySelectorAll('#tlSeriesList .tl-series')].find(el=>(el.getAttribute('onclick')||'').includes("${seriesId}")));
           mark('series-found');seriesCard.click();mark('series-click-returned');
           await waitFor('Trial editor',()=>document.getElementById('tlBatchNo')&&document.querySelector('#tlEditor button[onclick="saveTrialBatch()"]'));mark('trial-editor-ready');
           const set=(id,value)=>{const el=document.getElementById(id);if(!el)throw new Error(id+' unavailable');el.value=String(value);el.dispatchEvent(new Event('input',{bubbles:true}));el.dispatchEvent(new Event('change',{bubbles:true}))};
