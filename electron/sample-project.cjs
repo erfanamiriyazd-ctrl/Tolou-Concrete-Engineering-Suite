@@ -368,8 +368,13 @@ function makeTrial(i,date,water,fc28,slump,air,density,moistures){
         `w/cm واقعی ${wcm.toFixed(3)} ${withinWcm?'از حد 0.500 عبور نکرده':'از حد 0.500 عبور کرده'} است.`
       ]
     },
-    updatedAt:`${date}T16:00:00+03:30`,createdAt:`${date}T08:00:00+03:30`
-  };
+    updatedAt:`${date}T16:00:00+03:30`,createdAt:`${date}T08:00:00+03:30`,
+  fillerContent:0,
+  superplasticizer:0,
+  vma:0,
+  airEntrainer:0,
+  retarder:0
+};
 }
 const trials=[
   makeTrial(1,'2026-06-01',184,34.6,90,1.8,2358,[3.4,1.4,1.1]),
