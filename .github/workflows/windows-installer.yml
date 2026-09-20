@@ -2,16 +2,6 @@ name: Tolou Windows Installer
 
 on:
   workflow_dispatch:
-  push:
-    branches:
-      - feature/windows-shell
-    paths:
-      - "package.json"
-      - "electron/**"
-      - "app/**"
-      - "assets/**"
-      - "scripts/**"
-      - ".github/workflows/windows-installer.yml"
 
 jobs:
   build-windows:
