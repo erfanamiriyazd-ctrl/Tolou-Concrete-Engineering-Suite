@@ -2,6 +2,9 @@ name: Tolou Windows Installer
 
 on:
   workflow_dispatch:
+  push:
+    branches:
+      - feature/qa-sample-stage4-trial-lab
   pull_request:
     branches:
       - feature/windows-shell
