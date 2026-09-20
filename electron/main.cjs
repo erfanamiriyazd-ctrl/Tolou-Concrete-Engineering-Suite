@@ -388,6 +388,147 @@ async function runUiSmoke(win) {
     }
   }
 
+  async function stageCEngineResponse() {
+    try {
+      const payload = await win.webContents.executeJavaScript(`
+        (async () => {
+          const sleep = ms => new Promise(r => setTimeout(r, ms));
+
+          // Operator path: Project Hub -> select -> activate -> open QC-010.
+          document.querySelector('#nav button[data-view="projects"]')?.click();
+          await sleep(180);
+          if (typeof projectLoad === 'function') projectLoad();
+          await sleep(120);
+          const target=[...document.querySelectorAll('#prProjectList .pr-project-item')]
+            .find(x=>x.innerText.includes('TL-DEMO-25-400'));
+          if(!target) throw new Error('Project card missing');
+          target.click(); await sleep(80);
+          const activate=document.getElementById('prSetActive');
+          if(!activate||activate.disabled) throw new Error('Activate button unavailable');
+          activate.click(); await sleep(100);
+          const openBase=document.getElementById('prOpenBase');
+          if(!openBase||openBase.disabled) throw new Error('QC-010 button unavailable');
+          openBase.click();
+
+          const frame=document.getElementById('frame-base');
+          let ready=false;
+          for(let i=0;i<35;i++){
+            await sleep(100);
+            try{
+              if(frame?.contentDocument?.getElementById('tolouProjectSelect') &&
+                 frame.contentDocument.getElementById('iran35WcMode')){ready=true;break;}
+            }catch(e){}
+          }
+          if(!ready) throw new Error('QC-010 did not become ready');
+
+          const d=frame.contentDocument, w=frame.contentWindow;
+          if(typeof w.TolouRefreshProjectLibrary==='function'){
+            w.TolouRefreshProjectLibrary('init'); await sleep(160);
+          }
+
+          const calcButton=[...d.querySelectorAll('button')].find(b=>(b.getAttribute('onclick')||'').replace(/\s/g,'')==='calculateMix()');
+          if(!calcButton) throw new Error('UI calculate button not found');
+
+          // Baseline calculation through real UI button.
+          calcButton.click(); await sleep(220);
+          const baseResp=typeof w.TolouGetMixSnapshot==='function' ? w.TolouGetMixSnapshot() : null;
+          if(!baseResp?.ok) throw new Error('Baseline engine did not produce a mix: '+(baseResp?.message||'unknown'));
+          const base=baseResp.snapshot;
+
+          // Engineer-controlled input: switch Stage 3.5 to manual w/c and enter 0.460 through DOM input events.
+          const mode=d.getElementById('iran35WcMode');
+          const manual=d.getElementById('iran35ManualWc');
+          if(!mode||!manual) throw new Error('Stage 3.5 engineer inputs missing');
+          mode.value='manual';
+          mode.dispatchEvent(new Event('change',{bubbles:true}));
+          await sleep(80);
+          manual.value='0.460';
+          manual.dispatchEvent(new Event('input',{bubbles:true}));
+          manual.dispatchEvent(new Event('change',{bubbles:true}));
+          await sleep(100);
+
+          // Recalculate through the same real UI button.
+          calcButton.click(); await sleep(250);
+          const changedResp=typeof w.TolouGetMixSnapshot==='function' ? w.TolouGetMixSnapshot() : null;
+          if(!changedResp?.ok) throw new Error('Changed-input engine did not produce a mix: '+(changedResp?.message||'unknown'));
+          const changed=changedResp.snapshot;
+
+          const resultText=d.getElementById('resultsContainer')?.innerText||'';
+          const activeTab=d.querySelector('.tab-content.active')?.id||'';
+          d.getElementById('resultsContainer')?.scrollIntoView({block:'start',inline:'nearest'});
+          await sleep(120);
+
+          return {
+            projectId: typeof projectHub!=='undefined'?projectHub.activeProjectId:null,
+            modeValue:mode.value,
+            manualValue:manual.value,
+            activeTab,
+            resultText,
+            baseline:{
+              finalWc:base.finalWc,wcm:base.wcm,
+              cement:base.cementContent,effectiveWater:base.effectiveWater,batchWater:base.batchWater,
+              aggregateSSD:base.aggregateSSDTotal,totalWeight:base.totalWeight,
+              closure:base.volumeClosure,fingerprint:base.calculationFingerprint,
+              gateStatus:base.integrationAudit?.status,
+              requiredPassed:base.integrationAudit?.requiredPassed,
+              requiredTotal:base.integrationAudit?.requiredTotal
+            },
+            changed:{
+              finalWc:changed.finalWc,wcm:changed.wcm,
+              cement:changed.cementContent,effectiveWater:changed.effectiveWater,batchWater:changed.batchWater,
+              aggregateSSD:changed.aggregateSSDTotal,totalWeight:changed.totalWeight,
+              closure:changed.volumeClosure,fingerprint:changed.calculationFingerprint,
+              gateStatus:changed.integrationAudit?.status,
+              requiredPassed:changed.integrationAudit?.requiredPassed,
+              requiredTotal:changed.integrationAudit?.requiredTotal
+            }
+          };
+        })()
+      `, true);
+
+      const b=payload.baseline||{}, n=payload.changed||{};
+      const diff=(a,z)=>Math.abs(Number(a)-Number(z));
+      const checks={
+        projectContextPreserved: payload.projectId==='PRJ-DEMO-25-400',
+        baselineCalculated:
+          b.gateStatus==='locked-for-trial' &&
+          Number(b.requiredPassed)===Number(b.requiredTotal) &&
+          Math.abs(Number(b.closure)-1)<1e-6,
+        engineerInputApplied:
+          payload.modeValue==='manual' &&
+          Math.abs(Number(payload.manualValue)-0.46)<1e-9,
+        changedCalculated:
+          n.gateStatus==='locked-for-trial' &&
+          Number(n.requiredPassed)===Number(n.requiredTotal) &&
+          Math.abs(Number(n.closure)-1)<1e-6,
+        wcActuallyChanged:
+          diff(b.finalWc,n.finalWc)>0.005 &&
+          Math.abs(Number(n.finalWc)-0.46)<0.002,
+        cementActuallyChanged:
+          diff(b.cement,n.cement)>1,
+        aggregateActuallyChanged:
+          diff(b.aggregateSSD,n.aggregateSSD)>1,
+        batchWaterPropagated:
+          diff(b.batchWater,n.batchWater)>0.1 || diff(b.effectiveWater,n.effectiveWater)>0.1,
+        fingerprintChanged:
+          !!b.fingerprint && !!n.fingerprint && b.fingerprint!==n.fingerprint,
+        resultRendered:
+          payload.activeTab==='tab10' &&
+          payload.resultText.includes('موتور روش ملی ایران') &&
+          payload.resultText.includes('Calculated') &&
+          payload.resultText.includes('Trial Required')
+      };
+      const ok=Object.values(checks).every(Boolean);
+      results.push({name:'C-engine-response',ok,checks,payload});
+      if(!ok) failures.push('C-engine-response: '+Object.entries(checks).filter(([,v])=>!v).map(([k])=>k).join(', '));
+      await capture('C-engine-response');
+    } catch(error) {
+      results.push({name:'C-engine-response',ok:false,error:error?.stack||error?.message||String(error)});
+      failures.push('C-engine-response: '+(error?.message||String(error)));
+      await capture('C-engine-response-error').catch(()=>{});
+    }
+  }
+
   async function stage2MixLibrary() {
     try {
       const payload = await win.webContents.executeJavaScript(`
@@ -1400,6 +1541,7 @@ async function runUiSmoke(win) {
   await new Promise(r => setTimeout(r, 1200));
   if (stage === 'projects') await stage1Projects();
   else if (stage === 'project-to-qc010') await stageBProjectToQc010();
+  else if (stage === 'engine-response') await stageCEngineResponse();
   else if (stage === 'mix-library') await stage2MixLibrary();
   else if (stage === 'durability') await stage3Durability();
   else if (stage === 'economics') await stage4Economics();
