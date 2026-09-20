@@ -1475,21 +1475,48 @@ function optHydrateStoredStudy(study){
    optRefreshMixOptions(true);
    if([...oe('optMix').options].some(o=>o.value===source))oe('optMix').value=source;
  }
+ const constraints=study.constraints||{};
+ const set=(id,v)=>{if(oe(id)&&v!==null&&v!==undefined&&v!=='')oe(id).value=v};
+ set('optWMin',constraints.wmin);
+ set('optWMax',constraints.wmax);
+ set('optWStep',constraints.wstep);
+ const fixedCement=Number(constraints.cementFixed);
+ if(Number.isFinite(fixedCement)&&fixedCement>0){
+   set('optCmMin',fixedCement);
+   set('optCmMax',fixedCement);
+   set('optCmStep',1);
+   set('optCementMin',fixedCement);
+ }
+ if(constraints.cementVariationAllowed===false){
+   set('optScmMin',Number(constraints.scmFixed??0));
+   set('optScmMax',Number(constraints.scmFixed??0));
+   set('optScmStep',1);
+ }
+ set('optDurW',constraints.maxWcm??constraints.dur);
+ set('optWaterMin',constraints.waterMin);
+ set('optWaterMax',constraints.waterMax);
+ set('optStrengthMin',constraints.strengthMin);
+ if(oe('optEnforceStrength'))oe('optEnforceStrength').checked=constraints.enforce!==false;
+
+ const rawObjectives=(study.objectives||[]).map(o=>typeof o==='string'?o:o.id);
+ if(oe('optObjCost'))oe('optObjCost').checked=rawObjectives.some(x=>x==='cost'||x==='exPlantCost');
+ if(oe('optObjCarbon'))oe('optObjCarbon').checked=rawObjectives.includes('carbon');
+ if(oe('optObjStrength'))oe('optObjStrength').checked=rawObjectives.includes('strength');
+
  const all=(study.candidates||[]).map(c=>({
    ...c,
-   cm:Number(c.cm??c.cement??study.constraints?.cementFixed??0),
-   cement:Number(c.cement??c.cm??study.constraints?.cementFixed??0),
+   cm:Number(c.cm??c.cement??constraints.cementFixed??0),
+   cement:Number(c.cement??c.cm??constraints.cementFixed??0),
    scmPct:Number(c.scmPct??0),
    water:Number(c.water),
    strength:Number(c.strength),
-   cost:Number(c.cost),
+   cost:Number(c.cost??c.exPlantCost),
    carbon:Number(c.carbon),
    priceCoverage:100,
    gwpCoverage:100,
    mode:'stored'
  }));
  const feasible=all.filter(c=>c.feasible!==false);
- const rawObjectives=(study.objectives||[]).map(o=>typeof o==='string'?o:o.id);
  const objectives=[];
  if(rawObjectives.some(x=>x==='cost'||x==='exPlantCost'))objectives.push('cost');
  if(rawObjectives.includes('carbon'))objectives.push('carbon');
@@ -1505,7 +1532,7 @@ function optHydrateStoredStudy(study){
    engine:study.engine||'Iranian National Method / Publication 479',
    fullMode:false,
    objectives:objectives.length?objectives:['cost','carbon'],
-   constraints:study.constraints||{},
+   constraints,
    calibration:study.calibration||null,
    candidates:feasible,
    pareto,
@@ -1519,7 +1546,7 @@ function optHydrateStoredStudy(study){
  }
  if(oe('optStatus')){
    oe('optStatus').innerHTML=`
-     <div class="opt-kpi good"><span>سیمان ثابت</span><b>${Number(study.constraints?.cementFixed??400).toFixed(0)} kg/m³</b></div>
+     <div class="opt-kpi good"><span>سیمان ثابت</span><b>${Number(constraints.cementFixed??400).toFixed(0)} kg/m³</b></div>
      <div class="opt-kpi"><span>جواب شدنی</span><b>${feasible.length}</b></div>
      <div class="opt-kpi"><span>پارتو</span><b>${pareto.length}</b></div>
      <div class="opt-kpi warn"><span>انتخاب خودکار</span><b>غیرفعال</b></div>`;
