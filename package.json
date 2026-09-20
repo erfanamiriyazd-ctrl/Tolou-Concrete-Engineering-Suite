@@ -11,7 +11,7 @@
   "scripts": {
     "start": "electron .",
     "pack": "npm run icon:build && electron-builder --dir",
-    "dist:win": "npm run icon:build && electron-builder --win nsis",
+    "dist:win": "npm run icon:build && electron-builder --win nsis --publish never",
     "icon:build": "node scripts/build-icon.cjs"
   },
   "devDependencies": {
@@ -57,10 +57,10 @@
       "runAfterFinish": true,
       "artifactName": "Tolou-Concrete-Engineering-Suite-Setup-${version}.${ext}",
       "uninstallDisplayName": "Tolou Concrete Engineering Suite",
-      "warnElevation": true,
       "installerIcon": "build/icon.ico",
       "uninstallerIcon": "build/icon.ico",
-      "installerHeaderIcon": "build/icon.ico"
+      "installerHeaderIcon": "build/icon.ico",
+      "allowElevation": true
     },
     "executableName": "Tolou Concrete Engineering Suite"
   },
