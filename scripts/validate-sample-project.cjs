@@ -203,3 +203,14 @@ assert.ok(appSource.includes('thead{display:table-header-group}'), 'UX-12: repea
 assert.ok(appSource.includes('const b=reportPagedBuild()'), 'UX-12: print/export must consume paged report');
 assert.ok(!appSource.includes('pfLogoNone مانع'), 'UX-12: corrupted profile control id remains');
 assert.ok(!appSource.includes('repNone مانعAll'), 'UX-12: corrupted report control id remains');
+
+// UX-13 contract: dashboard is a real Engineering Command Center backed by project state.
+assert.ok(appSource.includes('id="homeCommandCenter"'), 'UX-13: engineering command center surface missing');
+assert.ok(appSource.includes('function uxRenderCommandCenter()'), 'UX-13: command center renderer missing');
+assert.ok(appSource.includes("const d=projectData(p.id)"), 'UX-13: dashboard must consume active-project data');
+assert.ok(appSource.includes('آزمایش‌های معلق'), 'UX-13: pending trial KPI missing');
+assert.ok(appSource.includes('وضعیت تأیید'), 'UX-13: approval-state KPI missing');
+assert.ok(appSource.includes('فعالیت اخیر پروژه'), 'UX-13: recent project activity panel missing');
+assert.ok(appSource.includes('اقدام بعدی:'), 'UX-13: next-action guidance missing');
+assert.ok(appSource.includes('uxRenderFlow‌کار();uxRenderCommandCenter();'), 'UX-13: command center is not wired into home render');
+
