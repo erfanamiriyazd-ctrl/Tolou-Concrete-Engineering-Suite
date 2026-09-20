@@ -2567,6 +2567,27 @@ let initial='home';try{const x=localStorage.getItem('TolouUnified_lastView');if(
 </script>
 
 
+<script id="tolou-runtime-state-bridge">
+(() => {
+  const bindings = {
+    projectHub: () => projectHub,
+    trialLab: () => trialLab,
+    qcState: () => qcState,
+    prodState: () => prodState,
+    durState: () => durState,
+    ecoState: () => ecoState,
+    optState: () => optState,
+    aggState: () => aggState,
+    materialLibrary: () => materialLibrary
+  };
+  for (const [key, getter] of Object.entries(bindings)) {
+    try {
+      Object.defineProperty(window, key, { configurable: true, enumerable: false, get: getter });
+    } catch {}
+  }
+})();
+</script>
+
 <script id="tolou-stage61-e2e-audit">
 (function(){
  'use strict';
