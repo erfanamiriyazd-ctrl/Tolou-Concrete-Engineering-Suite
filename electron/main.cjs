@@ -375,11 +375,131 @@ async function runUiSmoke(win) {
     }
   }
 
+
+  async function stage4Economics() {
+    try {
+      const payload = await win.webContents.executeJavaScript(`
+        (async () => {
+          const sleep = ms => new Promise(r => setTimeout(r, ms));
+          const nav = document.querySelector('#nav button[data-view="economics"]');
+          if (nav) nav.click();
+          await sleep(250);
+          if (typeof ecoLoad === 'function') ecoLoad();
+          if (typeof ecoRefreshMixOptions === 'function') ecoRefreshMixOptions();
+          if (typeof ecoRenderAll === 'function') ecoRenderAll();
+          await sleep(200);
+
+          const view = document.getElementById('view-economics');
+          const rect = view?.getBoundingClientRect();
+          const visible = !!view && view.classList.contains('active') && rect.width > 0 && rect.height > 0 &&
+            getComputedStyle(view).display !== 'none' && getComputedStyle(view).visibility !== 'hidden';
+
+          const mix = document.getElementById('ecoMix');
+          const history = document.getElementById('ecoHistory');
+          const summary = document.getElementById('ecoSummary');
+          const kpis = document.getElementById('ecoKpis');
+          const table = document.getElementById('ecoTable');
+          const quality = document.getElementById('ecoDataQuality');
+
+          const options = mix ? [...mix.options].map(o => ({value:o.value,text:o.textContent})) : [];
+          const record = typeof ecoState !== 'undefined'
+            ? (ecoState.records || []).find(r => r.id === 'ECO-DEMO-001')
+            : null;
+
+          return {
+            visible,
+            options,
+            currentValue: mix?.value || '',
+            history: history?.innerText || '',
+            summary: summary?.innerText || '',
+            kpis: kpis?.innerText || '',
+            table: table?.innerText || '',
+            quality: quality?.innerText || '',
+            record: record ? {
+              id: record.id,
+              projectId: record.projectId,
+              seriesId: record.seriesId,
+              revision: record.revision,
+              mixKey: record.mixKey,
+              mixLabel: record.mixLabel,
+              exPlantConcretePrice: record.exPlantConcretePrice,
+              deliveryFreight: record.deliveryFreight,
+              vatRatePct: record.vatRatePct,
+              vatAmount: record.vatAmount,
+              deliveredWithVat: record.deliveredWithVat,
+              pumpingCost: record.pumpingCost,
+              totalCost: record.totalCost,
+              materialCost: record.materialCost,
+              totalCarbon: record.totalCarbon,
+              commercialValidity: record.dataQuality?.commercialValidity,
+              environmentalClaimValidity: record.dataQuality?.environmentalClaimValidity,
+              warning: record.dataQuality?.warning || '',
+              performanceValue: record.performance?.value,
+              designFingerprint: record.designFingerprint,
+              evidenceFingerprint: record.evidenceFingerprint
+            } : null
+          };
+        })()
+      `, true);
+
+      const hasMixOption = payload.options.some(o =>
+        o.value.includes('MX-DEMO-25-400') &&
+        o.text.includes('QC010-001') &&
+        o.text.includes('R0')
+      );
+
+      const checks = {
+        pageVisible: payload.visible === true,
+        mixRecognized: hasMixOption,
+        historyShowsRecord:
+          payload.history.includes('تحلیل اقتصادی/کربن پروژه نمونه 25/400') ||
+          payload.history.includes('QC010-001'),
+        recordIdentity:
+          payload.record?.id === 'ECO-DEMO-001' &&
+          payload.record?.projectId === 'PRJ-DEMO-25-400' &&
+          payload.record?.seriesId === 'MX-DEMO-25-400' &&
+          Number(payload.record?.revision) === 0 &&
+          payload.record?.mixKey === 'MX-DEMO-25-400::0',
+        commercialNumbers:
+          Number(payload.record?.exPlantConcretePrice) === 36800000 &&
+          Number(payload.record?.deliveryFreight) === 6800000 &&
+          Number(payload.record?.vatRatePct) === 10 &&
+          Number(payload.record?.vatAmount) === 4360000 &&
+          Number(payload.record?.deliveredWithVat) === 47960000 &&
+          Number(payload.record?.pumpingCost) === 2400000 &&
+          Number(payload.record?.totalCost) === 50360000,
+        costBasis:
+          Number(payload.record?.materialCost) > 23000000 &&
+          Number(payload.record?.materialCost) < 25000000,
+        performance:
+          Number(payload.record?.performanceValue) >= 33.17 &&
+          Number(payload.record?.performanceValue) <= 33.19,
+        dataQuality:
+          payload.record?.commercialValidity === 'project-priced-plus-sourced-estimates' &&
+          payload.record?.environmentalClaimValidity === 'illustrative-only' &&
+          payload.record?.warning.includes('GWP'),
+        traceability:
+          !!payload.record?.designFingerprint &&
+          !!payload.record?.evidenceFingerprint
+      };
+
+      const ok = Object.values(checks).every(Boolean);
+      results.push({ name:'04-economics', ok, checks, payload });
+      if (!ok) failures.push('04-economics: ' + Object.entries(checks).filter(([,v])=>!v).map(([k])=>k).join(', '));
+      await capture('04-economics');
+    } catch (error) {
+      results.push({ name:'04-economics', ok:false, error:error?.stack || error?.message || String(error) });
+      failures.push('04-economics: ' + (error?.message || String(error)));
+      await capture('04-economics-error').catch(()=>{});
+    }
+  }
+
   await new Promise(r => setTimeout(r, 1200));
   if (stage === 'projects') await stage1Projects();
   else if (stage === 'mix-library') await stage2MixLibrary();
   else if (stage === 'durability') await stage3Durability();
-  else if (stage === 'all') { await stage1Projects(); await stage2MixLibrary(); await stage3Durability(); }
+  else if (stage === 'economics') await stage4Economics();
+  else if (stage === 'all') { await stage1Projects(); await stage2MixLibrary(); await stage3Durability(); await stage4Economics(); }
 
   const report = { at:new Date().toISOString(), platform:process.platform, stage, failures, results };
   fs.writeFileSync(path.join(dir, 'ui-smoke-result.json'), JSON.stringify(report, null, 2), 'utf8');
