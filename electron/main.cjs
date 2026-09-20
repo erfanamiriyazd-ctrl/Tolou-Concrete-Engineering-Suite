@@ -1107,71 +1107,65 @@ async function runUiSmoke(win) {
         win.webContents.once('did-finish-load',onLoad);
         win.webContents.reload();
       });
-      await new Promise(r=>setTimeout(r,1200));
       const payload=await withAuditTimeout(win.webContents.executeJavaScript(`
         (async()=>{
-          const sleep=ms=>new Promise(r=>setTimeout(r,ms));
           const trace=[];
-          const mark=(step,extra={})=>{const item={step,at:Date.now(),...extra};trace.push(item);localStorage.setItem('Tolou_D5_trace_v1',JSON.stringify(trace));console.log('[D5_TRACE]',step,extra)};
-          window.__tolouD5Mark=mark;
-          mark('storage-read-start');
-          const lab=JSON.parse(localStorage.getItem('Tolou_trial_lab_v1')||'{"series":[]}');
-          mark('storage-read-done',{seriesCount:(lab.series||[]).length});
-          const s=(lab.series||[]).find(x=>x.id===${JSON.stringify(seriesId)});
+          const mark=(step,extra={})=>{const item={step,at:Date.now(),...extra};trace.push(item);localStorage.setItem('Tolou_D5_trace_v2',JSON.stringify(trace))};
           const summarize=r=>r?{revision:r.revision,fingerprint:r.snapshot?.calculationFingerprint,wcm:r.snapshot?.wcm,cement:r.snapshot?.cementContent,water:r.snapshot?.effectiveWater,aggregateSSD:r.snapshot?.aggregateSSDTotal}:null;
-          const storedR0=summarize((s?.revisions||[]).find(r=>Number(r.revision)===0));
-          const storedR1=summarize((s?.revisions||[]).find(r=>Number(r.revision)===1));
-          const uiStateBefore={
-            lastView:localStorage.getItem('TolouUnified_lastView'),
-            activeViews:[...document.querySelectorAll('.view.active')].map(x=>x.id),
-            mixLibraryActive:document.getElementById('view-mix-library')?.classList.contains('active')||false,
-            mlListExists:!!document.getElementById('mlList'),
-            mlDetailExists:!!document.getElementById('mlDetail'),
-            revisionButtons:[...document.querySelectorAll('#view-mix-library button')].filter(el=>(el.innerText||'').includes('اصلاح در')).length
-          };
-          mark('post-reload-ui-state',uiStateBefore);
-          mark('library-open-start');
-          if(typeof openView!=='function')throw new Error('openView unavailable after reload');
-          mark('openView-direct-start');
-          openView('mix-library');
-          mark('openView-direct-returned',{
-            activeViews:[...document.querySelectorAll('.view.active')].map(x=>x.id),
-            mixLibraryActive:document.getElementById('view-mix-library')?.classList.contains('active')||false,
-            revisionButtons:[...document.querySelectorAll('#view-mix-library button')].filter(el=>(el.innerText||'').includes('اصلاح در')).length
-          });
-          mark('library-open-done',{
-            mlListChildren:document.getElementById('mlList')?.children?.length??null,
-            mlDetailButtons:document.querySelectorAll('#mlDetail button').length,
-            revisionButtons:[...document.querySelectorAll('#view-mix-library button')].filter(el=>(el.innerText||'').includes('اصلاح در')).length
-          });
-          if(typeof loadTrialLab==='function')loadTrialLab();if(typeof mlRender==='function')mlRender();await sleep(200);
-          const view=document.getElementById('view-mix-library');
-          async function openRevision(rv){
-            const btn=[...view.querySelectorAll('button')].find(el=>(el.innerText||'').includes('اصلاح در QC-010')&&(el.getAttribute('onclick')||'').includes(${JSON.stringify(seriesId)})&&(el.getAttribute('onclick')||'').includes(','+rv+')'));
-            if(!btn) throw new Error('Revision R'+rv+' edit control unavailable');
-            mark('R'+rv+'-click-start');
-            btn.click();
-            mark('R'+rv+'-click-returned');
-            await sleep(800);
-            mark('R'+rv+'-snapshot-start');
+          const snapshot=rv=>{
             const w=document.getElementById('frame-base')?.contentWindow;
-            const snap=w?.TolouGetMixSnapshot?.();
-            if(!snap?.ok) throw new Error('Revision R'+rv+' failed to load into engine');
-            mark('R'+rv+'-snapshot-done',{fingerprint:snap.snapshot?.calculationFingerprint,wcm:snap.snapshot?.wcm});
-            return {revision:rv,fingerprint:snap.snapshot?.calculationFingerprint,wcm:snap.snapshot?.wcm,cement:snap.snapshot?.cementContent,water:snap.snapshot?.effectiveWater,aggregateSSD:snap.snapshot?.aggregateSSDTotal};
-          }
-          mark('R0-open-start');
+            const x=w?.TolouGetMixSnapshot?.();
+            if(!x?.ok)throw new Error('Revision R'+rv+' engine snapshot unavailable');
+            return {revision:rv,fingerprint:x.snapshot?.calculationFingerprint,wcm:x.snapshot?.wcm,cement:x.snapshot?.cementContent,water:x.snapshot?.effectiveWater,aggregateSSD:x.snapshot?.aggregateSSDTotal};
+          };
+          const waitFor=async(label,test,limit=80)=>{
+            for(let n=0;n<limit;n++){
+              const value=test();
+              if(value)return value;
+              await new Promise(requestAnimationFrame);
+            }
+            throw new Error(label+' readiness condition not reached');
+          };
+
+          mark('storage-read');
+          const lab=JSON.parse(localStorage.getItem('Tolou_trial_lab_v1')||'{"series":[]}');
+          const s=(lab.series||[]).find(x=>x.id===${JSON.stringify(seriesId)});
+          if(!s)throw new Error('Target mix series missing after reload');
+          const storedR0=summarize((s.revisions||[]).find(r=>Number(r.revision)===0));
+          const storedR1=summarize((s.revisions||[]).find(r=>Number(r.revision)===1));
+          if(!storedR0||!storedR1)throw new Error('R0/R1 missing after reload');
+
+          mark('library-open');
+          openView('mix-library');
+          const view=document.getElementById('view-mix-library');
+          if(!view?.classList.contains('active'))throw new Error('Mix Library did not become active');
+          const revisionButton=rv=>[...view.querySelectorAll('button')].find(el=>(el.innerText||'').includes('اصلاح در QC-010')&&(el.getAttribute('onclick')||'').includes(${JSON.stringify(seriesId)})&&(el.getAttribute('onclick')||'').includes(','+rv+')'));
+          await waitFor('R0/R1 UI controls',()=>revisionButton(0)&&revisionButton(1));
+          mark('library-ready',{revisionButtons:[0,1].filter(rv=>!!revisionButton(rv)).length});
+
+          const openRevision=async rv=>{
+            const btn=revisionButton(rv);
+            if(!btn)throw new Error('Revision R'+rv+' edit control unavailable');
+            mark('R'+rv+'-ui-action');
+            btn.click();
+            await waitFor('R'+rv+' QC-010 load',()=>{
+              const w=document.getElementById('frame-base')?.contentWindow;
+              const x=w?.TolouGetMixSnapshot?.();
+              const expected=rv===0?storedR0:storedR1;
+              return x?.ok&&x.snapshot?.calculationFingerprint===expected.fingerprint?true:false;
+            });
+            const out=snapshot(rv);
+            mark('R'+rv+'-loaded',{fingerprint:out.fingerprint,wcm:out.wcm});
+            return out;
+          };
+
           const loadedR0=await openRevision(0);
-          mark('R0-open-done');
-          mark('return-library-start');
-          document.querySelector('#nav button[data-view="mix-library"]')?.click();await sleep(250);if(typeof mlRender==='function')mlRender();
-          mark('return-library-done');
-          mark('R1-open-start');
+          openView('mix-library');
+          await waitFor('R1 UI control after R0',()=>revisionButton(1));
           const loadedR1=await openRevision(1);
-          mark('R1-open-done');
-          return {trace,series:{id:s?.id,projectId:s?.projectId,revisionCount:s?.revisions?.length},storedR0,storedR1,loadedR0,loadedR1};
+          return {trace,series:{id:s.id,projectId:s.projectId,revisionCount:(s.revisions||[]).length},storedR0,storedR1,loadedR0,loadedR1};
         })()
-      `,true), 15000, 'D5 revision independence UI flow');
+      `,true),15000,'D5 v2 revision independence UI flow');
       const same=(a,b)=>a&&b&&a.fingerprint===b.fingerprint&&Math.abs(Number(a.wcm)-Number(b.wcm))<1e-9&&Math.abs(Number(a.cement)-Number(b.cement))<1e-6&&Math.abs(Number(a.water)-Number(b.water))<1e-6&&Math.abs(Number(a.aggregateSSD)-Number(b.aggregateSSD))<1e-6;
       const checks={
         sameSeries:payload.series?.id===seriesId&&payload.series?.projectId==='PRJ-DEMO-25-400',
@@ -1180,18 +1174,17 @@ async function runUiSmoke(win) {
         r1PersistedUnchanged:same(payload.storedR1,expectedR1),
         revisionsAreDifferent:payload.storedR0?.fingerprint!==payload.storedR1?.fingerprint&&Math.abs(Number(payload.storedR0?.wcm)-Number(payload.storedR1?.wcm))>1e-9,
         r0ReloadsIndependently:same(payload.loadedR0,payload.storedR0),
-        r1ReloadsIndependently:same(payload.loadedR1,payload.storedR1)
+        r1ReloadsIndependently:same(payload.loadedR1,payload.storedR1),
+        noCrossContamination:payload.loadedR0?.fingerprint!==payload.loadedR1?.fingerprint
       };
       const ok=Object.values(checks).every(Boolean);
-      results.push({name:'D5-revision-independence',ok,checks,expectedR0,expectedR1,payload});
+      results.push({name:'D5-revision-independence',version:2,ok,checks,expectedR0,expectedR1,payload});
       if(!ok)failures.push('D5-revision-independence: '+Object.entries(checks).filter(([,v])=>!v).map(([k])=>k).join(', '));
       await capture('D5-revision-independence');
     }catch(error){
       let persistedTrace=[];
-      try{
-        persistedTrace=await win.webContents.executeJavaScript("JSON.parse(localStorage.getItem('Tolou_D5_trace_v1')||'[]')",true);
-      }catch(_){}
-      results.push({name:'D5-revision-independence',ok:false,error:error?.stack||error?.message||String(error),persistedTrace});
+      try{persistedTrace=await win.webContents.executeJavaScript("JSON.parse(localStorage.getItem('Tolou_D5_trace_v2')||'[]')",true)}catch(_){}
+      results.push({name:'D5-revision-independence',version:2,ok:false,error:error?.stack||error?.message||String(error),persistedTrace});
       failures.push('D5-revision-independence: '+(error?.message||String(error))+' | last checkpoint: '+(persistedTrace.at(-1)?.step||'none'));
       await capture('D5-revision-independence-error').catch(()=>{})
     }
