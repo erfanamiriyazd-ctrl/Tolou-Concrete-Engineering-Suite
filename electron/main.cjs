@@ -217,7 +217,12 @@ async function runUiSmoke(win) {
     const ok = Object.values(checks).every(Boolean);
     results.push({ name:'A-project-hub-operator', ok, checks, payload });
     if (!ok) failures.push('A-project-hub-operator: ' + Object.entries(checks).filter(([,v])=>!v).map(([k])=>k).join(', '));
-    document.getElementById('prActiveInfo')?.scrollIntoView({ block:'center', inline:'nearest' });
+    await win.webContents.executeJavaScript(`
+      (() => {
+        document.getElementById('prActiveInfo')?.scrollIntoView({ block:'center', inline:'nearest' });
+        return true;
+      })()
+    `, true);
     await new Promise(r => setTimeout(r, 150));
     await capture('A-project-hub-operator');
   }
