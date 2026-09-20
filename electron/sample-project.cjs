@@ -1,7 +1,7 @@
 'use strict';
 
 const SAMPLE_MARKER = 'Tolou_sample_project_v1';
-const SAMPLE_DATASET_VERSION = 5;
+const SAMPLE_DATASET_VERSION = 6;
 const PROJECT_ID = 'PRJ-DEMO-25-400';
 const SERIES_ID = 'MX-DEMO-25-400';
 const AGG_CASE_ID = 'AGC-DEMO-25-400';
@@ -493,9 +493,91 @@ const productionStats={
 };
 
 function addDays(iso,n){ const d=new Date(iso+'T12:00:00Z');d.setUTCDate(d.getUTCDate()+n);return d.toISOString().slice(0,10); }
+function sampleStats(values){
+  const vals=values.filter(Number.isFinite);
+  if(!vals.length)return {n:0,mean:null,sd:null,covPct:null,min:null,max:null};
+  const mean=vals.reduce((a,b)=>a+b,0)/vals.length;
+  const sd=vals.length>1?Math.sqrt(vals.reduce((s,v)=>s+(v-mean)**2,0)/(vals.length-1)):0;
+  return {n:vals.length,mean:round(mean,3),sd:round(sd,3),covPct:mean?round(sd/mean*100,2):null,min:round(Math.min(...vals),3),max:round(Math.max(...vals),3)};
+}
 const qcTests=[];
-trials.forEach((t,i)=>qcTests.push({id:`ST-DEMO-TR-${i+1}-28`,date:addDays(t.date,28),testId:`QC010-001-${t.batchNo}-28d`,mix:'QC010-001',revision:'R0',lot:t.batchNo,plant:'آزمایشگاه طرح اختلاط',age:28,strength:t.strengths['28'],target:25,specimens:[round(t.strengths['28']-.3,1),round(t.strengths['28'],1),round(t.strengths['28']+.3,1)],materialLot:'CII-260518-A / FA-260520 / CA7-260520 / CA5-260520',notes:'همگام‌سازی داده Trial نمونه.',source:'trial',sourceRef:`${SERIES_ID}|${t.id}|28`,projectId:PROJECT_ID,createdAt:`${addDays(t.date,28)}T10:00:00+03:30`}));
-productionBatches.forEach((b,i)=>{qcTests.push({id:`ST-DEMO-P-${i+1}-7`,date:addDays(b.date,7),testId:`${b.ticket}-7d`,mix:'QC010-001',revision:'R0',lot:b.ticket,plant:b.plant,age:7,strength:round(b.qaStrength28*.73,1),target:25,specimens:[],materialLot:'CII-260518-A / Aggregate Lot 260520',notes:'کنترل روند 7روزه تولید نمونه.',source:'manual',projectId:PROJECT_ID,createdAt:`${addDays(b.date,7)}T10:30:00+03:30`});qcTests.push({id:`ST-DEMO-P-${i+1}-28`,date:addDays(b.date,28),testId:`${b.ticket}-28d`,mix:'QC010-001',revision:'R0',lot:b.ticket,plant:b.plant,age:28,strength:b.qaStrength28,target:25,specimens:[round(b.qaStrength28-.2,1),b.qaStrength28,round(b.qaStrength28+.2,1)],materialLot:'CII-260518-A / Aggregate Lot 260520',notes:'کنترل مقاومت 28روزه تولید نمونه.',source:'manual',projectId:PROJECT_ID,createdAt:`${addDays(b.date,28)}T10:30:00+03:30`});});
+trials.forEach((t,i)=>{
+  [7,28].forEach(age=>{
+    const v=t.strengths[String(age)];
+    qcTests.push({
+      id:`ST-DEMO-TR-${i+1}-${age}`,
+      date:addDays(t.date,age),
+      testId:`QC010-001-${t.batchNo}-${age}d`,
+      mix:'QC010-001',seriesId:SERIES_ID,revision:'R0',revisionNo:0,lot:t.batchNo,
+      plant:'آزمایشگاه طرح اختلاط',age,strength:v,target:25,designMeanTarget:stage31.fcm,
+      specimens:clone(t.specimenSets[String(age)]||[]),
+      materialLots:clone(t.materialLots),
+      materialLot:'CII-260518-A / FA-260520 / CA7-260520 / CA5-260520',
+      notes:age===28?'نتیجه 28روزه Trial متصل به Evidence تأیید R0.':'نتیجه 7روزه Trial برای کنترل روند رشد مقاومت.',
+      source:'trial',sourceRef:`${SERIES_ID}|${t.id}|${age}`,projectId:PROJECT_ID,
+      designFingerprint:mixSnapshot.calculationFingerprint,evidenceFingerprint:evfp,
+      acceptance:{specifiedPass:age===28?v>=25:null,designMeanReference:stage31.fcm},
+      createdAt:`${addDays(t.date,age)}T10:00:00+03:30`
+    });
+  });
+});
+productionBatches.forEach((b,i)=>{
+  const strength7=round(b.qaStrength28*.73,1);
+  qcTests.push({
+    id:`ST-DEMO-P-${i+1}-7`,date:addDays(b.date,7),testId:`${b.ticket}-7d`,
+    mix:'QC010-001',seriesId:SERIES_ID,revision:'R0',revisionNo:0,lot:b.ticket,plant:b.plant,
+    age:7,strength:strength7,target:25,designMeanTarget:stage31.fcm,specimens:[round(strength7-.3,1),strength7,round(strength7+.3,1)],
+    materialLots:clone(b.materialLots),materialLot:'CII-260518-A / FA-260520 / CA7-260520 / CA5-260520',
+    notes:'کنترل روند 7روزه تولید نمونه؛ برای پذیرش نهایی، نتیجه 28روزه ملاک پرونده QA است.',
+    source:'production',sourceRef:b.id,projectId:PROJECT_ID,
+    designFingerprint:b.designFingerprint,evidenceFingerprint:b.approvalRef.evidenceFingerprint,
+    batchControl:clone(b.control),createdAt:`${addDays(b.date,7)}T10:30:00+03:30`
+  });
+  qcTests.push({
+    id:`ST-DEMO-P-${i+1}-28`,date:addDays(b.date,28),testId:`${b.ticket}-28d`,
+    mix:'QC010-001',seriesId:SERIES_ID,revision:'R0',revisionNo:0,lot:b.ticket,plant:b.plant,
+    age:28,strength:b.qaStrength28,target:25,designMeanTarget:stage31.fcm,
+    specimens:[round(b.qaStrength28-.3,1),b.qaStrength28,round(b.qaStrength28+.3,1)],
+    materialLots:clone(b.materialLots),materialLot:'CII-260518-A / FA-260520 / CA7-260520 / CA5-260520',
+    notes:'کنترل مقاومت 28روزه تولید نمونه و اتصال مستقیم به Batch تولیدی و R0 تأییدشده.',
+    source:'production',sourceRef:b.id,projectId:PROJECT_ID,
+    designFingerprint:b.designFingerprint,evidenceFingerprint:b.approvalRef.evidenceFingerprint,
+    acceptance:{specifiedPass:b.qaStrength28>=25,designMeanReference:stage31.fcm},
+    batchControl:clone(b.control),createdAt:`${addDays(b.date,28)}T10:30:00+03:30`
+  });
+});
+
+const trial7=qcTests.filter(t=>t.source==='trial'&&t.age===7);
+const trial28=qcTests.filter(t=>t.source==='trial'&&t.age===28);
+const prod7=qcTests.filter(t=>t.source==='production'&&t.age===7);
+const prod28=qcTests.filter(t=>t.source==='production'&&t.age===28);
+const productionFcStats=sampleStats(prod28.map(t=>t.strength));
+const trialFcStats=sampleStats(trial28.map(t=>t.strength));
+const combined28Stats=sampleStats([...trial28,...prod28].map(t=>t.strength));
+const production7Stats=sampleStats(prod7.map(t=>t.strength));
+const trial7Stats=sampleStats(trial7.map(t=>t.strength));
+const qcTrend=prod28.map((t,i)=>({
+  sequence:i+1,date:t.date,lot:t.lot,strength:t.strength,
+  deltaFromSpecified:round(t.strength-25,2),
+  deltaFromDesignMean:round(t.strength-stage31.fcm,2),
+  movingMean3:i<2?null:round(prod28.slice(i-2,i+1).reduce((s,x)=>s+x.strength,0)/3,3)
+}));
+const qcSummary={
+  projectId:PROJECT_ID,seriesId:SERIES_ID,revision:0,
+  specifiedStrength:25,requiredMeanStrength:stage31.fcm,
+  counts:{tests:qcTests.length,trial7:trial7.length,trial28:trial28.length,production7:prod7.length,production28:prod28.length},
+  trial:{age7:trial7Stats,age28:trialFcStats},
+  production:{age7:production7Stats,age28:productionFcStats},
+  combined28:combined28Stats,
+  allProduction28AboveSpecified:prod28.every(t=>t.strength>=25),
+  productionMeanAboveDesignMean:productionFcStats.mean>=stage31.fcm,
+  allProductionBatchesTraceable:prod28.every(t=>Boolean(t.sourceRef&&t.designFingerprint&&t.evidenceFingerprint&&t.materialLots)),
+  trend:qcTrend,
+  disposition:(prod28.every(t=>t.strength>=25)&&productionFcStats.mean>=stage31.fcm&&prod28.every(t=>t.batchControl?.productionReady))
+    ?'stable-controlled'
+    :'review-required',
+  interpretation:'کنترل آماری نمونه بر مبنای نتایج ثبت‌شده همین پروژه است؛ نتایج 7روزه برای روند و نتایج 28روزه برای ارزیابی پرونده QA استفاده شده‌اند.'
+};
 
 const durabilityRecord={id:'DUR-DEMO-001',projectId:PROJECT_ID,at:'2026-08-10T12:00:00+03:30',mix:`${SERIES_ID}|0`,mixLabel:'QC010-001 — بتن معمولی C25 — سیمان تیپ II — عیار 400 — R0',codes:['F0','S0','W0','C0'],member:'reinforced',actual:{w:.475,fc:25,air:2,chloride:.08,cement:'MS',cacl2:'no'},project:{w:.50,fc:25,chloride:null},governing:{maxW:.50,minFc:25},checks:[{code:'w/cm',state:'good',why:'w/cm طرح = 0.475؛ حداکثر پروژه = 0.500.','ref':'Project requirement / durability check'},{code:"f'c",state:'good',why:"f'c طرح = 25.0 MPa؛ حداقل پروژه = 25.0 MPa.",ref:'Project requirement'},{code:'کلرید',state:'good',why:'کلرید نمونه = 0.080% مواد سیمانی؛ در سناریوی C0 کنترل شده است.',ref:'QA sample durability input'}],overall:'good',notes:'سناریوی مواجهه معمول و غیرمهاجم برای بررسی اتصال موتور دوام؛ مقادیر آزمایشگاهی فرضی‌اند.'};
 
