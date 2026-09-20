@@ -102,98 +102,165 @@ async function runUiSmoke(win) {
   }
 
   async function stage1Projects() {
+    const payload = await win.webContents.executeJavaScript(`
+      (async () => {
+        const sleep = ms => new Promise(r => setTimeout(r, ms));
+        const nav = document.querySelector('#nav button[data-view="projects"]');
+        if (nav) nav.click();
+        await sleep(250);
+        if (typeof projectLoad === 'function') projectLoad();
+        await sleep(200);
+        const view = document.getElementById('view-projects');
+        const rect = view?.getBoundingClientRect();
+        const visible = !!view && view.classList.contains('active') && rect.width > 0 && rect.height > 0 &&
+          getComputedStyle(view).display !== 'none' && getComputedStyle(view).visibility !== 'hidden';
+        return {
+          visible,
+          list: document.getElementById('prProjectList')?.innerText || '',
+          active: document.getElementById('prActiveInfo')?.innerText || '',
+          form: {
+            code: document.getElementById('prCode')?.value || '',
+            name: document.getElementById('prName')?.value || '',
+            fc: document.getElementById('prReqFc')?.value || '',
+            slump: document.getElementById('prReqSlump')?.value || '',
+            wcm: document.getElementById('prReqWcm')?.value || '',
+            method: document.getElementById('prBaseMethod')?.value || '',
+            grade: document.getElementById('prIranSiteGrade')?.value || '',
+            fcClass: document.getElementById('prIranFcClass')?.value || ''
+          },
+          kpis: document.getElementById('prKpis')?.innerText || '',
+          timeline: document.getElementById('prTimeline')?.innerText || ''
+        };
+      })()
+    `, true);
+    const checks = {
+      pageVisible: payload.visible === true,
+      projectListed: payload.list.includes('TL-DEMO-25-400') && payload.list.includes('مجتمع اداری آفتاب شرق'),
+      activeProject: payload.active.includes('TL-DEMO-25-400') && payload.active.includes('مجتمع اداری آفتاب شرق'),
+      formIdentity: payload.form.code === 'TL-DEMO-25-400' && payload.form.name.includes('مجتمع اداری آفتاب شرق'),
+      engineeringRequirements:
+        Number(payload.form.fc) === 25 &&
+        Number(payload.form.slump) === 100 &&
+        Number(payload.form.wcm) === 0.5 &&
+        payload.form.method === 'iran479' &&
+        payload.form.grade === 'B' &&
+        payload.form.fcClass === '25'
+    };
+    const ok = Object.values(checks).every(Boolean);
+    results.push({ name:'01-projects', ok, checks, payload });
+    if (!ok) failures.push('01-projects: ' + Object.entries(checks).filter(([,v])=>!v).map(([k])=>k).join(', '));
+    await capture('01-projects');
+  }
+
+  async function stage2MixLibrary() {
     try {
       const payload = await win.webContents.executeJavaScript(`
         (async () => {
           const sleep = ms => new Promise(r => setTimeout(r, ms));
-          const nav = document.querySelector('#nav button[data-view="projects"]');
+          const nav = document.querySelector('#nav button[data-view="mix-library"]');
           if (nav) nav.click();
           await sleep(250);
-          if (typeof projectLoad === 'function') projectLoad();
+          if (typeof loadTrialLab === 'function') loadTrialLab();
+          if (typeof mlRender === 'function') mlRender();
           await sleep(200);
 
-          const view = document.getElementById('view-projects');
-          const list = document.getElementById('prProjectList');
-          const active = document.getElementById('prActiveInfo');
-          const code = document.getElementById('prCode');
-          const name = document.getElementById('prName');
-          const fc = document.getElementById('prReqFc');
-          const slump = document.getElementById('prReqSlump');
-          const wcm = document.getElementById('prReqWcm');
-          const method = document.getElementById('prBaseMethod');
-          const grade = document.getElementById('prIranSiteGrade');
-          const fcClass = document.getElementById('prIranFcClass');
-          const kpis = document.getElementById('prKpis');
-          const timeline = document.getElementById('prTimeline');
-          const completeness = document.getElementById('prCompleteness');
-
+          const view = document.getElementById('view-mix-library');
           const rect = view?.getBoundingClientRect();
           const visible = !!view && view.classList.contains('active') && rect.width > 0 && rect.height > 0 &&
             getComputedStyle(view).display !== 'none' && getComputedStyle(view).visibility !== 'hidden';
 
+          const count = document.getElementById('mlCount')?.innerText || '';
+          const list = document.getElementById('mlList')?.innerText || '';
+          const detail = document.getElementById('mlDetail')?.innerText || '';
+          const selected = typeof mixLibSelectedId !== 'undefined' ? mixLibSelectedId : null;
+          const series = typeof trialLab !== 'undefined'
+            ? (trialLab.series || []).find(s => s.id === 'MX-DEMO-25-400')
+            : null;
+          const r0 = series?.revisions?.find(r => Number(r.revision) === 0) || null;
+          const completeness = typeof mixCompleteness === 'function' && series ? mixCompleteness(series, r0) : null;
+
           return {
             visible,
-            activeClass: !!view?.classList.contains('active'),
-            list: list?.innerText || '',
-            active: active?.innerText || '',
-            form: {
-              code: code?.value || '',
-              name: name?.value || '',
-              fc: fc?.value || '',
-              slump: slump?.value || '',
-              wcm: wcm?.value || '',
-              method: method?.value || '',
-              grade: grade?.value || '',
-              fcClass: fcClass?.value || ''
-            },
-            kpis: kpis?.innerText || '',
-            timeline: timeline?.innerText || '',
-            completeness: completeness?.innerText || ''
+            count,
+            list,
+            detail,
+            selected,
+            series: series ? {
+              id: series.id,
+              code: series.code,
+              name: series.name,
+              projectId: series.projectId,
+              status: series.status,
+              approvedRevision: series.approvedRevision,
+              trials: series.trials?.length || 0,
+              revisions: series.revisions?.length || 0,
+              approvalDecision: series.approvalRecord?.decision || null,
+              approvalIntegrity: series.approvalRecord?.integrityStatus || null
+            } : null,
+            r0: r0 ? {
+              revision: r0.revision,
+              reason: r0.reason || '',
+              hasSnapshot: !!r0.snapshot,
+              cement: r0.snapshot?.cementContent,
+              water: r0.snapshot?.effectiveWater,
+              wcm: r0.snapshot?.wcm,
+              targetStrength: r0.snapshot?.targetStrength,
+              validationStatus: r0.snapshot?.validationStatus,
+              fingerprint: r0.snapshot?.calculationFingerprint || ''
+            } : null,
+            completeness
           };
         })()
       `, true);
 
       const checks = {
         pageVisible: payload.visible === true,
-        projectListed: payload.list.includes('TL-DEMO-25-400') && payload.list.includes('مجتمع اداری آفتاب شرق'),
-        activeProject: payload.active.includes('TL-DEMO-25-400') && payload.active.includes('مجتمع اداری آفتاب شرق'),
-        formIdentity: payload.form.code === 'TL-DEMO-25-400' && payload.form.name.includes('مجتمع اداری آفتاب شرق'),
-        engineeringRequirements:
-          Number(payload.form.fc) === 25 &&
-          Number(payload.form.slump) === 100 &&
-          Number(payload.form.wcm) === 0.5 &&
-          payload.form.method === 'iran479' &&
-          payload.form.grade === 'B' &&
-          payload.form.fcClass === '25',
-        dashboard:
-          payload.kpis.includes('پرونده طرح') &&
-          payload.kpis.includes('آزمایش') &&
-          payload.kpis.includes('بچ تولید') &&
-          payload.kpis.includes('تحلیل دوام') &&
-          payload.kpis.includes('تحلیل اقتصادی'),
-        cycle:
-          payload.timeline.includes('طرح اختلاط') &&
-          payload.timeline.includes('آزمایشگاه') &&
-          payload.timeline.includes('تأیید') &&
-          payload.timeline.includes('تولید') &&
-          payload.timeline.includes('QC') &&
-          payload.timeline.includes('دوام') &&
-          payload.timeline.includes('اقتصاد') &&
-          payload.timeline.includes('بهینه‌سازی')
+        countAtLeastOne: Number(String(payload.count).replace(/[^0-9]/g,'')) >= 1,
+        listShowsMix: payload.list.includes('QC010-001') && payload.list.includes('C25'),
+        listShowsProject: payload.list.includes('مجتمع اداری آفتاب شرق'),
+        listShowsApproved: payload.list.includes('تأییدشده'),
+        detailShowsR0: payload.detail.includes('R0'),
+        detailShowsTrials: payload.detail.includes('5 آزمایش') || payload.detail.includes('۵ آزمایش'),
+        selectedCorrect: payload.selected === 'MX-DEMO-25-400',
+        seriesIdentity:
+          payload.series?.id === 'MX-DEMO-25-400' &&
+          payload.series?.code === 'QC010-001' &&
+          payload.series?.projectId === 'PRJ-DEMO-25-400',
+        approved:
+          payload.series?.status === 'approved' &&
+          Number(payload.series?.approvedRevision) === 0 &&
+          payload.series?.approvalDecision === 'approved' &&
+          payload.series?.approvalIntegrity === 'valid',
+        revisionAndTrials:
+          Number(payload.series?.trials) === 5 &&
+          Number(payload.series?.revisions) >= 1,
+        r0Engineering:
+          Number(payload.r0?.revision) === 0 &&
+          payload.r0?.hasSnapshot === true &&
+          Number(payload.r0?.cement) === 400 &&
+          Number(payload.r0?.water) === 190 &&
+          Math.abs(Number(payload.r0?.wcm) - 0.475) < 1e-9 &&
+          Number(payload.r0?.targetStrength) === 25 &&
+          payload.r0?.validationStatus === 'locked-for-trial' &&
+          !!payload.r0?.fingerprint,
+        completeness: Number(payload.completeness?.score) >= 80 && Array.isArray(payload.completeness?.missing)
       };
+
       const ok = Object.values(checks).every(Boolean);
-      results.push({ name:'01-projects', ok, checks, payload });
-      if (!ok) failures.push('01-projects: ' + Object.entries(checks).filter(([,v])=>!v).map(([k])=>k).join(', '));
-      await capture('01-projects');
+      results.push({ name:'02-mix-library', ok, checks, payload });
+      if (!ok) failures.push('02-mix-library: ' + Object.entries(checks).filter(([,v])=>!v).map(([k])=>k).join(', '));
+      await capture('02-mix-library');
     } catch (error) {
-      results.push({ name:'01-projects', ok:false, error:error?.stack || error?.message || String(error) });
-      failures.push('01-projects: ' + (error?.message || String(error)));
-      await capture('01-projects-error').catch(()=>{});
+      results.push({ name:'02-mix-library', ok:false, error:error?.stack || error?.message || String(error) });
+      failures.push('02-mix-library: ' + (error?.message || String(error)));
+      await capture('02-mix-library-error').catch(()=>{});
     }
   }
 
   await new Promise(r => setTimeout(r, 1200));
-  if (stage === 'projects' || stage === 'all') await stage1Projects();
+  if (stage === 'projects') await stage1Projects();
+  else if (stage === 'mix-library') await stage2MixLibrary();
+  else if (stage === 'all') { await stage1Projects(); await stage2MixLibrary(); }
 
   const report = { at:new Date().toISOString(), platform:process.platform, stage, failures, results };
   fs.writeFileSync(path.join(dir, 'ui-smoke-result.json'), JSON.stringify(report, null, 2), 'utf8');
