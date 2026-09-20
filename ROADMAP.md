@@ -39,7 +39,7 @@
 - User-data location and update-safe storage.
 - File/export dialogs where the current app requires them.
 
-### W4 — Installer & Uninstaller 🚧 PACKAGING CONFIG COMPLETE — BUILD PENDING
+### W4 — Installer & Uninstaller ✅ FIRST BUILD COMPLETE 🚧 PACKAGING CONFIG COMPLETE — BUILD PENDING
 - Build a complete Windows installer.
 - Installer must create the desktop shortcut.
 - Installer must create the Start Menu shortcut.
@@ -47,7 +47,7 @@
 - Uninstaller must remove application files without silently deleting user engineering data unless explicitly requested.
 - Installed application must launch normally after installation.
 
-### W5 — Release Candidate
+### W5 — Release Candidate 🚧 INSTALLATION ACCEPTANCE PENDING
 - Focused end-to-end smoke test.
 - Installer test on clean Windows environment.
 - Launch/close/relaunch.
