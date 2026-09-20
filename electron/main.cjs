@@ -697,6 +697,66 @@ async function runUiSmoke(win) {
     }
   }
 
+  async function stageD2SaveR0FromUi() {
+    await stageCEngineResponse();
+    const cResult=results.find(r=>r.name==='C-engine-response');
+    if(!cResult?.ok){
+      results.push({name:'D2-save-r0-ui',ok:false,error:'Stage C prerequisite failed'});
+      failures.push('D2-save-r0-ui: Stage C prerequisite failed');
+      return;
+    }
+    try {
+      const payload=await win.webContents.executeJavaScript(`
+        (async()=>{
+          const sleep=ms=>new Promise(r=>setTimeout(r,ms));
+          const frame=document.getElementById('frame-base'), d=frame?.contentDocument, w=frame?.contentWindow;
+          if(!d||!w) throw new Error('QC-010 unavailable');
+          const live=w.TolouGetMixSnapshot?.();
+          if(!live?.ok) throw new Error('Live snapshot unavailable before save');
+          const beforeRaw=localStorage.getItem('Tolou_trial_lab_v1');
+          const before=JSON.parse(beforeRaw||'{"series":[]}');
+          const beforeIds=(before.series||[]).map(s=>s.id);
+          const save=[...d.querySelectorAll('button')].find(b=>/ذخیره/.test((b.innerText||'').trim()) && /saveProject/.test(b.getAttribute('onclick')||''));
+          if(!save||save.disabled) throw new Error('Real Save button unavailable');
+          save.click();
+          await sleep(900);
+          const afterRaw=localStorage.getItem('Tolou_trial_lab_v1');
+          const after=JSON.parse(afterRaw||'{"series":[]}');
+          const candidates=(after.series||[]).flatMap(s=>(s.revisions||[]).map(r=>({seriesId:s.id,code:s.code,projectId:s.projectId,revision:r.revision,snapshot:r.snapshot})));
+          const match=candidates.find(x=>x.snapshot?.calculationFingerprint===live.snapshot.calculationFingerprint);
+          return {
+            saveControl:{text:(save.innerText||'').trim(),onclick:save.getAttribute('onclick')||''},
+            live:{fingerprint:live.snapshot.calculationFingerprint,cement:live.snapshot.cementContent,water:live.snapshot.effectiveWater,wcm:live.snapshot.wcm,aggregateSSD:live.snapshot.aggregateSSDTotal},
+            before:{seriesCount:(before.series||[]).length,ids:beforeIds,rawLength:(beforeRaw||'').length},
+            after:{seriesCount:(after.series||[]).length,ids:(after.series||[]).map(s=>s.id),rawLength:(afterRaw||'').length},
+            storageChanged:beforeRaw!==afterRaw,
+            match:match?{seriesId:match.seriesId,code:match.code,projectId:match.projectId,revision:match.revision,fingerprint:match.snapshot?.calculationFingerprint,cement:match.snapshot?.cementContent,water:match.snapshot?.effectiveWater,wcm:match.snapshot?.wcm,aggregateSSD:match.snapshot?.aggregateSSDTotal}:null
+          };
+        })()
+      `,true);
+      const p=payload, m=p.match||{}, l=p.live||{};
+      const checks={
+        clickedRealSave:p.saveControl?.onclick.includes('saveProject'),
+        persistenceChanged:p.storageChanged===true,
+        savedFingerprintMatches:!!l.fingerprint&&m.fingerprint===l.fingerprint,
+        savedEngineeringValues:
+          Math.abs(Number(m.cement)-Number(l.cement))<1e-6 &&
+          Math.abs(Number(m.water)-Number(l.water))<1e-6 &&
+          Math.abs(Number(m.wcm)-Number(l.wcm))<1e-9 &&
+          Math.abs(Number(m.aggregateSSD)-Number(l.aggregateSSD))<1e-6,
+        linkedToProject:m.projectId==='PRJ-DEMO-25-400'
+      };
+      const ok=Object.values(checks).every(Boolean);
+      results.push({name:'D2-save-r0-ui',ok,checks,payload});
+      if(!ok) failures.push('D2-save-r0-ui: '+Object.entries(checks).filter(([,v])=>!v).map(([k])=>k).join(', '));
+      await capture('D2-save-r0-ui');
+    }catch(error){
+      results.push({name:'D2-save-r0-ui',ok:false,error:error?.stack||error?.message||String(error)});
+      failures.push('D2-save-r0-ui: '+(error?.message||String(error)));
+      await capture('D2-save-r0-ui-error').catch(()=>{});
+    }
+  }
+
   async function stage2MixLibrary() {
     try {
       const payload = await win.webContents.executeJavaScript(`
@@ -1717,6 +1777,7 @@ async function runUiSmoke(win) {
   else if (stage === 'project-to-qc010') await stageBProjectToQc010();
   else if (stage === 'engine-response') await stageCEngineResponse();
   else if (stage === 'd1-save-entry') await stageD1SaveEntryProbe();
+  else if (stage === 'd2-save-r0') await stageD2SaveR0FromUi();
   else if (stage === 'mix-library') await stage2MixLibrary();
   else if (stage === 'durability') await stage3Durability();
   else if (stage === 'economics') await stage4Economics();
