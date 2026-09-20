@@ -547,6 +547,26 @@ async function runUiSmoke(win) {
             table: table?.innerText || '',
             kpis: kpis?.innerText || '',
             calibration: calibration?.innerText || '',
+            constraintUi: {
+              wmin: document.getElementById('optWMin')?.value || '',
+              wmax: document.getElementById('optWMax')?.value || '',
+              wstep: document.getElementById('optWStep')?.value || '',
+              cmmin: document.getElementById('optCmMin')?.value || '',
+              cmmax: document.getElementById('optCmMax')?.value || '',
+              cementMin: document.getElementById('optCementMin')?.value || '',
+              scmMin: document.getElementById('optScmMin')?.value || '',
+              scmMax: document.getElementById('optScmMax')?.value || '',
+              maxWcm: document.getElementById('optDurW')?.value || '',
+              waterMin: document.getElementById('optWaterMin')?.value || '',
+              waterMax: document.getElementById('optWaterMax')?.value || '',
+              strengthMin: document.getElementById('optStrengthMin')?.value || '',
+              enforceStrength: !!document.getElementById('optEnforceStrength')?.checked
+            },
+            objectiveUi: {
+              cost: !!document.getElementById('optObjCost')?.checked,
+              carbon: !!document.getElementById('optObjCarbon')?.checked,
+              strength: !!document.getElementById('optObjStrength')?.checked
+            },
             study: study ? {
               id: study.id,
               projectId: study.projectId,
@@ -594,6 +614,24 @@ async function runUiSmoke(win) {
           Math.abs(Number(payload.study?.calibration?.wMin)-0.46) < 1e-9 &&
           Math.abs(Number(payload.study?.calibration?.wMax)-0.49) < 1e-9 &&
           Number(payload.study?.calibration?.r2) >= 0.8,
+        hydratedConstraints:
+          Math.abs(Number(payload.constraintUi?.wmin)-0.46) < 1e-9 &&
+          Math.abs(Number(payload.constraintUi?.wmax)-0.49) < 1e-9 &&
+          Math.abs(Number(payload.constraintUi?.wstep)-0.005) < 1e-9 &&
+          Number(payload.constraintUi?.cmmin) === 400 &&
+          Number(payload.constraintUi?.cmmax) === 400 &&
+          Number(payload.constraintUi?.cementMin) === 400 &&
+          Number(payload.constraintUi?.scmMin) === 0 &&
+          Number(payload.constraintUi?.scmMax) === 0 &&
+          Number(payload.constraintUi?.maxWcm) === 0.5 &&
+          Number(payload.constraintUi?.waterMin) === 175 &&
+          Number(payload.constraintUi?.waterMax) === 205 &&
+          Math.abs(Number(payload.constraintUi?.strengthMin)-32.53) < 1e-9 &&
+          payload.constraintUi?.enforceStrength === true,
+        hydratedObjectives:
+          payload.objectiveUi?.cost === true &&
+          payload.objectiveUi?.carbon === true &&
+          payload.objectiveUi?.strength === false,
         candidates:
           cands.length === 7 &&
           wcmValues.every(v => v >= 0.46-1e-9 && v <= 0.49+1e-9) &&
