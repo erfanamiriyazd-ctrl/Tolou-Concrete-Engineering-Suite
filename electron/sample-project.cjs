@@ -1,7 +1,7 @@
 'use strict';
 
 const SAMPLE_MARKER = 'Tolou_sample_project_v1';
-const SAMPLE_DATASET_VERSION = 12;
+const SAMPLE_DATASET_VERSION = 13;
 const PROJECT_ID = 'PRJ-DEMO-25-400';
 const SERIES_ID = 'MX-DEMO-25-400';
 const AGG_CASE_ID = 'AGC-DEMO-25-400';
