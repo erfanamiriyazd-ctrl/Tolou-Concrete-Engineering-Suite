@@ -733,7 +733,8 @@ async function runUiSmoke(win) {
         generated:
           payload.htmlLength > 10000 &&
           payload.headings.length >= 16 &&
-          payload.sectionChecks.every(x => x.checked),
+          payload.sectionChecks.every(x => x.checked) &&
+          (payload.coverage.includes('100') || payload.coverage.includes('۱۰۰')),
         projectRequirements:
           payload.text.includes('TL-DEMO-25-400') &&
           payload.text.includes('مجتمع اداری آفتاب شرق') &&
@@ -753,8 +754,8 @@ async function runUiSmoke(win) {
           payload.text.includes('آب قابل افزودن به بچ') &&
           payload.text.includes('170.187') &&
           payload.text.includes('774.510') &&
-          payload.text.includes('651.293') &&
-          payload.text.includes('334.448') &&
+          payload.text.includes('651.292721') &&
+          payload.text.includes('334.447614') &&
           payload.text.includes('2350.251') &&
           payload.text.includes('جرم حجمی نظری بتن تازه / وزن واحد حجم') &&
           payload.text.includes('1.00000'),
