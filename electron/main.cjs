@@ -528,9 +528,9 @@ async function runUiSmoke(win) {
 
           const mix = document.getElementById('optMix');
           const history = document.getElementById('optHistory');
-          const summary = document.getElementById('optSummary');
-          const table = document.getElementById('optTable');
-          const kpis = document.getElementById('optKpis');
+          const summary = document.getElementById('optResultNote');
+          const table = document.getElementById('optResults');
+          const kpis = document.getElementById('optStatus');
           const calibration = document.getElementById('optCalibration');
           const options = mix ? [...mix.options].map(o => ({value:o.value,text:o.textContent})) : [];
 
@@ -550,15 +550,14 @@ async function runUiSmoke(win) {
             study: study ? {
               id: study.id,
               projectId: study.projectId,
-              seriesId: study.seriesId,
-              revision: study.revision,
-              sourceMixKey: study.sourceMixKey,
+              source: study.source,
+              sourceLabel: study.sourceLabel,
               constraints: study.constraints,
               calibration: study.calibration,
               objectives: study.objectives,
               candidates: study.candidates,
               feasibleCount: study.feasibleCount,
-              paretoCount: study.paretoCount,
+              pareto: study.pareto,
               selectedCandidateId: study.selectedCandidateId,
               designFingerprint: study.designFingerprint,
               evidenceFingerprint: study.evidenceFingerprint,
@@ -582,8 +581,7 @@ async function runUiSmoke(win) {
         studyIdentity:
           payload.study?.id === 'OPT-DEMO-001' &&
           payload.study?.projectId === 'PRJ-DEMO-25-400' &&
-          payload.study?.seriesId === 'MX-DEMO-25-400' &&
-          Number(payload.study?.revision) === 0,
+          payload.study?.source === 'MX-DEMO-25-400::0',
         constraints:
           Number(payload.study?.constraints?.cementFixed) === 400 &&
           payload.study?.constraints?.cementVariationAllowed === false &&
@@ -599,22 +597,31 @@ async function runUiSmoke(win) {
         candidates:
           cands.length === 7 &&
           wcmValues.every(v => v >= 0.46-1e-9 && v <= 0.49+1e-9) &&
-          cands.every(x => Number(x.cement) === 400),
+          cands.every(x => Number(x.cm ?? x.cement) === 400),
         feasibility:
           Number(payload.study?.feasibleCount) >= 1 &&
           cands.some(x => x.feasible === true),
         pareto:
-          Number(payload.study?.paretoCount) >= 1 &&
-          cands.some(x => x.pareto === true),
+          Array.isArray(payload.study?.pareto) &&
+          payload.study.pareto.length >= 1,
         noAutoSelection:
           payload.study?.selectedCandidateId == null ||
           payload.study?.selectedCandidateId === '',
         objectives:
           Array.isArray(payload.study?.objectives) &&
-          payload.study.objectives.some(o=>o.id==='cost') &&
-          payload.study.objectives.some(o=>o.id==='carbon'),
+          payload.study.objectives.some(o=>(typeof o==='string'?o:o.id)==='exPlantCost') &&
+          payload.study.objectives.some(o=>(typeof o==='string'?o:o.id)==='carbon'),
         historyVisible:
           payload.history.includes('QC010-001') || payload.history.includes('OPT-DEMO-001'),
+        hydratedUi:
+          payload.kpis.includes('400 kg/m³') &&
+          payload.kpis.includes('5') &&
+          payload.kpis.includes('1') &&
+          payload.kpis.includes('غیرفعال') &&
+          payload.summary.includes('5') &&
+          payload.summary.includes('1') &&
+          payload.table.includes('0.480') &&
+          payload.table.includes('297.98'),
         traceability:
           !!payload.study?.designFingerprint &&
           !!payload.study?.evidenceFingerprint
