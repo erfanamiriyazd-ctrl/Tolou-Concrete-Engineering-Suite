@@ -69,3 +69,17 @@ Mix Series ID: `MX-DEMO-25-400`
 - Stage 3.7 integration gate is stored as locked-for-trial with all 8 required gates populated.
 - Stage 3.1–3.6 objects now contain the fields consumed by the engineering dossier/report layer, avoiding blank QA report cells for the sample project.
 - Seed dataset version was incremented so an already-seeded QA installation can receive the corrected sample dataset without modifying the Golden Baseline.
+
+
+## Stage 4 — Trial Mix Laboratory — COMPLETE
+- Five laboratory trial batches are linked to revision R0 of mix series MX-DEMO-25-400.
+- The locked Stage-3 design remains unchanged: Type II cement = 400 kg/m³, design effective water = 190 kg/m³, design w/cm = 0.475, Dmax = 25 mm, and aggregate split = 44/37/19 by mass.
+- Trial sensitivity points use effective-water levels 184 / 188 / 190 / 192 / 196 kg/m³, corresponding to w/cm = 0.460 / 0.470 / 0.475 / 0.480 / 0.490.
+- Each trial now stores measured aggregate moisture, SSD-to-wet batch conversion, aggregate free water, water-to-add, 45 L batch masses, material lots, mixing sequence, fresh properties, measured yield, specimen sets and engineering evaluation.
+- Trial-day moisture remains near the Stage-3 material basis and does not alter the approved aggregate blend or material revisions.
+- 28-day strengths = 34.6 / 33.8 / 33.2 / 32.6 / 31.7 MPa.
+- Mean 28-day strength = 33.18 MPa, sample SD ≈ 1.11 MPa and COV ≈ 3.35%.
+- The R0 design point at w/cm = 0.475 gives 33.2 MPa, above the Stage-3 required mean strength fcm = 32.53 MPa.
+- All trial points remain above the specified strength f'c = 25 MPa, within max w/cm = 0.50, slump acceptance 80–120 mm and air acceptance 1–3%.
+- Calibration evidence now distinguishes specified-strength acceptance from the Stage-3 required design mean strength.
+- Sample dataset version incremented to 4 so previously seeded QA installations receive the corrected Stage-4 evidence.
