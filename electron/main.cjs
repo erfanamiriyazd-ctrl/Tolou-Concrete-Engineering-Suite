@@ -863,6 +863,60 @@ async function runUiSmoke(win) {
     }
   }
 
+  async function stageD4SaveContextTrace() {
+    await stageD3PersistR0AfterReload();
+    const d3=results.find(r=>r.name==='D3-r0-persistence');
+    if(!d3?.ok){results.push({name:'D4-save-context-trace',ok:false,error:'D3 prerequisite failed'});failures.push('D4-save-context-trace: D3 prerequisite failed');return}
+    try{
+      const seriesId=d3.before?.seriesId;
+      const payload=await win.webContents.executeJavaScript(`
+        (async()=>{
+          const sleep=ms=>new Promise(r=>setTimeout(r,ms));
+          document.querySelector('#nav button[data-view="mix-library"]')?.click(); await sleep(350);
+          if(typeof loadTrialLab==='function') loadTrialLab();
+          if(typeof mlRender==='function') mlRender(); await sleep(200);
+          const view=document.getElementById('view-mix-library');
+          const edit=[...view.querySelectorAll('button')].find(el=>(el.innerText||'').includes('اصلاح در QC-010')&&(el.getAttribute('onclick')||'').includes(${JSON.stringify(seriesId)}));
+          if(!edit) throw new Error('Real revision edit control unavailable');
+          edit.click(); await sleep(900);
+          const frame=document.getElementById('frame-base'),d=frame?.contentDocument,w=frame?.contentWindow;
+          if(!d||!w) throw new Error('QC-010 unavailable');
+          const contextAfterEdit=typeof mixEngineContext==='object'&&mixEngineContext?JSON.parse(JSON.stringify(mixEngineContext)):mixEngineContext;
+          const mode=d.getElementById('iran35WcMode'),manual=d.getElementById('iran35ManualWc');
+          if(!mode||!manual) throw new Error('Canonical Stage 3.5 controls unavailable');
+          manual.value='0.450'; manual.dispatchEvent(new Event('input',{bubbles:true})); manual.dispatchEvent(new Event('change',{bubbles:true}));
+          const calc=[...d.querySelectorAll('button')].find(b=>(b.getAttribute('onclick')||'').replace(/\\s/g,'')==='calculateMix()');
+          if(!calc) throw new Error('Real Calculate unavailable');
+          calc.click(); await sleep(900);
+          const changed=w.TolouGetMixSnapshot?.();
+          const contextBeforeSave=typeof mixEngineContext==='object'&&mixEngineContext?JSON.parse(JSON.stringify(mixEngineContext)):mixEngineContext;
+          let registerCalls=[];
+          const originalRegister=window.TolouRegisterCurrentMix;
+          window.TolouRegisterCurrentMix=function(v){registerCalls.push({view:v,context:typeof mixEngineContext==='object'&&mixEngineContext?JSON.parse(JSON.stringify(mixEngineContext)):mixEngineContext});return originalRegister.apply(this,arguments)};
+          const save=[...d.querySelectorAll('button')].find(b=>/ذخیره/.test((b.innerText||'').trim())&&/saveProject/.test(b.getAttribute('onclick')||''));
+          if(!save) throw new Error('Real Save unavailable');
+          const saveFunctionMeta={wired:!!w.__tolouLibrarySaveWired,source:String(w.saveProject).slice(0,500)};
+          save.click(); await sleep(1000);
+          window.TolouRegisterCurrentMix=originalRegister;
+          const contextAfterSave=typeof mixEngineContext==='object'&&mixEngineContext?JSON.parse(JSON.stringify(mixEngineContext)):mixEngineContext;
+          const lab=JSON.parse(localStorage.getItem('Tolou_trial_lab_v1')||'{"series":[]}');
+          const s=(lab.series||[]).find(x=>x.id===${JSON.stringify(seriesId)});
+          return {contextAfterEdit,contextBeforeSave,contextAfterSave,registerCalls,saveFunctionMeta,changed:{fingerprint:changed?.snapshot?.calculationFingerprint,wcm:changed?.snapshot?.wcm},revisionCount:s?.revisions?.length??null,revisions:(s?.revisions||[]).map(r=>({revision:r.revision,fingerprint:r.snapshot?.calculationFingerprint,wcm:r.snapshot?.wcm}))};
+        })()
+      `,true);
+      const checks={
+        contextPresentAfterEdit:payload.contextAfterEdit?.seriesId===seriesId,
+        contextPresentBeforeSave:payload.contextBeforeSave?.seriesId===seriesId,
+        saveWrapperInstalled:payload.saveFunctionMeta?.wired===true,
+        registerCalled:Array.isArray(payload.registerCalls)&&payload.registerCalls.length>0
+      };
+      const ok=Object.values(checks).every(Boolean);
+      results.push({name:'D4-save-context-trace',ok,checks,seriesId,payload});
+      if(!ok) failures.push('D4-save-context-trace: '+Object.entries(checks).filter(([,v])=>!v).map(([k])=>k).join(', '));
+      await capture('D4-save-context-trace');
+    }catch(error){results.push({name:'D4-save-context-trace',ok:false,error:error?.stack||error?.message||String(error)});failures.push('D4-save-context-trace: '+(error?.message||String(error)));await capture('D4-save-context-trace-error').catch(()=>{})}
+  }
+
   async function stageD4CreateR1FromUi() {
     await stageD3PersistR0AfterReload();
     const d3=results.find(r=>r.name==='D3-r0-persistence');
@@ -2099,6 +2153,7 @@ async function runUiSmoke(win) {
   else if (stage === 'd3-r0-persistence') await stageD3PersistR0AfterReload();
   else if (stage === 'd4-revision-ui-probe') await stageD4RevisionUiProbe();
   else if (stage === 'd4-create-r1-ui') await stageD4CreateR1FromUi();
+  else if (stage === 'd4-save-context-trace') await stageD4SaveContextTrace();
   else if (stage === 'd4-wc-control-probe') await stageD4WcControlProbe();
   else if (stage === 'd4-hydration-audit') await stageD4HydrationAudit();
   else if (stage === 'mix-library') await stage2MixLibrary();
