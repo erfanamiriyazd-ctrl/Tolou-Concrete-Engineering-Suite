@@ -20,8 +20,5 @@ jobs:
         with:
           node-version: 22
 
-      - name: Install dependencies
-        run: npm ci
-
       - name: Validate full QA sample
         run: npm run qa:sample
