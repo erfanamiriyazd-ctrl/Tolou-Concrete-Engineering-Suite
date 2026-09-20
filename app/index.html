@@ -1322,7 +1322,7 @@ de('durMix').addEventListener('change',()=>{durLoadSnapshot();durEvaluate(true)}
 const ECO_KEY='Tolou_cost_sustainability_v1';
 let ecoState={schemaVersion:1,factors:{},records:[],lastDraft:null},ecoRows=[],ecoLastResult=null;
 const ee=id=>document.getElementById(id);const ev=id=>ee(id)?.value??'';const en=id=>{const v=ev(id);if(v===''||v===null||v===undefined)return null;const n=Number(v);return Number.isFinite(n)?n:null};
-function ecoLoad(){try{const x=JSON.parse(localStorage.getItem(ECO_KEY)||'null');if(x&&typeof x==='object'){ecoState={schemaVersion:1,factors:x.factors||{},records:Array.isArray(x.records)?x.records:[],lastDraft:x.lastDraft||null}}}catch(e){};if(!ee('ecoDate').value)ee('ecoDate').value=new Date().toISOString().slice(0,10);ecoRefreshMixOptions();ecoRenderHistory();ecoRenderCompare()}
+function ecoLoad(){try{const x=JSON.parse(localStorage.getItem(ECO_KEY)||'null');if(x&&typeof x==='object'){ecoState={schemaVersion:1,factors:x.factors||{},records:Array.isArray(x.records)?x.records:[],lastDraft:x.lastDraft||null}}}catch(e){};if(!ee('ecoDate').value)ee('ecoDate').value=new Date().toISOString().slice(0,10);ecoRefreshMixOptions();ecoRenderHistory();ecoRenderCompare();const latest=(ecoState.records||[])[0];if(latest)ecoHydrateStoredRecord(latest,false)}
 function ecoPersist(){localStorage.setItem(ECO_KEY,JSON.stringify(ecoState))}
 function ecoCurrency(){const v=ev('ecoCurrency');return v==='custom'?(ev('ecoCurrencyCustom').trim()||'واحد پول'):v}
 function ecoFormatMoney(x){if(x===null||!Number.isFinite(Number(x)))return '—';return Number(x).toLocaleString('fa-IR',{maximumFractionDigits:2})+' '+ecoCurrency()}
@@ -1349,7 +1349,66 @@ function ecoSave(){const r=ecoCalculate(true);if(!r.mixKey){toast('ابتدا ط
 function ecoPareto(records){const valid=records.filter(r=>r.priceCoverage>=99.999&&r.gwpCoverage>=99.999&&Number.isFinite(Number(r.totalCost))&&Number.isFinite(Number(r.totalCarbon)));const out=new Set();valid.forEach(a=>{const dominated=valid.some(b=>{if(a.id===b.id)return false;const perfA=Number(a.strength),perfB=Number(b.strength),hasPerf=Number.isFinite(perfA)&&Number.isFinite(perfB)&&perfA>0&&perfB>0;const noWorse=Number(b.totalCost)<=Number(a.totalCost)+1e-9&&Number(b.totalCarbon)<=Number(a.totalCarbon)+1e-9&&(!hasPerf||perfB+1e-9>=perfA);const strictly=Number(b.totalCost)<Number(a.totalCost)-1e-9||Number(b.totalCarbon)<Number(a.totalCarbon)-1e-9||(hasPerf&&perfB>perfA+1e-9);return noWorse&&strictly});if(!dominated)out.add(a.id)});return out}
 function ecoRenderHistory(){const box=ee('ecoHistory');if(!box)return;if(!ecoState.records.length){box.innerHTML='<div class="eco-empty">هنوز تحلیل ذخیره‌شده‌ای وجود ندارد.</div>';return}const pareto=ecoPareto(ecoState.records);box.innerHTML=ecoState.records.slice(0,100).map(r=>`<div class="eco-history-item ${pareto.has(r.id)?'pareto':''}"><span>${new Date(r.savedAt||r.at).toLocaleString('fa-IR')}</span><b>${prodEsc(r.name||r.mixLabel)}</b><span>${Number(r.totalCost).toLocaleString('fa-IR',{maximumFractionDigits:1})} ${prodEsc(r.input?.currency||'')}</span><span>${Number(r.totalCarbon).toFixed(1)} kgCO₂e</span><span>${pareto.has(r.id)?'<span class="eco-pareto-badge">غیرمغلوب</span>':(r.priceCoverage<99.999||r.gwpCoverage<99.999?'<span class="eco-incomplete">داده ناقص</span>':'')}</span><span class="eco-mini-actions"><button class="eco-mini" onclick="ecoLoadRecord('${r.id}')">بارگذاری</button><button class="eco-mini" onclick="ecoDeleteRecord('${r.id}')">حذف</button></span></div>`).join('')}
 window.ecoDeleteRecord=function(id){const r=ecoState.records.find(x=>x.id===id);if(!r||!confirm('این تحلیل ذخیره‌شده حذف شود؟'))return;if(r.projectId)projectLog('هزینه و پایداری','حذف تحلیل','EconomicAnalysis',r.id,`تحلیل ${r.name||r.mixLabel||r.id} حذف شد.`,r.projectId);ecoState.records=ecoState.records.filter(x=>x.id!==id);ecoPersist();ecoRenderHistory();ecoRenderCompare()}
-window.ecoLoadRecord=function(id){const r=ecoState.records.find(x=>x.id===id);if(!r)return;if(r.mixKey){ecoRefreshMixOptions();ee('ecoMix').value=r.mixKey}const inp=r.input||{};const set=(id,v)=>{if(ee(id))ee(id).value=v??''};set('ecoName',inp.name);set('ecoDate',inp.date);if(['تومان','ریال','USD','EUR'].includes(inp.currency)){set('ecoCurrency',inp.currency);set('ecoCurrencyCustom','')}else{set('ecoCurrency','custom');set('ecoCurrencyCustom',inp.currency)}set('ecoScope',inp.scope);set('ecoOverhead',inp.overhead);set('ecoTransportCost',inp.transportCost);set('ecoOtherCost',inp.otherCost);set('ecoOtherCarbon',inp.otherCarbon);set('ecoOtherSource',inp.otherSource);set('ecoNotes',inp.notes);(r.rows||[]).forEach(x=>{if(x.factor)ecoState.factors[x.key]=x.factor});ecoLoadMix();openView('economics');toast('تحلیل ذخیره‌شده بارگذاری شد.')}
+function ecoHydrateStoredRecord(r,showToast=true){
+ if(!r)return false;
+ if(r.mixKey){ecoRefreshMixOptions();if(ee('ecoMix'))ee('ecoMix').value=r.mixKey}
+ const inp=r.input||{};
+ const set=(id,v)=>{if(ee(id))ee(id).value=v??''};
+ set('ecoName',inp.name||r.name||'');
+ set('ecoDate',inp.date||String(r.savedAt||r.at||'').slice(0,10));
+ const currency=inp.currency||'IRR';
+ if(['تومان','ریال','USD','EUR','IRR'].includes(currency)){set('ecoCurrency',currency);set('ecoCurrencyCustom','')}
+ else{set('ecoCurrency','custom');set('ecoCurrencyCustom',currency)}
+ set('ecoScope',inp.scope||r.basis?.scope||'1 m³ concrete');
+ set('ecoOverhead',inp.overhead??r.adminPlantOverheadAllocation??0);
+ set('ecoTransportCost',inp.transportCost??r.deliveryFreight??0);
+ set('ecoOtherCost',inp.otherCost??0);
+ set('ecoOtherCarbon',inp.otherCarbon??0);
+ set('ecoOtherSource',inp.otherSource||'');
+ set('ecoNotes',inp.notes||r.dataQuality?.warning||'');
+ ecoRows=(r.rows||[]).map(x=>JSON.parse(JSON.stringify(x)));
+ ecoRows.forEach(x=>{if(x.factor)ecoState.factors[x.key]={...x.factor}});
+ ecoRenderRows();
+
+ const mapped={
+   ...r,
+   input:{...inp,currency},
+   priceCoverage:Number(r.priceCoverage??r.costCoverage??0),
+   gwpCoverage:Number(r.gwpCoverage??r.carbonCoverage??0),
+   materialCarbon:Number(r.materialCarbon??(r.rows||[]).reduce((s,x)=>s+(Number(x.carbon)||0),0)),
+   strength:Number(r.strength??r.performance?.value??0)||null,
+   strengthBasis:r.strengthBasis||r.performance?.basis||'میانگین مقاومت 28روزه تولید',
+   costPerStrength:Number(r.costPerStrength??r.normalized?.totalCostPerMPa??0)||null,
+   carbonPerStrength:Number(r.carbonPerStrength??r.normalized?.carbonPerMPa??0)||null
+ };
+ ecoLastResult=mapped;
+ ecoRenderResult(mapped);
+
+ const sum=ee('ecoSummary');
+ if(sum){
+   const fmt=v=>Number(v).toLocaleString('fa-IR',{maximumFractionDigits:0});
+   const breakdown=[
+     ['زیر بچینگ',r.exPlantConcretePrice],
+     ['کرایه حمل',r.deliveryFreight],
+     ['جمع قبل VAT',r.deliveredBeforeVat],
+     ['VAT '+Number(r.vatRatePct||0).toFixed(0)+'%',r.vatAmount],
+     ['تحویل با VAT',r.deliveredWithVat],
+     ['پمپاژ',r.pumpingCost],
+     ['جمع نهایی',r.totalCost]
+   ].filter(([,v])=>Number.isFinite(Number(v)));
+   const lines=breakdown.map(([k,v])=>`<span><b>${prodEsc(k)}:</b> ${fmt(v)} IRR/m³</span>`).join(' · ');
+   const q=r.dataQuality||{};
+   sum.className='eco-summary '+(q.environmentalClaimValidity==='verified'?'good':'warn');
+   sum.innerHTML=`<b>تحلیل ذخیره‌شده پروژه:</b> ${lines}<br><small>${prodEsc(q.warning||'')}</small>`;
+ }
+ const quality=ee('ecoDataQuality');
+ if(quality){
+   quality.innerHTML=`<b>اعتبار تجاری:</b> ${prodEsc(r.dataQuality?.commercialValidity||'—')} · <b>اعتبار محیط‌زیستی:</b> ${prodEsc(r.dataQuality?.environmentalClaimValidity||'—')}`;
+ }
+ if(showToast)toast('تحلیل ذخیره‌شده بارگذاری شد.');
+ return true;
+}
+window.ecoLoadRecord=function(id){const r=ecoState.records.find(x=>x.id===id);if(!r)return;ecoHydrateStoredRecord(r,true);openView('economics')}
 function ecoRenderCompare(){const box=ee('ecoCompare');if(!box)return;const recs=ecoState.records.slice(0,20);if(!recs.length){box.innerHTML='<div class="eco-empty">برای مقایسه، حداقل یک تحلیل ذخیره کنید.</div>';return}const maxCost=Math.max(...recs.map(r=>Number(r.totalCost)||0),1),maxCarbon=Math.max(...recs.map(r=>Number(r.totalCarbon)||0),1),pareto=ecoPareto(recs);box.innerHTML=recs.map(r=>{const cp=Math.max(1,(Number(r.totalCost)||0)/maxCost*100),gp=Math.max(1,(Number(r.totalCarbon)||0)/maxCarbon*100);return `<div class="eco-compare-row"><div><b>${prodEsc(r.name||r.mixLabel)}</b><br><small>${prodEsc(r.mixLabel||'')}</small></div><div class="eco-bars"><span>هزینه: ${Number(r.totalCost).toLocaleString('fa-IR',{maximumFractionDigits:1})} ${prodEsc(r.input?.currency||'')}</span><div class="eco-bar-track"><div class="eco-bar-cost" style="width:${cp}%"></div></div></div><div class="eco-bars"><span>اثر اقلیمی: ${Number(r.totalCarbon).toFixed(1)} kgCO₂e/m³</span><div class="eco-bar-track"><div class="eco-bar-carbon" style="width:${gp}%"></div></div></div><div>${pareto.has(r.id)?'<span class="eco-pareto-badge">غیرمغلوب</span>':(r.priceCoverage<99.999||r.gwpCoverage<99.999?'<span class="eco-incomplete">ناقص</span>':'')}</div></div>`}).join('')}
 function ecoNew(){ee('ecoMix').value='';ee('ecoName').value='';ee('ecoDate').value=new Date().toISOString().slice(0,10);ee('ecoScope').value='A1-A3 — بر اساس ضرایب واردشده توسط کاربر';['ecoOverhead','ecoTransportCost','ecoOtherCost','ecoOtherCarbon','ecoOtherSource','ecoNotes'].forEach(id=>ee(id).value='');ecoRows=[];ecoLastResult=null;ecoRenderRows();ee('ecoKpis').innerHTML='';ee('ecoSummary').className='eco-summary';ee('ecoSummary').textContent='تحلیل جدید آماده است.'}
 function ecoClearFactors(){if(!ecoRows.length)return;if(!confirm('قیمت، ضریب انتشار و مرجع داده برای مواد همین طرح پاک شود؟'))return;ecoRows.forEach(r=>delete ecoState.factors[r.key]);ecoPersist();ecoRenderRows();ecoCalculate(true)}
