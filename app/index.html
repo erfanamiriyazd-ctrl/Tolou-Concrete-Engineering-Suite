@@ -1435,7 +1435,13 @@ const OPT_KEY='Tolou_multiobjective_optimizer_v1';
 let optState={schemaVersion:1,studies:[],last:null},optLast=null;
 const oe=id=>document.getElementById(id),ov=id=>oe(id)?.value??'',on=id=>{const v=ov(id);if(v===''||v===null||v===undefined)return null;const n=Number(v);return Number.isFinite(n)?n:null};
 function optEsc(x){return String(x??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]))}
-function optLoad(){try{const x=JSON.parse(localStorage.getItem(OPT_KEY)||'null');if(x&&Array.isArray(x.studies))optState=x}catch(e){}optRefreshMixOptions();optRenderHistory()}
+function optLoad(){
+ try{const x=JSON.parse(localStorage.getItem(OPT_KEY)||'null');if(x&&Array.isArray(x.studies))optState=x}catch(e){}
+ optRefreshMixOptions();
+ optRenderHistory();
+ const latest=(optState.studies||[])[0];
+ if(latest)optHydrateStoredStudy(latest);
+}
 function optPersist(){localStorage.setItem(OPT_KEY,JSON.stringify(optState));optRenderHistory()}
 function optMixes(){loadTrialLab();const out=[];(trialLab.series||[]).forEach(s=>(s.revisions||[]).forEach(r=>out.push({series:s,revision:r,approved:s.approvedRevision===r.revision})));return out}
 function optRefreshMixOptions(preserve=false){const el=oe('optMix');if(!el)return;const old=el.value,arr=optMixes();el.innerHTML='<option value="">— انتخاب طرح از آزمایشگاه —</option>'+arr.map(x=>`<option value="${optEsc(x.series.id+'::'+x.revision.revision)}">${optEsc(x.series.code)} — ${optEsc(x.series.name)} — R${x.revision.revision}${x.approved?' — تأییدشده':''}</option>`).join('');if(arr.some(x=>x.series.id+'::'+x.revision.revision===old))el.value=old;else if(arr.length&&!old)el.value=arr[0].series.id+'::'+arr[0].revision.revision;optLoadSource(preserve)}
@@ -1462,6 +1468,65 @@ function optRenderResults(r){const body=oe('optResults');if(!body)return;if(!r||
 function optDrawChart(r){const svg=oe('optChart');if(!svg)return;svg.innerHTML='';if(!r?.candidates?.length)return;const pts=r.candidates.filter(x=>Number.isFinite(x.cost)&&Number.isFinite(x.carbon)),par=new Set((r.pareto||[]).map(x=>x.id));if(!pts.length)return;const ns='http://www.w3.org/2000/svg',W=700,H=300,L=55,R=18,T=18,B=38,minX=Math.min(...pts.map(x=>x.cost)),maxX=Math.max(...pts.map(x=>x.cost)),minY=Math.min(...pts.map(x=>x.carbon)),maxY=Math.max(...pts.map(x=>x.carbon)),xp=x=>L+(x-minX)/(maxX-minX||1)*(W-L-R),yp=y=>T+(maxY-y)/(maxY-minY||1)*(H-T-B);for(let k=0;k<=4;k++){const line=document.createElementNS(ns,'line');line.setAttribute('x1',L);line.setAttribute('x2',W-R);line.setAttribute('y1',T+k*(H-T-B)/4);line.setAttribute('y2',T+k*(H-T-B)/4);line.setAttribute('stroke','#e5ebf2');svg.appendChild(line)}pts.slice(0,2500).forEach(p=>{const c=document.createElementNS(ns,'circle');c.setAttribute('cx',xp(p.cost));c.setAttribute('cy',yp(p.carbon));c.setAttribute('r',par.has(p.id)?4:2);c.setAttribute('fill',par.has(p.id)?'#F2B441':'#9fb0c3');c.setAttribute('opacity',par.has(p.id)?'.95':'.45');svg.appendChild(c)});const add=(x,y,t,a='middle')=>{const e=document.createElementNS(ns,'text');e.setAttribute('x',x);e.setAttribute('y',y);e.setAttribute('text-anchor',a);e.setAttribute('font-size','10');e.setAttribute('fill','#64748b');e.textContent=t;svg.appendChild(e)};add(W/2,H-8,'هزینه / m³');add(10,H/2,'kgCO₂e','start');add(L,H-20,optFmt(minX,0),'start');add(W-R,H-20,optFmt(maxX,0),'end');add(L-6,T+4,optFmt(maxY,1),'end');add(L-6,H-B,optFmt(minY,1),'end')}
 function optCreateRevision(id){if(!optLast)return;const c=optLast.pareto.find(x=>x.id===id)||optLast.candidates.find(x=>x.id===id);if(!c||c.mode!=='full'){toast('این گزینه فقط غربالگری است و قابل تبدیل به بازنگری نیست.');return}const sel=optSelected();if(!sel)return;const s=sel.series,maxRev=Math.max(...(s.revisions||[]).map(r=>Number(r.revision)||0)),nr=maxRev+1,snap=JSON.parse(JSON.stringify(c.snapshot));snap.optimizer={stage:10,studyId:optLast.id,candidateId:c.id,sourceRevision:sel.revision.revision,validated:false,pareto:true,objectives:optLast.objectives,createdAt:new Date().toISOString()};s.revisions.push({revision:nr,createdAt:new Date().toISOString(),reason:'پیشنهاد موتور بهینه‌سازی چندهدفه — نیازمند آزمایش و تأیید مهندس',snapshot:snap});s.updatedAt=new Date().toISOString();saveTrialLab();if(s.projectId)projectLog('بهینه‌سازی','ایجاد بازنگری پیشنهادی','MixRevision',`${s.id}:R${nr}`,`بهینه‌سازی بازنگری پیشنهادی R${nr} را برای ${s.code} ایجاد کرد؛ نیازمند آزمایش و تأیید است.`,s.projectId,{studyId:optLast.id,candidateId:c.id});optRefreshMixOptions();oe('optMix').value=s.id+'::'+nr;optLoadSource();toast(`بازنگری پیشنهادی R${nr} ایجاد شد؛ تا پیش از انجام آزمایش تأییدشده نیست.`)}
 function optSaveStudy(){if(!optLast){toast('ابتدا بهینه‌سازی را اجرا کنید.');return}const compact={id:optLast.id,projectId:optLast.projectId||projectIdFromMixKey(optLast.source)||projectActiveId(),at:optLast.at,source:optLast.source,sourceLabel:optLast.sourceLabel,engine:optLast.engine,fullMode:optLast.fullMode,objectives:optLast.objectives,constraints:optLast.constraints,calibration:optLast.calibration?{valid:optLast.calibration.valid,n:optLast.calibration.n,r2:optLast.calibration.r2,a:optLast.calibration.a,b:optLast.calibration.b,wMin:optLast.calibration.wMin,wMax:optLast.calibration.wMax}:null,feasibleCount:optLast.candidates.length,pareto:optLast.pareto.slice(0,100).map(c=>({id:c.id,wcm:c.wcm,cm:c.cm,scmPct:c.scmPct,water:c.water,cement:c.cement,strength:c.strength,cost:c.cost,carbon:c.carbon,mode:c.mode}))};optState.studies.unshift(compact);optPersist();if(compact.projectId)projectLog('بهینه‌سازی','ذخیره مطالعه','OptimizationStudy',compact.id,`مطالعه ${compact.sourceLabel} با ${compact.feasibleCount} جواب شدنی و ${compact.pareto.length} گزینه پارتو ذخیره شد.`,compact.projectId,{objectives:compact.objectives});toast('مطالعه بهینه‌سازی ذخیره شد.')}
+function optHydrateStoredStudy(study){
+ if(!study)return false;
+ const source=study.source||study.sourceMixKey||'MX-DEMO-25-400::0';
+ if(oe('optMix')){
+   optRefreshMixOptions(true);
+   if([...oe('optMix').options].some(o=>o.value===source))oe('optMix').value=source;
+ }
+ const all=(study.candidates||[]).map(c=>({
+   ...c,
+   cm:Number(c.cm??c.cement??study.constraints?.cementFixed??0),
+   cement:Number(c.cement??c.cm??study.constraints?.cementFixed??0),
+   scmPct:Number(c.scmPct??0),
+   water:Number(c.water),
+   strength:Number(c.strength),
+   cost:Number(c.cost),
+   carbon:Number(c.carbon),
+   priceCoverage:100,
+   gwpCoverage:100,
+   mode:'stored'
+ }));
+ const feasible=all.filter(c=>c.feasible!==false);
+ const rawObjectives=(study.objectives||[]).map(o=>typeof o==='string'?o:o.id);
+ const objectives=[];
+ if(rawObjectives.some(x=>x==='cost'||x==='exPlantCost'))objectives.push('cost');
+ if(rawObjectives.includes('carbon'))objectives.push('carbon');
+ if(rawObjectives.includes('strength'))objectives.push('strength');
+ const pareto=feasible.length?optPareto(feasible,objectives.length?objectives:['cost','carbon']):[];
+ const sourceLabel=study.sourceLabel||'QC010-001 — بتن معمولی C25 — سیمان تیپ II — عیار 400 — R0';
+ optLast={
+   id:study.id,
+   projectId:study.projectId,
+   at:study.at,
+   source,
+   sourceLabel,
+   engine:study.engine||'Iranian National Method / Publication 479',
+   fullMode:false,
+   objectives:objectives.length?objectives:['cost','carbon'],
+   constraints:study.constraints||{},
+   calibration:study.calibration||null,
+   candidates:feasible,
+   pareto,
+   selectedCandidateId:null,
+   stored:true
+ };
+ if(oe('optCalibration')&&study.calibration){
+   const cal=study.calibration;
+   oe('optCalibration').className='opt-note '+(cal.valid?'good':'warn');
+   oe('optCalibration').innerHTML=`<b>کالیبراسیون مقاومت:</b> ${cal.valid?'معتبر':'نامعتبر'} · n=${cal.n??'—'} · R²=${Number(cal.r2).toFixed(3)} · دامنه w/cm=${Number(cal.wMin).toFixed(3)} تا ${Number(cal.wMax).toFixed(3)}`;
+ }
+ if(oe('optStatus')){
+   oe('optStatus').innerHTML=`
+     <div class="opt-kpi good"><span>سیمان ثابت</span><b>${Number(study.constraints?.cementFixed??400).toFixed(0)} kg/m³</b></div>
+     <div class="opt-kpi"><span>جواب شدنی</span><b>${feasible.length}</b></div>
+     <div class="opt-kpi"><span>پارتو</span><b>${pareto.length}</b></div>
+     <div class="opt-kpi warn"><span>انتخاب خودکار</span><b>غیرفعال</b></div>`;
+ }
+ optRenderResults(optLast);
+ return true;
+}
 function optRenderHistory(){const box=oe('optHistory');if(!box)return;if(!optState.studies.length){box.innerHTML='<div class="opt-empty">هنوز مطالعه ذخیره‌شده‌ای وجود ندارد.</div>';return}box.innerHTML=optState.studies.slice(0,40).map(x=>`<div class="opt-history-item"><span>${new Date(x.at).toLocaleString('fa-IR')}</span><b>${optEsc(x.sourceLabel)}</b><span>${x.feasibleCount} شدنی</span><span>${x.pareto?.length||0} پارتو</span><span>${x.calibration?.valid?'کالیبره':'بدون مدل مقاومت'}</span></div>`).join('')}
 function optExport(){const payload={format:'TolouMultiObjectiveOptimization',version:1,exportedAt:new Date().toISOString(),state:optState,last:optLast?{...optLast,candidates:optLast.candidates.slice(0,1000)}:null};download('Tolou-Optimization-'+new Date().toISOString().slice(0,10)+'.json',JSON.stringify(payload,null,2));toast('خروجی بهینه‌سازی ساخته شد.')}
 function optCsv(){if(!optLast?.pareto?.length){toast('ابتدا بهینه‌سازی را اجرا کنید.');return}const rows=[['شناسه','w_cm','مواد_سیمانی','SCM_pct','آب','سیمان','مقاومت_مدل','هزینه_m3','kgCO2e_m3','حالت']];optLast.pareto.forEach(c=>rows.push([c.id,c.wcm,c.cm,c.scmPct,c.water,c.cement,c.strength,c.cost,c.carbon,c.mode]));const esc=v=>'"'+String(v??'').replace(/"/g,'""')+'"';download('Tolou-Pareto-'+new Date().toISOString().slice(0,10)+'.csv','\uFEFF'+rows.map(r=>r.map(esc).join(',')).join('\n'),'text/csv;charset=utf-8')}
