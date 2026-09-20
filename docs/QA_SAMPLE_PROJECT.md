@@ -227,3 +227,28 @@ Commercial totals:
 - No candidate is auto-selected; engineering review is mandatory.
 - Revalidation triggers cover trial calibration, mix revision, QC, durability, prices/operating cost and GWP/EPD changes.
 - Sample dataset version incremented to 12.
+
+
+## Stage 11 — End-to-End report audit — IN PROGRESS
+Numerical cross-check of the approved R0 design:
+- Cement = 400.000 kg/m³.
+- Effective water = 190.000 kg/m³.
+- Fine aggregate SSD = 774.510 kg/m³.
+- Pea gravel SSD = 651.293 kg/m³.
+- Almond gravel SSD = 334.448 kg/m³.
+- Total SSD aggregate = 1760.251 kg/m³.
+- Theoretical fresh concrete unit mass = 2350.251 kg/m³.
+- Absolute-volume closure = 1.00000 m³.
+- At the Stage-3 reference moistures, total aggregate free water = 19.813 kg/m³ and batch water to add = 170.187 kg/m³.
+- Moisture-corrected wet aggregate masses plus cement and batch water close back to the same 2350.251 kg/m³.
+
+Report audit found and corrected schema drift in the existing report UI:
+- Production report was reading batchNo/ticketNo while seeded production uses ticket.
+- Durability report was reading the legacy status/classes schema instead of Stage-8 overall/exposureScenario fields.
+- Economics report date and commercial layers were not aligned with the current Stage-9 record.
+- Optimization report expected legacy string objectives and strengthModel instead of current object objectives/calibration.
+- Iran-479 fcm and SD were not falling back to stage31 fields.
+- Report proportions did not explicitly show SSD-vs-moisture-corrected batching masses, total mass closure or theoretical fresh unit mass.
+- Detailed batching cards are now rendered from each batch ingredient Target/Actual values, water correction, actual w/cm, total actual mass, yield and design fingerprint.
+
+Stage 11 remains open until the complete report is rendered and the Windows build is tested end-to-end.
