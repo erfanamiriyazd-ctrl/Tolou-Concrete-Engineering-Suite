@@ -1,6 +1,7 @@
 'use strict';
 
 const { contextBridge, ipcRenderer } = require('electron');
+const { seedSampleProject } = require('./sample-project.cjs');
 
 const RECOVERY_SENTINELS = [
   'Tolou_project_hub_v1',
@@ -39,6 +40,9 @@ function bootstrapFromDesktopMirror() {
 }
 
 bootstrapFromDesktopMirror();
+
+// QA sample data is merged once and never replaces existing user projects/data.
+try { seedSampleProject(window.localStorage); } catch {}
 
 ipcRenderer.on('tolou:persistence:apply-restore', (_event, storage) => {
   try {
