@@ -432,7 +432,24 @@ async function runUiSmoke(win) {
           // Baseline calculation through real UI button.
           calcButton.click(); await sleep(220);
           const baseResp=typeof w.TolouGetMixSnapshot==='function' ? w.TolouGetMixSnapshot() : null;
-          if(!baseResp?.ok) throw new Error('Baseline engine did not produce a mix: '+(baseResp?.message||'unknown'));
+          const baselineDiagnostic=typeof w.IranNationalMixEngine?.preflight==='function' ? w.IranNationalMixEngine.preflight() : null;
+          if(!baseResp?.ok){
+            const s37=baselineDiagnostic?.stage37||null;
+            return {
+              projectId: typeof projectHub!=='undefined'?projectHub.activeProjectId:null,
+              baselineFailure:baseResp?.message||'unknown',
+              diagnostic:{
+                stage31:baselineDiagnostic?.stage31||null,
+                stage32:baselineDiagnostic?.stage32||null,
+                stage33:baselineDiagnostic?.stage33||null,
+                stage34:baselineDiagnostic?.stage34||null,
+                stage35:baselineDiagnostic?.stage35||null,
+                stage36:baselineDiagnostic?.stage36||null,
+                stage37:s37,
+                gates:s37?.gates||[]
+              }
+            };
+          }
           const base=baseResp.snapshot;
 
           // Engineer-controlled input: switch Stage 3.5 to manual w/c and enter 0.460 through DOM input events.
@@ -488,7 +505,9 @@ async function runUiSmoke(win) {
 
       const b=payload.baseline||{}, n=payload.changed||{};
       const diff=(a,z)=>Math.abs(Number(a)-Number(z));
-      const checks={
+      const checks=payload.baselineFailure ? {
+        baselineCalculated:false
+      } : {
         projectContextPreserved: payload.projectId==='PRJ-DEMO-25-400',
         baselineCalculated:
           b.gateStatus==='locked-for-trial' &&
