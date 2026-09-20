@@ -1,6 +1,6 @@
 {
   "name": "tolou-concrete-engineering-suite",
-  "version": "0.9.2",
+  "version": "1.0.0",
   "description": "Tolou Concrete Engineering Suite - professional concrete engineering decision platform",
   "main": "electron/main.cjs",
   "author": {
@@ -12,7 +12,8 @@
     "start": "electron .",
     "pack": "npm run icon:build && electron-builder --dir",
     "dist:win": "npm run icon:build && electron-builder --win nsis --publish never",
-    "icon:build": "node scripts/build-icon.cjs"
+    "icon:build": "node scripts/build-icon.cjs",
+    "qa:sample": "node scripts/validate-sample-project.cjs"
   },
   "devDependencies": {
     "electron": "^38.0.0",

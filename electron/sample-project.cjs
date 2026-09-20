@@ -1,7 +1,7 @@
 'use strict';
 
 const SAMPLE_MARKER = 'Tolou_sample_project_v1';
-const SAMPLE_DATASET_VERSION = 3;
+const SAMPLE_DATASET_VERSION = 16;
 const PROJECT_ID = 'PRJ-DEMO-25-400';
 const SERIES_ID = 'MX-DEMO-25-400';
 const AGG_CASE_ID = 'AGC-DEMO-25-400';
@@ -14,6 +14,7 @@ function round(v, d=6) { const p=10**d; return Math.round((Number(v)+Number.EPSI
 function readJson(storage,key,fallback){ try { const x=JSON.parse(storage.getItem(key)||'null'); return x && typeof x==='object' ? x : clone(fallback); } catch { return clone(fallback); } }
 function upsert(arr,item,key='id'){ const i=arr.findIndex(x=>x?.[key]===item[key]); if(i>=0) arr[i]=item; else arr.unshift(item); }
 function stableObj(obj){ if(obj===null||typeof obj!=='object') return obj; if(Array.isArray(obj)) return obj.map(stableObj); return Object.keys(obj).sort().reduce((o,k)=>(o[k]=stableObj(obj[k]),o),{}); }
+function stableString(v){ if(v===null||typeof v!=='object') return JSON.stringify(v); if(Array.isArray(v)) return '['+v.map(stableString).join(',')+']'; return '{'+Object.keys(v).sort().map(k=>JSON.stringify(k)+':'+stableString(v[k])).join(',')+'}'; }
 function fnv1a(str){ let h=2166136261>>>0; for(let i=0;i<str.length;i++){ h^=str.charCodeAt(i); h=Math.imul(h,16777619)>>>0; } return ('00000000'+h.toString(16)).slice(-8); }
 
 function logInterpolate(points, sieve, belowZero=true){
@@ -207,8 +208,8 @@ const stage35={
   fcm:32.53,
   wcMode:'manual',
   wcBase:.475,
-  cementStrengthClass:'42.5',
-  coarseShape:'mixed-average',
+  cementStrengthClass:'425',
+  coarseShape:'C',
   sourceType:'QA locked sample result',
   sourceFigure:null,
   waterCorrection:{required:false,rateKgPer10KgCement:null},
@@ -279,81 +280,763 @@ const stage37={
 const mixSnapshot={
   engineVersion:'QC010-iran479-engine-3.7-locked',designMethodId:'iran479',designMethodLabel:'روش ملی ایران — نشریه ض-479',methodProfileId:'IR_NMD_479_1388',methodRuleSetId:'RULESET_IR_479',reference:'نشریه ض-479، چاپ دوم 1388',
   inputState:{projectName:projectContext.name,structureType:'building',standardType:'isiri',cementType:'II',cementDensity:'3150',cementContent:'400',slumpTarget:'100',maxAggSize:'25',targetStrength:'25',targetWc:'0.475',finalWater:'190',airContent:'2',airSystem:'non-air',fineAggregateFM:String(round(fineFM(),2)),ambientTemp:'25',humidity:'55'},
-  materialBindings:clone(materialBindings),aggregateBlendBinding:clone(aggregateBlendBinding),projectName:projectContext.name,projectLinkMode:'library',projectContext:clone(projectContext),standard:'iran479',cementType:'II',cementTypeLabel:'Type II',slump:100,dmax:25,targetStrength:25,targetWc:.475,cementDensity:3150,silicaDensity:2200,flyAshDensity:2300,slagDensity:2900,cementContent:400,silica:0,flyAsh:0,slag:0,totalCementitious:400,effectiveWater:190,batchWater:round(batchWater,6),freeWaterTotal:round(freeWaterTotal,6),finalWc:.475,wcm:.475,airContent:2,airSystem:'nonair',airExposure:'iran479',fineFM:round(fineFM(),3),knownVolume:round(1-aggVol,8),aggregateVolume:round(aggVol,8),volumeClosure:1,aggregateSSDTotal:round(totalAgg,6),aggregateBatchTotal:round(aggCalc.reduce((s,x)=>s+x.batch,0),6),totalWeight:round(totalWeight,6),iranNational:{stage31,stage32,stage33,stage34,stage35,stage36,stage37},integrationAudit:stage37,validationStatus:'locked-for-trial',calculationFingerprint:stage37.fingerprint,ruleTrace:[{id:'IR479_3_1_FCM',reference:'نشریه ض-479 Stage 3.1'},{id:'IR479_4_2_GRADING',reference:'نشریه ض-479 شکل 4-4'},{id:'IR479_3_4_FREE_WATER',reference:'نشریه ض-479 Stage 3.4'},{id:'IR479_3_5_WC',reference:'نشریه ض-479 Stage 3.5'},{id:'IR479_3_6_VOLUME',reference:'نشریه ض-479 Stage 3.6'},{id:'IR479_3_7_LOCK',reference:'Tolou Stage 3.7'}],aggregates:clone(snapshotAggregates),admixtures:[],fibers:[],timestamp:'2026-05-24T11:00:00+03:30'
+  materialBindings:clone(materialBindings),aggregateBlendBinding:clone(aggregateBlendBinding),projectName:projectContext.name,projectLinkMode:'library',projectContext:clone(projectContext),standard:'iran479',cementType:'II',cementTypeLabel:'Type II',slump:100,dmax:25,targetStrength:25,targetWc:.475,cementDensity:3150,silicaDensity:2200,flyAshDensity:2300,slagDensity:2900,cementContent:400,silica:0,flyAsh:0,slag:0,totalCementitious:400,effectiveWater:190,batchWater:round(batchWater,6),freeWaterTotal:round(freeWaterTotal,6),finalWc:.475,wcm:.475,airContent:2,airSystem:'nonair',airExposure:'iran479',fineFM:round(fineFM(),3),knownVolume:round(1-aggVol,8),aggregateVolume:round(aggVol,8),volumeClosure:1,aggregateSSDTotal:round(totalAgg,6),aggregateBatchTotal:round(aggCalc.reduce((s,x)=>s+x.batch,0),6),totalWeight:round(totalWeight,6),iranNational:{stage31,stage32,stage33,stage34,stage35,stage36,stage37},integrationAudit:stage37,validationStatus:'locked-for-trial',calculationFingerprint:stage37.fingerprint,ruleTrace:[{id:'IR479_3_1_FCM',reference:'نشریه ض-479 Stage 3.1'},{id:'IR479_4_2_GRADING',reference:'نشریه ض-479 شکل 4-4'},{id:'IR479_3_4_FREE_WATER',reference:'نشریه ض-479 Stage 3.4'},{id:'IR479_3_5_WC',reference:'نشریه ض-479 Stage 3.5'},{id:'IR479_3_6_VOLUME',reference:'نشریه ض-479 Stage 3.6'},{id:'IR479_3_7_LOCK',reference:'Tolou Stage 3.7'}],aggregates:clone(snapshotAggregates),admixtures:[],fibers:[],fillerContent:0,superplasticizer:0,vma:0,airEntrainer:0,retarder:0,timestamp:'2026-05-24T11:00:00+03:30'
 };
 
-function makeTrial(i,date,water,fc28,slump,air,density){
+function makeTrial(i,date,water,fc28,slump,air,density,moistures){
   const wcm=water/400, id=`TR-DEMO-${String(i).padStart(2,'0')}`;
-  const strengths={'1':null,'3':round(fc28*.52,1),'7':round(fc28*.73,1),'28':fc28,'56':round(fc28*1.08,1),'90':null};
-  return {id,projectId:PROJECT_ID,revision:0,batchNo:`T-${String(i).padStart(2,'0')}`,date,batchVolume:45,operator:'م. کریمی — کارشناس آزمایشگاه (فرضی)',actual:{water,cementitious:400},fresh:{slump,slumpFlow:null,t500:null,air,density,temperature:24+i*.3,segregation:'مشاهده نشد',workability:'یکنواخت و مناسب'},strengths,hardened:{flexural:null,splitting:null,rcpt:null,absorption:null},notes:'Trial نمونه برای کنترل اتصال کامل جریان مهندسی Tolou.',batchChanges:i===3?'نقطه مبنا — بدون تغییر نسبت‌های طراحی':'تغییر کنترل‌شده آب مؤثر برای مطالعه حساسیت و کالیبراسیون.',calculated:{actualWcm:round(wcm,4)},evaluation:{status:'ثبت‌شده',level:'pass',reasons:['اسلامپ و هوا در بازه ثبت‌شده هستند.','مقاومت 28روزه بالاتر از هدف 25 MPa است.',`w/cm واقعی ${wcm.toFixed(3)} از حد پروژه 0.500 عبور نکرده است.`]},updatedAt:`${date}T16:00:00+03:30`,createdAt:`${date}T08:00:00+03:30`};
+  const batchVolumeL=45, batchVolumeM3=batchVolumeL/1000;
+  const cementBatch=cement*batchVolumeM3;
+  const aggBatch=snapshotAggregates.map((a,j)=>{
+    const M=moistures[j]/100, A=a.absorption/100;
+    const ssdPerM3=a.ssd, odPerM3=ssdPerM3/(1+A), wetPerM3=odPerM3*(1+M);
+    const freeWaterPerM3=wetPerM3-ssdPerM3;
+    return {
+      aggregateId:a.id,
+      materialId:a.materialId,
+      name:a.name,
+      absorptionPct:a.absorption,
+      moisturePct:moistures[j],
+      ssdTargetKg:round(ssdPerM3*batchVolumeM3,3),
+      wetBatchKg:round(wetPerM3*batchVolumeM3,3),
+      freeWaterKg:round(freeWaterPerM3*batchVolumeM3,3)
+    };
+  });
+  const aggregateFreeWaterKg=aggBatch.reduce((s,a)=>s+a.freeWaterKg,0);
+  const effectiveWaterBatchKg=water*batchVolumeM3;
+  const waterToAddKg=effectiveWaterBatchKg-aggregateFreeWaterKg;
+  const totalBatchMassKg=cementBatch+waterToAddKg+aggBatch.reduce((s,a)=>s+a.wetBatchKg,0);
+  const measuredYieldM3=totalBatchMassKg/density;
+  const relativeYield=measuredYieldM3/batchVolumeM3;
+  const strengths={'1':null,'3':round(fc28*.50,1),'7':round(fc28*.72,1),'28':fc28,'56':round(fc28*1.07,1),'90':null};
+  const specimenSets={
+    '3':[round(strengths['3']-.3,1),strengths['3'],round(strengths['3']+.3,1)],
+    '7':[round(strengths['7']-.3,1),strengths['7'],round(strengths['7']+.3,1)],
+    '28':[round(fc28-.4,1),fc28,round(fc28+.4,1)],
+    '56':[round(strengths['56']-.4,1),strengths['56'],round(strengths['56']+.4,1)]
+  };
+  const meetsSpecified=fc28>=25;
+  const meetsDesignMean=fc28>=stage31.fcm;
+  const withinWcm=wcm<=.50;
+  const withinSlump=Math.abs(slump-100)<=20;
+  const withinAir=Math.abs(air-2)<=1;
+  return {
+    id,projectId:PROJECT_ID,revision:0,batchNo:`T-${String(i).padStart(2,'0')}`,date,
+    batchVolume:batchVolumeL,batchVolumeM3,
+    operator:'م. کریمی — کارشناس آزمایشگاه (فرضی)',
+    technician:'س. نادری — تکنسین بتن (فرضی)',
+    laboratory:'آزمایشگاه کنترل کیفیت بتن طلوع — نمونه QA',
+    materialLots:{cement:'CII-260518-A',fine:'FA-260520',pea:'CA7-260520',almond:'CA5-260520',water:'W-2605'},
+    actual:{
+      water,cementitious:400,
+      waterAddedKg:round(waterToAddKg,3),
+      effectiveWaterBatchKg:round(effectiveWaterBatchKg,3),
+      cementBatchKg:round(cementBatch,3),
+      aggregateFreeWaterKg:round(aggregateFreeWaterKg,3),
+      totalBatchMassKg:round(totalBatchMassKg,3)
+    },
+    preparation:{
+      basis:'SSD masses from locked R0 + measured trial-day moisture correction',
+      moistureReadingsPct:moistures,
+      aggregates:aggBatch,
+      waterToAddKg:round(waterToAddKg,3),
+      effectiveWaterBatchKg:round(effectiveWaterBatchKg,3),
+      mixingSequence:'سنگدانه + حدود 70% آب؛ افزودن سیمان؛ تکمیل آب؛ اختلاط نهایی و کنترل یکنواختی.',
+      mixingTimeSec:180,
+      restTimeSec:60
+    },
+    fresh:{
+      slump,slumpFlow:null,t500:null,air,density,temperature:round(24+i*.3,1),
+      segregation:'مشاهده نشد',bleeding:'ناچیز / غیرمعنادار',workability:'یکنواخت و مناسب',
+      visualCohesion:'خوب',finishability:'مناسب',
+      measuredYieldM3:round(measuredYieldM3,5),relativeYield:round(relativeYield,4)
+    },
+    strengths,specimenSets,
+    hardened:{flexural:null,splitting:null,rcpt:null,absorption:null},
+    notes:'Trial نمونه QA بر پایه R0 قفل‌شده؛ جرم‌های بچ از مقادیر SSD Stage 3 با رطوبت روز آزمایش اصلاح شده‌اند.',
+    batchChanges:i===3?'نقطه مبنا R0 — فقط اجرای آزمایشگاهی و تصحیح رطوبت؛ نسبت‌های طراحی تغییر نکرده‌اند.':'فقط آب مؤثر برای مطالعه حساسیت w/cm تغییر داده شده؛ سیمان 400 kg/m³ و Blend سنگدانه 44/37/19 ثابت مانده است.',
+    calculated:{actualWcm:round(wcm,4),designWcm:.475,designFcm:stage31.fcm,yieldRatio:round(relativeYield,4)},
+    evaluation:{
+      status:'بررسی‌شده',
+      level:(meetsSpecified&&withinWcm&&withinSlump&&withinAir)?'pass':'review',
+      specifiedStrengthPass:meetsSpecified,
+      designMeanPointPass:meetsDesignMean,
+      reasons:[
+        `f'c مشخصه 25 MPa: ${meetsSpecified?'قبول':'نیازمند بررسی'}؛ نتیجه 28روزه = ${fc28.toFixed(1)} MPa.`,
+        `مبنای طراحی fcm = ${stage31.fcm.toFixed(2)} MPa؛ این نقطه ${meetsDesignMean?'در/بالای مبنا':'زیر مبنا'} است.`,
+        `اسلامپ ${slump} mm ${withinSlump?'داخل':'خارج'} بازه 80–120 mm است.`,
+        `هوا ${air.toFixed(1)}% ${withinAir?'داخل':'خارج'} بازه 1–3% است.`,
+        `w/cm واقعی ${wcm.toFixed(3)} ${withinWcm?'از حد 0.500 عبور نکرده':'از حد 0.500 عبور کرده'} است.`
+      ]
+    },
+    updatedAt:`${date}T16:00:00+03:30`,createdAt:`${date}T08:00:00+03:30`
+  };
 }
 const trials=[
-  makeTrial(1,'2026-06-01',184,32.0,90,1.8,2357),
-  makeTrial(2,'2026-06-03',188,31.2,95,1.9,2354),
-  makeTrial(3,'2026-06-05',190,30.7,100,2.0,2351),
-  makeTrial(4,'2026-06-07',192,30.2,105,2.1,2348),
-  makeTrial(5,'2026-06-09',196,29.4,110,2.2,2345)
+  makeTrial(1,'2026-06-01',184,34.6,90,1.8,2358,[3.4,1.4,1.1]),
+  makeTrial(2,'2026-06-03',188,33.8,95,1.9,2355,[3.5,1.5,1.1]),
+  makeTrial(3,'2026-06-05',190,33.2,100,2.0,2352,[3.5,1.5,1.2]),
+  makeTrial(4,'2026-06-07',192,32.6,105,2.1,2349,[3.6,1.6,1.2]),
+  makeTrial(5,'2026-06-09',196,31.7,110,2.2,2346,[3.7,1.6,1.3])
 ];
 
 function trialEvidencePayload(series,rv){ const rev=series.revisions.find(r=>Number(r.revision)===Number(rv)); const ts=series.trials.filter(t=>Number(t.revision)===Number(rv)); return {seriesId:series.id,revision:Number(rv),designFingerprint:rev?.snapshot?.calculationFingerprint||rev?.snapshot?.canonicalContract?.identity?.calculationFingerprint||null,acceptance:series.acceptance||{},trials:ts.map(t=>({id:t.id,batchNo:t.batchNo,date:t.date,actual:t.actual,fresh:t.fresh,strengths:t.strengths,hardened:t.hardened,batchChanges:t.batchChanges,updatedAt:t.updatedAt}))}; }
-function evidenceFingerprint(series,rv){ return 'TE-'+fnv1a(JSON.stringify(stableObj(trialEvidencePayload(series,rv)))); }
+function evidenceFingerprint(series,rv){ return 'TE-'+fnv1a(stableString(trialEvidencePayload(series,rv))); }
 function calcTrialStats(ts){ const vals=ts.map(t=>t.strengths['28']);const mean=vals.reduce((a,b)=>a+b,0)/vals.length;const sd=Math.sqrt(vals.reduce((s,v)=>s+(v-mean)**2,0)/(vals.length-1));const w=ts.map(t=>t.calculated.actualWcm),sl=ts.map(t=>t.fresh.slump),air=ts.map(t=>t.fresh.air),dens=ts.map(t=>t.fresh.density); return {mean,sd,cov:sd/mean*100,wMean:w.reduce((a,b)=>a+b,0)/w.length,wMax:Math.max(...w),slMean:sl.reduce((a,b)=>a+b,0)/sl.length,airMean:air.reduce((a,b)=>a+b,0)/air.length,densityMean:dens.reduce((a,b)=>a+b,0)/dens.length}; }
 const trialStats=calcTrialStats(trials);
-let mixSeries={id:SERIES_ID,projectId:PROJECT_ID,code:'QC010-001',name:'بتن معمولی C25 — سیمان تیپ II — عیار 400',engine:'QC-010',engineType:'بتن معمولی',status:'approved',createdAt:'2026-05-24T11:05:00+03:30',updatedAt:'2026-07-08T12:00:00+03:30',acceptance:{targetStrength:25,targetSlump:100,slumpTolerance:20,targetAir:2,airTolerance:1,maxWcm:.50,governingStandard:'نشریه ض-479 + الزامات پروژه نمونه'},approvedRevision:0,approvedAt:'2026-07-08T12:00:00+03:30',revisions:[{revision:0,createdAt:'2026-05-24T11:05:00+03:30',reason:'ثبت طرح اولیه روش ملی پس از عبور Gate 3.7',snapshot:clone(mixSnapshot)}],trials:clone(trials)};
+let mixSeries={id:SERIES_ID,projectId:PROJECT_ID,code:'QC010-001',name:'بتن معمولی C25 — سیمان تیپ II — عیار 400',engine:'QC-010',engineType:'بتن معمولی',status:'approved',createdAt:'2026-05-24T11:05:00+03:30',updatedAt:'2026-07-08T12:00:00+03:30',acceptance:{targetStrength:25,designMeanStrength:stage31.fcm,targetSlump:100,slumpTolerance:20,targetAir:2,airTolerance:1,maxWcm:.50,governingStandard:'نشریه ض-479 + الزامات پروژه نمونه'},approvedRevision:0,approvedAt:'2026-07-08T12:00:00+03:30',revisions:[{revision:0,createdAt:'2026-05-24T11:05:00+03:30',reason:'ثبت طرح اولیه روش ملی پس از عبور Gate 3.7',snapshot:clone(mixSnapshot)}],trials:clone(trials)};
 const evfp=evidenceFingerprint(mixSeries,0);
-mixSeries.revisions[0].calibration={version:'TolouTrialCalibration/1.0',generatedAt:'2026-07-08T11:50:00+03:30',revision:0,evidenceFingerprint:evfp,status:'ready',stats:{revision:0,trialIds:trials.map(t=>t.id),n:5,fc28:{n:5,mean:round(trialStats.mean,3),sd:round(trialStats.sd,3),covPct:round(trialStats.cov,2),min:29.4,max:32},slump:{n:5,mean:trialStats.slMean,min:90,max:110},air:{n:5,mean:trialStats.airMean,min:1.8,max:2.2},actualWcm:{n:5,mean:round(trialStats.wMean,4),max:round(trialStats.wMax,4)},density:{n:5,mean:trialStats.densityMean,design:round(totalWeight,3),meanDeviationPct:round((trialStats.densityMean-totalWeight)/totalWeight*100,3)},completeness:{trials:5,withFc28:5,withSlump:5,withAir:5,withWcm:5,withDensity:5},acceptance:clone(mixSeries.acceptance)},findings:[{level:'pass',code:'FC28_TARGET',text:`میانگین مقاومت 28روزه ${trialStats.mean.toFixed(2)} MPa به هدف 25.00 MPa می‌رسد.`},{level:'pass',code:'SLUMP_RANGE',text:'تمام نتایج اسلامپ داخل بازه 80 تا 120 mm هستند.'},{level:'pass',code:'AIR_RANGE',text:'تمام نتایج هوا داخل بازه تعریف‌شده هستند.'},{level:'pass',code:'WCM_LIMIT',text:'تمام w/cmهای واقعی ثبت‌شده از حد 0.500 عبور نکرده‌اند.'},{level:'info',code:'STAT_READY',text:`بر اساس 5 نتیجه 28روزه: SD = ${trialStats.sd.toFixed(2)} MPa و COV = ${trialStats.cov.toFixed(1)}%.`}],principle:'No automatic mix correction is applied. Engineer review is required before creating the next revision.'};
-mixSeries.approvalRecord={revision:0,at:mixSeries.approvedAt,trialIds:trials.map(t=>t.id),overrideReason:null,evidenceFingerprint:evfp,calibrationStatus:'ready',calibrationVersion:'TolouTrialCalibration/1.0',integrityStatus:'valid',integrityReason:'Evidence fingerprint captured at approval.'};
+mixSeries.revisions[0].calibration={version:'TolouTrialCalibration/1.0',generatedAt:'2026-07-08T11:50:00+03:30',revision:0,evidenceFingerprint:evfp,status:'ready',stats:{revision:0,trialIds:trials.map(t=>t.id),n:5,fc28:{n:5,mean:round(trialStats.mean,3),sd:round(trialStats.sd,3),covPct:round(trialStats.cov,2),min:round(Math.min(...trials.map(t=>t.strengths['28'])),1),max:round(Math.max(...trials.map(t=>t.strengths['28'])),1),designMean:stage31.fcm,specifiedStrength:25},slump:{n:5,mean:trialStats.slMean,min:90,max:110},air:{n:5,mean:trialStats.airMean,min:1.8,max:2.2},actualWcm:{n:5,mean:round(trialStats.wMean,4),max:round(trialStats.wMax,4)},density:{n:5,mean:trialStats.densityMean,design:round(totalWeight,3),meanDeviationPct:round((trialStats.densityMean-totalWeight)/totalWeight*100,3)},completeness:{trials:5,withFc28:5,withSlump:5,withAir:5,withWcm:5,withDensity:5},acceptance:clone(mixSeries.acceptance)},findings:[{level:trialStats.mean>=stage31.fcm?'pass':'review',code:'FC28_DESIGN_MEAN',text:`میانگین مقاومت 28روزه ${trialStats.mean.toFixed(2)} MPa در برابر fcm طراحی ${stage31.fcm.toFixed(2)} MPa کنترل شد.`},{level:'pass',code:'FC28_SPECIFIED',text:'تمام نتایج 28روزه از مقاومت مشخصه 25.00 MPa بیشتر هستند.'},{level:'pass',code:'SLUMP_RANGE',text:'تمام نتایج اسلامپ داخل بازه 80 تا 120 mm هستند.'},{level:'pass',code:'AIR_RANGE',text:'تمام نتایج هوا داخل بازه تعریف‌شده هستند.'},{level:'pass',code:'WCM_LIMIT',text:'تمام w/cmهای واقعی ثبت‌شده از حد 0.500 عبور نکرده‌اند.'},{level:'info',code:'STAT_READY',text:`بر اساس 5 نتیجه 28روزه: SD = ${trialStats.sd.toFixed(2)} MPa و COV = ${trialStats.cov.toFixed(1)}%.`}],principle:'No automatic mix correction is applied. Engineer review is required before creating the next revision.'};
+const approvalGates=[
+  {id:'design-lock',label:'Design snapshot locked',ok:mixSnapshot.validationStatus==='locked-for-trial',detail:mixSnapshot.calculationFingerprint},
+  {id:'trial-count',label:'Minimum trial evidence',ok:trials.length>=3,detail:`${trials.length} trial batches linked to R0`},
+  {id:'specified-strength',label:'Specified strength',ok:trials.every(t=>t.strengths['28']>=25),detail:"All 28-day results >= f'c 25 MPa"},
+  {id:'design-mean',label:'Required mean strength',ok:trialStats.mean>=stage31.fcm,detail:`Mean ${trialStats.mean.toFixed(2)} MPa vs fcm ${stage31.fcm.toFixed(2)} MPa`},
+  {id:'wcm',label:'Maximum w/cm',ok:trials.every(t=>t.calculated.actualWcm<=.50),detail:'All trial w/cm <= 0.500'},
+  {id:'slump',label:'Slump acceptance',ok:trials.every(t=>Math.abs(t.fresh.slump-100)<=20),detail:'All trials within 80–120 mm'},
+  {id:'air',label:'Air acceptance',ok:trials.every(t=>Math.abs(t.fresh.air-2)<=1),detail:'All trials within 1–3%'},
+  {id:'evidence',label:'Evidence fingerprint',ok:Boolean(evfp&&evfp.startsWith('TE-')),detail:evfp}
+];
+const approvalReady=approvalGates.every(g=>g.ok);
+if(!approvalReady) mixSeries.status='review';
+mixSeries.approvalRecord={
+  revision:0,
+  at:mixSeries.approvedAt,
+  decision:approvalReady?'approved':'review-required',
+  approvedBy:'مهندس کنترل کیفیت بتن — کاربر نمونه QA',
+  reviewerRole:'Senior Concrete QC Engineer',
+  trialIds:trials.map(t=>t.id),
+  overrideReason:null,
+  designFingerprint:mixSnapshot.calculationFingerprint,
+  evidenceFingerprint:evfp,
+  calibrationStatus:mixSeries.revisions[0].calibration.status,
+  calibrationVersion:'TolouTrialCalibration/1.0',
+  integrityStatus:approvalReady?'valid':'invalid',
+  integrityReason:approvalReady?'All mandatory approval gates passed and evidence fingerprint was captured at approval.':'One or more mandatory approval gates failed.',
+  gates:approvalGates,
+  designBasis:{fc:25,fcm:stage31.fcm,cementKgM3:400,effectiveWaterKgM3:190,wcm:.475,slumpMm:100,dmaxMm:25,aggregateMassSplit:[44,37,19]},
+  engineeringDisposition:'R0 may proceed to controlled production. Any material source/revision, aggregate blend, cement content, design w/cm or acceptance change requires a new revision and new evidence review.'
+};
 
 function makeProductionBatch(i,date,ticket,moistures,deviations,waterDev,slump,air,temp,strength28){
   const volume=7, ingredients=[]; let freeTarget=0,freeActual=0,totalActual=0,cemActual=0;
   const cementTarget=400*volume, cementActual=cementTarget*(1+deviations[0]/100); cemActual=cementActual; totalActual+=cementActual;
-  ingredients.push({key:'cement',name:'سیمان',group:'مواد سیمانی',perM3:400,moisture:0,absorption:0,targetAdjusted:cementTarget,actual:round(cementActual,2),deviation:deviations[0],tolerance:1});
-  snapshotAggregates.forEach((a,j)=>{const M=moistures[j]/100,A=a.absorption/100,od=a.ssd/(1+A),wet=od*(1+M),target=wet*volume,actual=target*(1+deviations[j+1]/100),odAct=actual/(1+M),ssdAct=odAct*(1+A);freeTarget+=(wet-a.ssd)*volume;freeActual+=actual-ssdAct;totalActual+=actual;ingredients.push({key:'agg'+j,name:a.name,group:'سنگدانه',perM3:a.ssd,moisture:moistures[j],absorption:a.absorption,targetAdjusted:round(target,2),actual:round(actual,2),deviation:deviations[j+1],tolerance:2});});
-  const waterTarget=effectiveWater*volume-freeTarget, waterActual=waterTarget*(1+waterDev/100);totalActual+=waterActual;const effectiveActual=waterActual+freeActual, actualWcm=effectiveActual/cemActual;const desiredYield=[1.001,0.999,1.002,1.000,1.003,0.998][i-1]||1;const density=totalActual/(volume*desiredYield),yieldVolume=totalActual/density,relativeYield=yieldVolume/volume;
-  return {id:`PB-DEMO-${String(i).padStart(2,'0')}`,createdAt:`${date}T14:00:00+03:30`,projectId:PROJECT_ID,seriesId:SERIES_ID,seriesCode:'QC010-001',mixName:mixSeries.name,engine:'QC-010',revision:0,snapshotVersion:mixSnapshot.engineVersion,date,time:`0${7+i}:30`.slice(-5),ticket,volume,plant:'بچینگ مرکزی طلوع — کارخانه نمونه (فرضی)',line:'خط ۱',truck:`TM-${String(20+i).padStart(2,'0')}`,driver:`راننده ${i} (فرضی)`,operator:'اپراتور بچینگ — ع. مرادی (فرضی)',project:'TL-DEMO-25-400 — مجتمع اداری آفتاب شرق',notes:'بچ نمونه QA؛ مقادیر واقعی توزین با انحراف کوچک و در محدوده کنترل داخلی ثبت شده‌اند.',density:round(density,1),slump,air,temperature:temp,returned:0,returnedAction:'none',tolerances:{cementitious:1,aggregate:2,water:1,admixture:2},ingredients,water:{target:round(waterTarget,2),actual:round(waterActual,2),deviation:waterDev,tolerance:1,freeTarget:round(freeTarget,2),freeActual:round(freeActual,2),effectiveActual:round(effectiveActual,2)},actualCementitious:round(cemActual,2),actualWcm:round(actualWcm,4),totalActualMass:round(totalActual,2),yieldVolume:round(yieldVolume,4),relativeYield:round(relativeYield,4),status:'ok',violations:[],qaStrength28:strength28};
+  const approvalRef={seriesId:SERIES_ID,revision:0,decision:mixSeries.approvalRecord.decision,designFingerprint:mixSeries.approvalRecord.designFingerprint,evidenceFingerprint:mixSeries.approvalRecord.evidenceFingerprint};
+  ingredients.push({key:'cement',materialId:materialIds.cement,materialRevision:1,lot:'CII-260518-A',name:'سیمان پرتلند تیپ II',group:'مواد سیمانی',perM3:400,moisture:0,absorption:0,targetAdjusted:round(cementTarget,2),actual:round(cementActual,2),deviation:deviations[0],tolerance:1,withinTolerance:Math.abs(deviations[0])<=1});
+  snapshotAggregates.forEach((a,j)=>{
+    const M=moistures[j]/100,A=a.absorption/100,od=a.ssd/(1+A),wet=od*(1+M),target=wet*volume,actual=target*(1+deviations[j+1]/100),odAct=actual/(1+M),ssdAct=odAct*(1+A);
+    const freeT=(wet-a.ssd)*volume, freeA=actual-ssdAct; freeTarget+=freeT;freeActual+=freeA;totalActual+=actual;
+    ingredients.push({
+      key:'agg'+j,materialId:a.materialId,materialRevision:1,lot:['FA-260520','CA7-260520','CA5-260520'][j],
+      name:a.name,group:'سنگدانه',perM3:a.ssd,ssdPerM3:round(a.ssd,3),moisture:moistures[j],absorption:a.absorption,
+      targetAdjusted:round(target,2),actual:round(actual,2),deviation:deviations[j+1],tolerance:2,withinTolerance:Math.abs(deviations[j+1])<=2,
+      targetFreeWater:round(freeT,2),actualFreeWater:round(freeA,2)
+    });
+  });
+  const waterTarget=effectiveWater*volume-freeTarget;
+  const waterActual=waterTarget*(1+waterDev/100);
+  totalActual+=waterActual;
+  const effectiveActual=waterActual+freeActual;
+  const actualWcm=effectiveActual/cemActual;
+  const desiredYield=[1.001,0.999,1.002,1.000,1.003,0.998][i-1]||1;
+  const density=totalActual/(volume*desiredYield),yieldVolume=totalActual/density,relativeYield=yieldVolume/volume;
+  const weighingPass=ingredients.every(x=>x.withinTolerance)&&Math.abs(waterDev)<=1;
+  const wcmPass=actualWcm<=.50;
+  const slumpPass=Math.abs(slump-100)<=20;
+  const airPass=Math.abs(air-2)<=1;
+  const yieldPass=relativeYield>=.98&&relativeYield<=1.02;
+  const approvalPass=approvalRef.decision==='approved'&&approvalRef.designFingerprint===mixSnapshot.calculationFingerprint;
+  const productionReady=weighingPass&&wcmPass&&slumpPass&&airPass&&yieldPass&&approvalPass;
+  const violations=[];
+  if(!weighingPass)violations.push('WEIGHING_TOLERANCE');
+  if(!wcmPass)violations.push('WCM_LIMIT');
+  if(!slumpPass)violations.push('SLUMP_RANGE');
+  if(!airPass)violations.push('AIR_RANGE');
+  if(!yieldPass)violations.push('YIELD_RANGE');
+  if(!approvalPass)violations.push('APPROVAL_INTEGRITY');
+  return {
+    id:`PB-DEMO-${String(i).padStart(2,'0')}`,createdAt:`${date}T14:00:00+03:30`,projectId:PROJECT_ID,seriesId:SERIES_ID,seriesCode:'QC010-001',mixName:mixSeries.name,engine:'QC-010',revision:0,
+    approvalRef,snapshotVersion:mixSnapshot.engineVersion,designFingerprint:mixSnapshot.calculationFingerprint,
+    date,time:`0${7+i}:30`.slice(-5),ticket,volume,plant:'بچینگ مرکزی طلوع — کارخانه نمونه (فرضی)',line:'خط ۱',truck:`TM-${String(20+i).padStart(2,'0')}`,
+    driver:`راننده ${i} (فرضی)`,operator:'اپراتور بچینگ — ع. مرادی (فرضی)',qcInspector:'کارشناس QC — م. کریمی (فرضی)',
+    project:'TL-DEMO-25-400 — مجتمع اداری آفتاب شرق',
+    materialLots:{cement:'CII-260518-A',fine:'FA-260520',pea:'CA7-260520',almond:'CA5-260520',water:'W-2605'},
+    notes:'بچ تولید نمونه QA بر پایه R0 تأییدشده؛ رطوبت روز تولید اندازه‌گیری و آب بچ بر مبنای آب آزاد سنگدانه اصلاح شده است.',
+    density:round(density,1),slump,air,temperature:temp,returned:0,returnedAction:'none',
+    tolerances:{cementitious:1,aggregate:2,water:1,admixture:2,yield:{min:.98,max:1.02},maxWcm:.50},
+    moistureControl:{readingsPct:moistures,aggregateFreeWaterTargetKg:round(freeTarget,2),aggregateFreeWaterActualKg:round(freeActual,2)},
+    ingredients,
+    water:{target:round(waterTarget,2),actual:round(waterActual,2),deviation:waterDev,tolerance:1,withinTolerance:Math.abs(waterDev)<=1,freeTarget:round(freeTarget,2),freeActual:round(freeActual,2),effectiveActual:round(effectiveActual,2)},
+    actualCementitious:round(cemActual,2),actualWcm:round(actualWcm,4),totalActualMass:round(totalActual,2),yieldVolume:round(yieldVolume,4),relativeYield:round(relativeYield,4),
+    control:{approvalPass,weighingPass,wcmPass,slumpPass,airPass,yieldPass,productionReady},
+    status:productionReady?'ok':'review',violations,qaStrength28:strength28,
+    disposition:productionReady?'Released as controlled production batch under approved R0.':'Hold for QC review before release.'
+  };
 }
 const productionBatches=[
-  makeProductionBatch(1,'2026-07-01','B-260701-01',[3.4,1.5,1.1],[.10,.20,-.15,.10],.20,95,2.0,27,30.4),
-  makeProductionBatch(2,'2026-07-08','B-260708-01',[3.6,1.4,1.2],[-.05,.10,.25,-.20],-.10,100,1.9,28,31.1),
-  makeProductionBatch(3,'2026-07-15','B-260715-01',[3.5,1.6,1.3],[.20,-.10,.15,.05],.15,105,2.1,29,30.8),
-  makeProductionBatch(4,'2026-07-22','B-260722-01',[3.7,1.5,1.2],[.00,.30,-.20,.10],-.20,100,2.0,30,31.5),
-  makeProductionBatch(5,'2026-07-29','B-260729-01',[3.8,1.7,1.1],[-.10,-.15,.20,-.05],.05,110,2.2,31,29.9),
-  makeProductionBatch(6,'2026-08-05','B-260805-01',[3.4,1.6,1.2],[.15,.05,-.10,.20],.10,95,1.8,30,30.6)
+  makeProductionBatch(1,'2026-07-01','B-260701-01',[3.4,1.5,1.1],[.10,.20,-.15,.10],.20,95,2.0,27,33.1),
+  makeProductionBatch(2,'2026-07-08','B-260708-01',[3.6,1.4,1.2],[-.05,.10,.25,-.20],-.10,100,1.9,28,33.6),
+  makeProductionBatch(3,'2026-07-15','B-260715-01',[3.5,1.6,1.3],[.20,-.10,.15,.05],.15,105,2.1,29,32.9),
+  makeProductionBatch(4,'2026-07-22','B-260722-01',[3.7,1.5,1.2],[.00,.30,-.20,.10],-.20,100,2.0,30,33.8),
+  makeProductionBatch(5,'2026-07-29','B-260729-01',[3.8,1.7,1.1],[-.10,-.15,.20,-.05],.05,110,2.2,31,32.4),
+  makeProductionBatch(6,'2026-08-05','B-260805-01',[3.4,1.6,1.2],[.15,.05,-.10,.20],.10,95,1.8,30,33.3)
 ];
+const productionStats={
+  count:productionBatches.length,
+  totalVolumeM3:productionBatches.reduce((s,b)=>s+b.volume,0),
+  meanWcm:round(productionBatches.reduce((s,b)=>s+b.actualWcm,0)/productionBatches.length,4),
+  maxWcm:round(Math.max(...productionBatches.map(b=>b.actualWcm)),4),
+  meanRelativeYield:round(productionBatches.reduce((s,b)=>s+b.relativeYield,0)/productionBatches.length,4),
+  meanSlump:round(productionBatches.reduce((s,b)=>s+b.slump,0)/productionBatches.length,1),
+  meanAir:round(productionBatches.reduce((s,b)=>s+b.air,0)/productionBatches.length,2),
+  meanFc28:round(productionBatches.reduce((s,b)=>s+b.qaStrength28,0)/productionBatches.length,2),
+  allReleased:productionBatches.every(b=>b.control.productionReady)
+};
 
 function addDays(iso,n){ const d=new Date(iso+'T12:00:00Z');d.setUTCDate(d.getUTCDate()+n);return d.toISOString().slice(0,10); }
+function sampleStats(values){
+  const vals=values.filter(Number.isFinite);
+  if(!vals.length)return {n:0,mean:null,sd:null,covPct:null,min:null,max:null};
+  const mean=vals.reduce((a,b)=>a+b,0)/vals.length;
+  const sd=vals.length>1?Math.sqrt(vals.reduce((s,v)=>s+(v-mean)**2,0)/(vals.length-1)):0;
+  return {n:vals.length,mean:round(mean,3),sd:round(sd,3),covPct:mean?round(sd/mean*100,2):null,min:round(Math.min(...vals),3),max:round(Math.max(...vals),3)};
+}
 const qcTests=[];
-trials.forEach((t,i)=>qcTests.push({id:`ST-DEMO-TR-${i+1}-28`,date:addDays(t.date,28),testId:`QC010-001-${t.batchNo}-28d`,mix:'QC010-001',revision:'R0',lot:t.batchNo,plant:'آزمایشگاه طرح اختلاط',age:28,strength:t.strengths['28'],target:25,specimens:[round(t.strengths['28']-.3,1),round(t.strengths['28'],1),round(t.strengths['28']+.3,1)],materialLot:'CII-260518-A / FA-260520 / CA7-260520 / CA5-260520',notes:'همگام‌سازی داده Trial نمونه.',source:'trial',sourceRef:`${SERIES_ID}|${t.id}|28`,projectId:PROJECT_ID,createdAt:`${addDays(t.date,28)}T10:00:00+03:30`}));
-productionBatches.forEach((b,i)=>{qcTests.push({id:`ST-DEMO-P-${i+1}-7`,date:addDays(b.date,7),testId:`${b.ticket}-7d`,mix:'QC010-001',revision:'R0',lot:b.ticket,plant:b.plant,age:7,strength:round(b.qaStrength28*.73,1),target:25,specimens:[],materialLot:'CII-260518-A / Aggregate Lot 260520',notes:'کنترل روند 7روزه تولید نمونه.',source:'manual',projectId:PROJECT_ID,createdAt:`${addDays(b.date,7)}T10:30:00+03:30`});qcTests.push({id:`ST-DEMO-P-${i+1}-28`,date:addDays(b.date,28),testId:`${b.ticket}-28d`,mix:'QC010-001',revision:'R0',lot:b.ticket,plant:b.plant,age:28,strength:b.qaStrength28,target:25,specimens:[round(b.qaStrength28-.2,1),b.qaStrength28,round(b.qaStrength28+.2,1)],materialLot:'CII-260518-A / Aggregate Lot 260520',notes:'کنترل مقاومت 28روزه تولید نمونه.',source:'manual',projectId:PROJECT_ID,createdAt:`${addDays(b.date,28)}T10:30:00+03:30`});});
+trials.forEach((t,i)=>{
+  [7,28].forEach(age=>{
+    const v=t.strengths[String(age)];
+    qcTests.push({
+      id:`ST-DEMO-TR-${i+1}-${age}`,
+      date:addDays(t.date,age),
+      testId:`QC010-001-${t.batchNo}-${age}d`,
+      mix:'QC010-001',seriesId:SERIES_ID,revision:0,revisionLabel:'R0',revisionNo:0,lot:t.batchNo,
+      plant:'آزمایشگاه طرح اختلاط',age,strength:v,target:25,designMeanTarget:stage31.fcm,
+      specimens:clone(t.specimenSets[String(age)]||[]),
+      materialLots:clone(t.materialLots),
+      materialLot:'CII-260518-A / FA-260520 / CA7-260520 / CA5-260520',
+      notes:age===28?'نتیجه 28روزه Trial متصل به Evidence تأیید R0.':'نتیجه 7روزه Trial برای کنترل روند رشد مقاومت.',
+      source:'trial',sourceRef:`${SERIES_ID}|${t.id}|${age}`,projectId:PROJECT_ID,
+      designFingerprint:mixSnapshot.calculationFingerprint,evidenceFingerprint:evfp,
+      acceptance:{specifiedPass:age===28?v>=25:null,designMeanReference:stage31.fcm},
+      createdAt:`${addDays(t.date,age)}T10:00:00+03:30`
+    });
+  });
+});
+productionBatches.forEach((b,i)=>{
+  const strength7=round(b.qaStrength28*.73,1);
+  qcTests.push({
+    id:`ST-DEMO-P-${i+1}-7`,date:addDays(b.date,7),testId:`${b.ticket}-7d`,
+    mix:'QC010-001',seriesId:SERIES_ID,revision:0,revisionLabel:'R0',revisionNo:0,lot:b.ticket,plant:b.plant,
+    age:7,strength:strength7,target:25,designMeanTarget:stage31.fcm,specimens:[round(strength7-.3,1),strength7,round(strength7+.3,1)],
+    materialLots:clone(b.materialLots),materialLot:'CII-260518-A / FA-260520 / CA7-260520 / CA5-260520',
+    notes:'کنترل روند 7روزه تولید نمونه؛ برای پذیرش نهایی، نتیجه 28روزه ملاک پرونده QA است.',
+    source:'production',sourceRef:b.id,projectId:PROJECT_ID,
+    designFingerprint:b.designFingerprint,evidenceFingerprint:b.approvalRef.evidenceFingerprint,
+    batchControl:clone(b.control),createdAt:`${addDays(b.date,7)}T10:30:00+03:30`
+  });
+  qcTests.push({
+    id:`ST-DEMO-P-${i+1}-28`,date:addDays(b.date,28),testId:`${b.ticket}-28d`,
+    mix:'QC010-001',seriesId:SERIES_ID,revision:0,revisionLabel:'R0',revisionNo:0,lot:b.ticket,plant:b.plant,
+    age:28,strength:b.qaStrength28,target:25,designMeanTarget:stage31.fcm,
+    specimens:[round(b.qaStrength28-.3,1),b.qaStrength28,round(b.qaStrength28+.3,1)],
+    materialLots:clone(b.materialLots),materialLot:'CII-260518-A / FA-260520 / CA7-260520 / CA5-260520',
+    notes:'کنترل مقاومت 28روزه تولید نمونه و اتصال مستقیم به Batch تولیدی و R0 تأییدشده.',
+    source:'production',sourceRef:b.id,projectId:PROJECT_ID,
+    designFingerprint:b.designFingerprint,evidenceFingerprint:b.approvalRef.evidenceFingerprint,
+    acceptance:{specifiedPass:b.qaStrength28>=25,designMeanReference:stage31.fcm},
+    batchControl:clone(b.control),createdAt:`${addDays(b.date,28)}T10:30:00+03:30`
+  });
+});
 
-const durabilityRecord={id:'DUR-DEMO-001',projectId:PROJECT_ID,at:'2026-08-10T12:00:00+03:30',mix:`${SERIES_ID}|0`,mixLabel:'QC010-001 — بتن معمولی C25 — سیمان تیپ II — عیار 400 — R0',codes:['F0','S0','W0','C0'],member:'reinforced',actual:{w:.475,fc:25,air:2,chloride:.08,cement:'MS',cacl2:'no'},project:{w:.50,fc:25,chloride:null},governing:{maxW:.50,minFc:25},checks:[{code:'w/cm',state:'good',why:'w/cm طرح = 0.475؛ حداکثر پروژه = 0.500.','ref':'Project requirement / durability check'},{code:"f'c",state:'good',why:"f'c طرح = 25.0 MPa؛ حداقل پروژه = 25.0 MPa.",ref:'Project requirement'},{code:'کلرید',state:'good',why:'کلرید نمونه = 0.080% مواد سیمانی؛ در سناریوی C0 کنترل شده است.',ref:'QA sample durability input'}],overall:'good',notes:'سناریوی مواجهه معمول و غیرمهاجم برای بررسی اتصال موتور دوام؛ مقادیر آزمایشگاهی فرضی‌اند.'};
+const trial7=qcTests.filter(t=>t.source==='trial'&&t.age===7);
+const trial28=qcTests.filter(t=>t.source==='trial'&&t.age===28);
+const prod7=qcTests.filter(t=>t.source==='production'&&t.age===7);
+const prod28=qcTests.filter(t=>t.source==='production'&&t.age===28);
+const productionFcStats=sampleStats(prod28.map(t=>t.strength));
+const trialFcStats=sampleStats(trial28.map(t=>t.strength));
+const combined28Stats=sampleStats([...trial28,...prod28].map(t=>t.strength));
+const production7Stats=sampleStats(prod7.map(t=>t.strength));
+const trial7Stats=sampleStats(trial7.map(t=>t.strength));
+const qcTrend=prod28.map((t,i)=>({
+  sequence:i+1,date:t.date,lot:t.lot,strength:t.strength,
+  deltaFromSpecified:round(t.strength-25,2),
+  deltaFromDesignMean:round(t.strength-stage31.fcm,2),
+  movingMean3:i<2?null:round(prod28.slice(i-2,i+1).reduce((s,x)=>s+x.strength,0)/3,3)
+}));
+const qcSummary={
+  projectId:PROJECT_ID,seriesId:SERIES_ID,revision:0,
+  specifiedStrength:25,requiredMeanStrength:stage31.fcm,
+  counts:{tests:qcTests.length,trial7:trial7.length,trial28:trial28.length,production7:prod7.length,production28:prod28.length},
+  trial:{age7:trial7Stats,age28:trialFcStats},
+  production:{age7:production7Stats,age28:productionFcStats},
+  combined28:combined28Stats,
+  allProduction28AboveSpecified:prod28.every(t=>t.strength>=25),
+  productionMeanAboveDesignMean:productionFcStats.mean>=stage31.fcm,
+  allProductionBatchesTraceable:prod28.every(t=>Boolean(t.sourceRef&&t.designFingerprint&&t.evidenceFingerprint&&t.materialLots)),
+  trend:qcTrend,
+  disposition:(prod28.every(t=>t.strength>=25)&&productionFcStats.mean>=stage31.fcm&&prod28.every(t=>t.batchControl?.productionReady))
+    ?'stable-controlled'
+    :'review-required',
+  interpretation:'کنترل آماری نمونه بر مبنای نتایج ثبت‌شده همین پروژه است؛ نتایج 7روزه برای روند و نتایج 28روزه برای ارزیابی پرونده QA استفاده شده‌اند.'
+};
+
+const durabilityChecks=[
+  {
+    code:'design-integrity',
+    state:(mixSeries.approvalRecord?.decision==='approved'&&mixSeries.approvalRecord?.designFingerprint===mixSnapshot.calculationFingerprint)?'pass':'fail',
+    value:mixSnapshot.calculationFingerprint,
+    limit:'Approved R0 fingerprint must match',
+    why:'تحلیل دوام فقط روی همان R0 تأییدشده معتبر است.',
+    ref:'Tolou approval integrity'
+  },
+  {
+    code:'qc-status',
+    state:qcSummary.disposition==='stable-controlled'?'pass':'review',
+    value:qcSummary.disposition,
+    limit:'stable-controlled',
+    why:'وضعیت آماری تولید باید قبل از اتکای دوام به طرح، پایدار و قابل ردیابی باشد.',
+    ref:'Tolou Stage 7 QC summary'
+  },
+  {
+    code:'w/cm',
+    state:.475<=.50?'pass':'fail',
+    value:.475,
+    limit:.50,
+    why:'w/cm طرح = 0.475 و حداکثر الزام پروژه = 0.500.',
+    ref:'Project requirement / approved R0'
+  },
+  {
+    code:"f'c",
+    state:25>=25?'pass':'fail',
+    value:25,
+    limit:25,
+    why:"مقاومت مشخصه طرح = 25 MPa و حداقل الزام پروژه = 25 MPa.",
+    ref:'Project requirement / approved R0'
+  },
+  {
+    code:'production-mean',
+    state:productionFcStats.mean>=stage31.fcm?'pass':'review',
+    value:productionFcStats.mean,
+    limit:stage31.fcm,
+    why:`میانگین مقاومت 28روزه تولید ${productionFcStats.mean.toFixed(2)} MPa در برابر fcm = ${stage31.fcm.toFixed(2)} MPa کنترل شد.`,
+    ref:'Tolou Stage 7 production statistics'
+  },
+  {
+    code:'cement-type',
+    state:'info',
+    value:'Portland Type II',
+    limit:null,
+    why:'نوع سیمان R0 همان سیمان پرتلند تیپ II ثبت‌شده در Material Intelligence است؛ این رکورد به‌تنهایی جایگزین ارزیابی شیمیایی/محیطی اختصاصی نیست.',
+    ref:'Material Intelligence revision 1'
+  },
+  {
+    code:'chloride',
+    state:'not-evaluable',
+    value:.08,
+    unit:'% cementitious',
+    limit:null,
+    why:'کلرید نمونه QA = 0.080% مواد سیمانی ثبت شده، اما در Requirements پروژه حد مجاز عددی کلرید ذخیره نشده است؛ بنابراین Pass/Fail قطعی صادر نمی‌شود.',
+    ref:'QA sample input / missing project numeric limit'
+  },
+  {
+    code:'calcium-chloride',
+    state:'pass',
+    value:'no',
+    limit:'no',
+    why:'در داده نمونه استفاده از CaCl2 ثبت نشده است.',
+    ref:'QA sample input'
+  }
+];
+const durabilityBlocking=durabilityChecks.filter(x=>x.state==='fail');
+const durabilityReview=durabilityChecks.filter(x=>x.state==='review'||x.state==='not-evaluable');
+const durabilityRecord={
+  id:'DUR-DEMO-001',
+  projectId:PROJECT_ID,
+  seriesId:SERIES_ID,
+  revision:0,
+  at:'2026-08-10T12:00:00+03:30',
+  mix:`${SERIES_ID}|0`,
+  mixLabel:'QC010-001 — بتن معمولی C25 — سیمان تیپ II — عیار 400 — R0',
+  designFingerprint:mixSnapshot.calculationFingerprint,
+  evidenceFingerprint:evfp,
+  approvalDecision:mixSeries.approvalRecord.decision,
+  qcDisposition:qcSummary.disposition,
+  exposureScenario:{
+    codes:['F0','S0','W0','C0'],
+    label:'سناریوی QA — شرایط معمول داخلی / غیرمهاجم',
+    source:'Project Hub sample exposure + durability QA coding',
+    disclaimer:'این کدگذاری برای اتصال End-to-End پروژه نمونه ذخیره شده و بدون Standard Profile دارای حدود عددی، ادعای انطباق مستقل استانداردی ایجاد نمی‌کند.'
+  },
+  member:'reinforced',
+  materialBasis:{
+    cement:{type:'II',materialId:materialIds.cement,revision:1,lot:'CII-260518-A'},
+    aggregates:{blend:[44,37,19],caseId:AGG_CASE_ID},
+    water:{materialId:materialIds.water,revision:1}
+  },
+  actual:{
+    designWcm:.475,
+    maxProductionWcm:productionStats.maxWcm,
+    specifiedFc:25,
+    productionMeanFc28:productionFcStats.mean,
+    air:2,
+    chloride:.08,
+    chlorideUnit:'% cementitious',
+    calciumChloride:'no'
+  },
+  projectLimits:{maxWcm:.50,minFc:25,maxChloride:null},
+  governing:{maxW:.50,minFc:25,maxChloride:null},
+  checks:durabilityChecks,
+  blockingIssues:durabilityBlocking.map(x=>x.code),
+  reviewItems:durabilityReview.map(x=>x.code),
+  overall:durabilityBlocking.length?'fail':(durabilityReview.length?'acceptable-with-open-items':'pass'),
+  disposition:durabilityBlocking.length
+    ?'Do not release durability assessment until blocking items are resolved.'
+    :'R0 is acceptable for the defined non-aggressive QA scenario based on project w/cm, strength and QC evidence; chloride compliance remains unclassified until a project/standard numeric limit is assigned.',
+  revalidationTriggers:[
+    'Material source or revision change',
+    'Aggregate blend change',
+    'Cement type/content change',
+    'Design or production w/cm limit change',
+    'Exposure classification change',
+    'Project chloride limit assignment/change',
+    'QC disposition change from stable-controlled'
+  ],
+  notes:'تحلیل دوام نمونه به داده‌های واقعی R0، Approval و QC متصل است. داده‌های آزمایشگاهی/محیطی فرضی‌اند و موارد بدون حد مرجع به‌صورت not-evaluable باقی می‌مانند.'
+};
 
 const ecoFactors={
-  [`MAT:${materialIds.cement}`]:{price:3600,basis:'ton',gwp:.72,source:'QA SAMPLE — قیمت و GWP نمایشی؛ جایگزین داده واقعی/EPD شود.'},
-  [`MAT:${materialIds.fine}`]:{price:480,basis:'ton',gwp:.005,source:'QA SAMPLE — illustrative'},
-  [`MAT:${materialIds.pea}`]:{price:520,basis:'ton',gwp:.006,source:'QA SAMPLE — illustrative'},
-  [`MAT:${materialIds.almond}`]:{price:560,basis:'ton',gwp:.0065,source:'QA SAMPLE — illustrative'},
-  'water:mix':{price:.02,basis:'kg',gwp:.0003,source:'QA SAMPLE — illustrative'}
+  [`MAT:${materialIds.cement}`]:{
+    price:36000000,basis:'ton',gwp:.72,
+    priceSource:'USER PROJECT PRICE — Cement Type II = 36,000,000 IRR/ton.',
+    gwpSource:'QA SAMPLE — illustrative GWP factor; replace with verified EPD/LCA source.',
+    priceQuality:'project-provided',gwpQuality:'illustrative',currency:'IRR',validForCommercialUse:true,validForEnvironmentalClaim:false
+  },
+  [`MAT:${materialIds.fine}`]:{
+    price:5291000,basis:'ton',gwp:.005,
+    priceSource:'USER PROJECT PRICE — Fine aggregate = 5,291,000 IRR/ton.',
+    gwpSource:'QA SAMPLE — illustrative',
+    priceQuality:'project-provided',gwpQuality:'illustrative',currency:'IRR',validForCommercialUse:true,validForEnvironmentalClaim:false
+  },
+  [`MAT:${materialIds.pea}`]:{
+    price:5030300,basis:'ton',gwp:.006,
+    priceSource:'USER PROJECT PRICE — Pea gravel = 5,030,300 IRR/ton.',
+    gwpSource:'QA SAMPLE — illustrative',
+    priceQuality:'project-provided',gwpQuality:'illustrative',currency:'IRR',validForCommercialUse:true,validForEnvironmentalClaim:false
+  },
+  [`MAT:${materialIds.almond}`]:{
+    price:5030300,basis:'ton',gwp:.0065,
+    priceSource:'USER PROJECT PRICE — Almond gravel = 5,030,300 IRR/ton (same coarse-aggregate price basis supplied for project).',
+    gwpSource:'QA SAMPLE — illustrative',
+    priceQuality:'project-provided',gwpQuality:'illustrative',currency:'IRR',validForCommercialUse:true,validForEnvironmentalClaim:false
+  },
+  'water:mix':{
+    price:1300,basis:'kg',gwp:.0003,
+    priceSource:'USER PROJECT PRICE — Water = 1,300,000 IRR/m³, converted using 1000 kg/m³ => 1,300 IRR/kg.',
+    gwpSource:'QA SAMPLE — illustrative',
+    priceQuality:'project-provided',gwpQuality:'illustrative',currency:'IRR',validForCommercialUse:true,validForEnvironmentalClaim:false
+  }
 };
 function ecoRows(){return [
-  {key:`MAT:${materialIds.cement}`,name:materials[0].revisions[0].name,group:'مواد سیمانی',mass:400,meta:{materialId:materialIds.cement,code:materialCodes.cement,revision:1}},
-  {key:'water:mix',name:'آب اختلاط',group:'آب',mass:190,meta:{}},
-  {key:`MAT:${materialIds.fine}`,name:aggregateSources[0].name,group:'سنگدانه ریز',mass:round(ssdMasses[0],3),meta:{materialId:materialIds.fine,code:materialCodes.fine}},
-  {key:`MAT:${materialIds.pea}`,name:aggregateSources[1].name,group:'سنگدانه',mass:round(ssdMasses[1],3),meta:{materialId:materialIds.pea,code:materialCodes.pea}},
-  {key:`MAT:${materialIds.almond}`,name:aggregateSources[2].name,group:'سنگدانه',mass:round(ssdMasses[2],3),meta:{materialId:materialIds.almond,code:materialCodes.almond}}
+  {key:`MAT:${materialIds.cement}`,name:materials[0].revisions[0].name,group:'مواد سیمانی',mass:400,meta:{materialId:materialIds.cement,code:materialCodes.cement,revision:1,lot:'CII-260518-A'}},
+  {key:'water:mix',name:'آب اختلاط',group:'آب',mass:190,meta:{materialId:materialIds.water,code:materialCodes.water,revision:1,lot:'W-2605'}},
+  {key:`MAT:${materialIds.fine}`,name:aggregateSources[0].name,group:'سنگدانه ریز',mass:round(ssdMasses[0],3),meta:{materialId:materialIds.fine,code:materialCodes.fine,revision:1,lot:'FA-260520'}},
+  {key:`MAT:${materialIds.pea}`,name:aggregateSources[1].name,group:'سنگدانه',mass:round(ssdMasses[1],3),meta:{materialId:materialIds.pea,code:materialCodes.pea,revision:1,lot:'CA7-260520'}},
+  {key:`MAT:${materialIds.almond}`,name:aggregateSources[2].name,group:'سنگدانه',mass:round(ssdMasses[2],3),meta:{materialId:materialIds.almond,code:materialCodes.almond,revision:1,lot:'CA5-260520'}}
 ];}
 const erows=ecoRows();
-let totalCost=0,totalCarbon=0;erows.forEach(r=>{const f=ecoFactors[r.key];const cost=f.basis==='ton'?r.mass/1000*f.price:r.mass*f.price;totalCost+=cost;totalCarbon+=r.mass*f.gwp;r.cost=round(cost,3);r.carbon=round(r.mass*f.gwp,3);});
-const economicsRecord={id:'ECO-DEMO-001',projectId:PROJECT_ID,savedAt:'2026-08-11T09:00:00+03:30',at:'2026-08-11T09:00:00+03:30',name:'تحلیل اقتصادی/کربن پروژه نمونه 25/400',mixKey:`${SERIES_ID}::0`,mixLabel:'QC010-001 — بتن معمولی C25 — سیمان تیپ II — عیار 400 — R0',totalCost:round(totalCost,2),totalCarbon:round(totalCarbon,2),priceCoverage:100,gwpCoverage:100,costCoverage:100,carbonCoverage:100,performance:{value:round(trialStats.mean,2),basis:'میانگین مقاومت 28روزه 5 Trial'},strength:round(trialStats.mean,2),input:{name:'تحلیل اقتصادی/کربن پروژه نمونه 25/400',date:'2026-08-11',currency:'واحد نمونه',scope:'1 m³ بتن — صرفاً QA',overhead:0,transportCost:0,otherCost:0,otherCarbon:0,otherSource:'',notes:'تمام قیمت‌ها و عوامل کربن نمایشی هستند و برای برآورد تجاری معتبر نیستند.'},rows:erows};
+let totalCost=0,totalCarbon=0;
+erows.forEach(r=>{
+  const f=ecoFactors[r.key];
+  const cost=f.basis==='ton'?r.mass/1000*f.price:r.mass*f.price;
+  const carbon=r.mass*f.gwp;
+  totalCost+=cost;totalCarbon+=carbon;
+  r.cost=round(cost,3);
+  r.carbon=round(carbon,3);
+  r.factor={
+    price:f.price,basis:f.basis,currency:f.currency,priceSource:f.priceSource,priceQuality:f.priceQuality,
+    gwp:f.gwp,gwpSource:f.gwpSource,gwpQuality:f.gwpQuality,
+    validForCommercialUse:f.validForCommercialUse,validForEnvironmentalClaim:f.validForEnvironmentalClaim
+  };
+});
+const pumpingCostPerM3=2400000;
+const inboundFreightRateIrrPerTonKm=16680;
+const assumedMaterialHaulKm=15;
+const inboundMaterialTransportCostPerM3=round((400+ssdMasses.reduce((a,b)=>a+b,0))/1000*inboundFreightRateIrrPerTonKm*assumedMaterialHaulKm,2);
+const concreteDeliveryTransportCostPerM3=round((400+190+ssdMasses.reduce((a,b)=>a+b,0))/1000*inboundFreightRateIrrPerTonKm*assumedMaterialHaulKm,2);
+const electricityConsumptionKwhPerM3=.9;
+const electricityTariffIrrPerKwh=3605;
+const electricityCostPerM3=round(electricityConsumptionKwhPerM3*electricityTariffIrrPerKwh,2);
+const loaderFuelLph=17;
+const loaderFuelPriceIrrPerL=80700;
+const assumedPlantCapacityM3h=60;
+const loaderFuelCostPerM3=round(loaderFuelLph/assumedPlantCapacityM3h*loaderFuelPriceIrrPerL,2);
+const directLaborModel={
+  driverMonthlyIrr:410000000,
+  qcMonthlyIrr:600000000,
+  technicalOperatorMonthlyIrr:500000000,
+  employerInsurancePct:23,
+  utilization:.70,
+  hoursPerDay:8,
+  daysPerMonth:26,
+  capacityM3h:60
+};
+const directLaborMonthlyIrr=(directLaborModel.driverMonthlyIrr+directLaborModel.qcMonthlyIrr+directLaborModel.technicalOperatorMonthlyIrr)*(1+directLaborModel.employerInsurancePct/100);
+const modeledMonthlyProductionM3=directLaborModel.capacityM3h*directLaborModel.hoursPerDay*directLaborModel.daysPerMonth*directLaborModel.utilization;
+const directLaborCostPerM3=round(directLaborMonthlyIrr/modeledMonthlyProductionM3,2);
+const actualExPlantConcretePricePerM3=36800000;
+const actualDeliveryFreightPerM3=6800000;
+const vatRatePct=10;
+const modeledExPlantKnownCostPerM3=round(totalCost+inboundMaterialTransportCostPerM3+electricityCostPerM3+loaderFuelCostPerM3+directLaborCostPerM3,2);
+const balancingGapPerM3=round(actualExPlantConcretePricePerM3-modeledExPlantKnownCostPerM3,2);
+const depreciationAllocationPerM3=round(balancingGapPerM3*.40,2);
+const adminPlantOverheadAllocationPerM3=round(balancingGapPerM3*.25,2);
+const maintenanceAllocationPerM3=round(balancingGapPerM3*.20,2);
+const financeWorkingCapitalAllocationPerM3=round(balancingGapPerM3*.15,2);
+const exPlantReconciledPerM3=round(modeledExPlantKnownCostPerM3+depreciationAllocationPerM3+adminPlantOverheadAllocationPerM3+maintenanceAllocationPerM3+financeWorkingCapitalAllocationPerM3,2);
+const deliveredBeforeVatPerM3=round(exPlantReconciledPerM3+actualDeliveryFreightPerM3,2);
+const vatAmountPerM3=round(deliveredBeforeVatPerM3*vatRatePct/100,2);
+const deliveredWithVatPerM3=round(deliveredBeforeVatPerM3+vatAmountPerM3,2);
+const deliveredWithVatAndPumpingPerM3=round(deliveredWithVatPerM3+pumpingCostPerM3,2);
+const massClosure=round(erows.reduce((s,r)=>s+r.mass,0),3);
+const allPriceFactorsPresent=erows.every(r=>Number.isFinite(r.factor.price));
+const allGwpFactorsPresent=erows.every(r=>Number.isFinite(r.factor.gwp));
+const allCommercialFactorsVerified=erows.every(r=>r.factor.validForCommercialUse===true);
+const allGwpFactorsVerified=erows.every(r=>r.factor.validForEnvironmentalClaim===true);
+const economicsRecord={
+  id:'ECO-DEMO-001',
+  projectId:PROJECT_ID,
+  seriesId:SERIES_ID,
+  revision:0,
+  designFingerprint:mixSnapshot.calculationFingerprint,
+  evidenceFingerprint:evfp,
+  approvalDecision:mixSeries.approvalRecord.decision,
+  qcDisposition:qcSummary.disposition,
+  durabilityDisposition:durabilityRecord.overall,
+  savedAt:'2026-08-11T09:00:00+03:30',
+  at:'2026-08-11T09:00:00+03:30',
+  name:'تحلیل اقتصادی/کربن پروژه نمونه 25/400',
+  mixKey:`${SERIES_ID}::0`,
+  mixLabel:'QC010-001 — بتن معمولی C25 — سیمان تیپ II — عیار 400 — R0',
+  basis:{
+    scope:'1 m³ concrete',
+    massBasis:'Approved R0 SSD design masses',
+    cementKgM3:400,effectiveWaterKgM3:190,aggregateSSDTotalKgM3:round(totalAgg,3),totalConstituentMassKgM3:massClosure,
+    aggregateBlend:[44,37,19],
+    materialRevisionPolicy:'All material rows are tied to Material Intelligence revision 1 and QA lot identifiers.'
+  },
+  materialCost:round(totalCost,2),
+  pumpingCost:round(pumpingCostPerM3,2),
+  inboundMaterialTransportCost:inboundMaterialTransportCostPerM3,
+  concreteDeliveryTransportCost:actualDeliveryFreightPerM3,
+  electricityCost:electricityCostPerM3,
+  loaderFuelCost:loaderFuelCostPerM3,
+  directLaborCost:directLaborCostPerM3,
+  modeledKnownExPlantCost:modeledExPlantKnownCostPerM3,
+  balancingGap:balancingGapPerM3,
+  depreciationAllocation:depreciationAllocationPerM3,
+  adminPlantOverheadAllocation:adminPlantOverheadAllocationPerM3,
+  maintenanceAllocation:maintenanceAllocationPerM3,
+  financeWorkingCapitalAllocation:financeWorkingCapitalAllocationPerM3,
+  exPlantConcretePrice:exPlantReconciledPerM3,
+  deliveryFreight:actualDeliveryFreightPerM3,
+  deliveredBeforeVat:deliveredBeforeVatPerM3,
+  vatRatePct,
+  vatAmount:vatAmountPerM3,
+  deliveredWithVat:deliveredWithVatPerM3,
+  totalCost:deliveredWithVatAndPumpingPerM3,
+  totalCarbon:round(totalCarbon,2),
+  priceCoverage:allPriceFactorsPresent?100:round(erows.filter(r=>Number.isFinite(r.factor.price)).length/erows.length*100,1),
+  gwpCoverage:allGwpFactorsPresent?100:round(erows.filter(r=>Number.isFinite(r.factor.gwp)).length/erows.length*100,1),
+  verifiedCommercialCoverage:allCommercialFactorsVerified?100:0,
+  verifiedEnvironmentalCoverage:allGwpFactorsVerified?100:0,
+  costCoverage:allPriceFactorsPresent?100:0,
+  carbonCoverage:allGwpFactorsPresent?100:0,
+  performance:{
+    value:productionFcStats.mean,
+    basis:'میانگین مقاومت 28روزه تولید Stage 7',
+    specifiedStrength:25,
+    requiredMeanStrength:stage31.fcm,
+    qcDisposition:qcSummary.disposition
+  },
+  strength:productionFcStats.mean,
+  normalized:{
+    materialCostPerMPa:round(totalCost/productionFcStats.mean,3),
+    totalCostPerMPa:round(deliveredWithVatAndPumpingPerM3/productionFcStats.mean,3),
+    carbonPerMPa:round(totalCarbon/productionFcStats.mean,3),
+    cementKgPerMPa:round(400/productionFcStats.mean,3)
+  },
+  assumptions:{
+    inboundFreight:{rateIrrPerTonKm:inboundFreightRateIrrPerTonKm,distanceKm:assumedMaterialHaulKm,quality:'official-rate + project-distance',source:'Iran road freight ton-km index 1405'},
+    concreteDelivery:{rateIrrPerTonKm:inboundFreightRateIrrPerTonKm,distanceKm:assumedMaterialHaulKm,quality:'engineering-proxy',source:'Iran road freight ton-km index 1405 applied to concrete mass'},
+    electricity:{consumptionKwhPerM3:electricityConsumptionKwhPerM3,tariffIrrPerKwh:electricityTariffIrrPerKwh,quality:'sourced-engineering-estimate',source:'Iranian 60 m3/h batching plant power specs + 1405 industrial tariff'},
+    loader:{fuelLph:loaderFuelLph,fuelPriceIrrPerL:loaderFuelPriceIrrPerL,capacityM3h:assumedPlantCapacityM3h,quality:'proxy-estimate',source:'loader fuel-consumption listings + 1405 mining diesel proxy'},
+    labor:{...directLaborModel,monthlyLoadedLaborIrr:round(directLaborMonthlyIrr,2),modeledMonthlyProductionM3:round(modeledMonthlyProductionM3,2),quality:'market-salary-model',source:'IranTalent 1405 salary medians + 23% employer insurance'}
+  },
+  dataQuality:{
+    computationalCompleteness:(allPriceFactorsPresent&&allGwpFactorsPresent)?'complete':'incomplete',
+    commercialValidity:allCommercialFactorsVerified?'project-priced-plus-sourced-estimates':'incomplete',
+    environmentalClaimValidity:allGwpFactorsVerified?'verified':'illustrative-only',
+    warning:'Ex-plant concrete price, delivery freight, material prices and pumping are project-provided. Depreciation, plant overhead, maintenance and finance/working-capital values are balancing allocations, not independently audited cost-center measurements. GWP factors remain illustrative and are not EPD/LCA verified.'
+  },
+  input:{
+    name:'تحلیل اقتصادی/کربن پروژه نمونه 25/400',
+    date:'2026-08-11',
+    currency:'IRR',
+    scope:'1 m³ بتن — صرفاً QA',
+    overhead:adminPlantOverheadAllocationPerM3,
+    depreciation:depreciationAllocationPerM3,
+    maintenance:maintenanceAllocationPerM3,
+    financeWorkingCapital:financeWorkingCapitalAllocationPerM3,
+    vatRatePct:vatRatePct,
+    vatAmount:vatAmountPerM3,
+    transportCost:actualDeliveryFreightPerM3,
+    pumpingCost:2400000,
+    electricityCost:electricityCostPerM3,
+    loaderFuelCost:loaderFuelCostPerM3,
+    directLaborCost:directLaborCostPerM3,
+    otherCost:0,otherCarbon:0,otherSource:'',
+    notes:'قیمت واقعی بتن زیر بچینگ = 36,800,000 IRR/m³ و کرایه واقعی حمل بتن = 6,800,000 IRR/m³ طبق داده کاربر ثبت شده‌اند. فاصله بین هزینه‌های جزء شناخته‌شده و قیمت زیر بچینگ به‌صورت balancing allocation بین استهلاک 40%، سربار کارخانه 25%، تعمیرات 20% و هزینه مالی/سرمایه در گردش 15% توزیع شده است. VAT = 10% جداگانه محاسبه می‌شود. این تخصیص‌ها اندازه‌گیری مستقل نیستند و برای بستن مدل هزینه استفاده می‌شوند.'
+  },
+  rows:erows,
+  disposition:'Project cost calculation uses user-provided IRR prices and pumping cost. Environmental factors remain illustrative-only until replaced by verified EPD/LCA data.',
+  revalidationTriggers:[
+    'Material revision or lot change',
+    'Approved mix revision change',
+    'Unit price or currency/source update',
+    'GWP/EPD/LCA factor update',
+    'Production QC performance basis change'
+  ]
+};
 
 const calX=trials.map(t=>1/t.calculated.actualWcm),calY=trials.map(t=>t.strengths['28']);
 const mx=calX.reduce((a,b)=>a+b,0)/calX.length,my=calY.reduce((a,b)=>a+b,0)/calY.length;
 const bReg=calX.reduce((s,x,i)=>s+(x-mx)*(calY[i]-my),0)/calX.reduce((s,x)=>s+(x-mx)**2,0),aReg=my-bReg*mx;
 const pred=calX.map(x=>aReg+bReg*x),ssRes=calY.reduce((s,y,i)=>s+(y-pred[i])**2,0),ssTot=calY.reduce((s,y)=>s+(y-my)**2,0),r2=1-ssRes/ssTot;
-function econFor(cm,w){ const fine=ssdMasses[0],pea=ssdMasses[1],almond=ssdMasses[2]; return {cost:(cm/1000*3600)+(w*.02)+(fine/1000*480)+(pea/1000*520)+(almond/1000*560),carbon:(cm*.72)+(w*.0003)+(fine*.005)+(pea*.006)+(almond*.0065)}; }
-const pareto=[[.46,390],[.465,395],[.47,400],[.475,400],[.48,405],[.485,410],[.49,415]].map((x,i)=>{const [wcm,cm]=x,water=wcm*cm,e=econFor(cm,water);return{id:`C-DEMO-${i+1}`,wcm,cm,scmPct:0,water:round(water,2),cement:cm,strength:round(aReg+bReg*(1/wcm),2),cost:round(e.cost,2),carbon:round(e.carbon,2),mode:'full'};});
-const optimizerStudy={id:'OPT-DEMO-001',projectId:PROJECT_ID,at:'2026-08-12T10:00:00+03:30',source:`${SERIES_ID}::0`,sourceLabel:'QC010-001 — بتن معمولی C25 — سیمان تیپ II — عیار 400 — R0',engine:'QC-010',fullMode:true,objectives:['cost','carbon'],constraints:{wmin:.46,wmax:.50,wstep:.005,cmmin:380,cmmax:430,cmstep:5,smin:0,smax:0,sstep:1,dur:.50,cementMin:360,waterMin:175,waterMax:205,strengthMin:25,enforce:true},calibration:{valid:true,n:5,r2:round(r2,6),a:round(aReg,6),b:round(bReg,6),wMin:.46,wMax:.49},feasibleCount:pareto.length,pareto};
 
+function candidateAggregateMasses(cementKg,waterKg){
+  const remVol=1-cementKg/3150-waterKg/1000-airPct/100;
+  const totalSsd=remVol/massWeights.reduce((s,w,i)=>s+w/(sgs[i]*1000),0);
+  return massWeights.map(w=>totalSsd*w);
+}
+function candidateEconomics(wcm){
+  const cm=400, water=wcm*cm, agg=candidateAggregateMasses(cm,water);
+  const rows=[
+    {key:`MAT:${materialIds.cement}`,mass:cm},
+    {key:'water:mix',mass:water},
+    {key:`MAT:${materialIds.fine}`,mass:agg[0]},
+    {key:`MAT:${materialIds.pea}`,mass:agg[1]},
+    {key:`MAT:${materialIds.almond}`,mass:agg[2]}
+  ];
+  let material=0,carbon=0;
+  rows.forEach(r=>{
+    const f=ecoFactors[r.key];
+    material += f.basis==='ton' ? r.mass/1000*f.price : r.mass*f.price;
+    carbon += r.mass*f.gwp;
+  });
+  const inbound=round((cm+agg.reduce((a,b)=>a+b,0))/1000*inboundFreightRateIrrPerTonKm*assumedMaterialHaulKm,2);
+  const exPlant=material+inbound+electricityCostPerM3+loaderFuelCostPerM3+directLaborCostPerM3+
+    depreciationAllocationPerM3+adminPlantOverheadAllocationPerM3+maintenanceAllocationPerM3+financeWorkingCapitalAllocationPerM3;
+  return {
+    cement:cm,water:round(water,3),aggregates:agg.map(v=>round(v,3)),
+    aggregateTotal:round(agg.reduce((a,b)=>a+b,0),3),
+    materialCost:round(material,2),inboundFreight:inbound,
+    exPlantCost:round(exPlant,2),
+    deliveredBeforeVat:round(exPlant+actualDeliveryFreightPerM3,2),
+    deliveredWithVat:round((exPlant+actualDeliveryFreightPerM3)*(1+vatRatePct/100),2),
+    carbon:round(carbon,2)
+  };
+}
+function strengthFromWcm(wcm){ return aReg+bReg*(1/wcm); }
+
+const optimizerCandidates=[.46,.465,.47,.475,.48,.485,.49].map((wcm,i)=>{
+  const e=candidateEconomics(wcm);
+  const strength=round(strengthFromWcm(wcm),2);
+  const withinCalibration=wcm>=.46&&wcm<=.49;
+  const strengthPass=strength>=stage31.fcm;
+  const durabilityWcmPass=wcm<=.50;
+  const waterPass=e.water>=175&&e.water<=205;
+  const volumeClosurePass=e.aggregateTotal>0;
+  const feasible=withinCalibration&&strengthPass&&durabilityWcmPass&&waterPass&&volumeClosurePass;
+  return {
+    id:`C-DEMO-${i+1}`,wcm,cm:400,scmPct:0,water:e.water,
+    aggregates:e.aggregates,aggregateTotal:e.aggregateTotal,
+    strength,cost:e.exPlantCost,deliveredCost:e.deliveredWithVat,carbon:e.carbon,
+    materialCost:e.materialCost,inboundFreight:e.inboundFreight,
+    constraints:{withinCalibration,strengthPass,durabilityWcmPass,waterPass,volumeClosurePass},
+    feasible,
+    mode:'validated-wcm-domain',
+    carbonQuality:'illustrative-only'
+  };
+});
+const feasibleCandidates=optimizerCandidates.filter(c=>c.feasible);
+const pareto=feasibleCandidates.filter((c,idx,arr)=>!arr.some(o=>
+  o.id!==c.id &&
+  o.cost<=c.cost &&
+  o.carbon<=c.carbon &&
+  (o.cost<c.cost||o.carbon<c.carbon)
+));
+const baselineCandidate=optimizerCandidates.find(c=>Math.abs(c.wcm-.475)<1e-9);
+const optimizerStudy={
+  id:'OPT-DEMO-001',
+  projectId:PROJECT_ID,
+  at:'2026-08-12T10:00:00+03:30',
+  source:`${SERIES_ID}::0`,
+  sourceLabel:'QC010-001 — بتن معمولی C25 — سیمان تیپ II — عیار 400 — R0',
+  engine:'QC-010',
+  fullMode:false,
+  status:'decision-support',
+  designFingerprint:mixSnapshot.calculationFingerprint,
+  evidenceFingerprint:evfp,
+  qcDisposition:qcSummary.disposition,
+  durabilityDisposition:durabilityRecord.overall,
+  economicsRecordId:economicsRecord.id,
+  objectives:[
+    {id:'exPlantCost',direction:'minimize',quality:'project-priced-plus-sourced-estimates'},
+    {id:'carbon',direction:'minimize',quality:'illustrative-only',warning:'GWP objective is exploratory until verified EPD/LCA factors are available.'}
+  ],
+  constraints:{
+    wmin:.46,wmax:.49,wstep:.005,
+    cementFixed:400,
+    cementVariationAllowed:false,
+    scmFixed:0,
+    maxWcm:.50,
+    waterMin:175,waterMax:205,
+    strengthMin:stage31.fcm,
+    specifiedStrength:25,
+    enforce:true
+  },
+  calibration:{
+    valid:r2>=.95,
+    n:5,
+    model:'fc28 = a + b*(1/wcm)',
+    r2:round(r2,6),
+    a:round(aReg,6),
+    b:round(bReg,6),
+    wMin:.46,wMax:.49,
+    cementKgM3:400,
+    limitation:'Calibration evidence varies w/cm at fixed cement 400 kg/m³; independent cement-content optimization is therefore not validated.'
+  },
+  baseline:{
+    wcm:.475,
+    cement:400,
+    strength:baselineCandidate?.strength||null,
+    exPlantCost:baselineCandidate?.cost||null,
+    deliveredCost:baselineCandidate?.deliveredCost||null,
+    carbon:baselineCandidate?.carbon||null
+  },
+  candidates:optimizerCandidates,
+  feasibleCount:feasibleCandidates.length,
+  pareto,
+  recommendationPolicy:'No candidate is auto-selected. Engineer review is required. Cost is project-grounded; carbon is exploratory until verified GWP data is supplied.',
+  revalidationTriggers:[
+    'Trial calibration or evidence change',
+    'Approved mix revision change',
+    'Production QC disposition change',
+    'Durability requirement change',
+    'Material price or operating-cost update',
+    'Verified GWP/EPD/LCA factor update'
+  ]
+};
 function makeAudit(){
   const events=[
     ['پروژه','ایجاد پروژه','Project',PROJECT_ID,'پروژه نمونه TL-DEMO-25-400 ایجاد شد.',{fc:25,cement:400}],
@@ -364,7 +1047,7 @@ function makeAudit(){
     ['طرح اختلاط','تأیید بازنگری','MixRevision',`${SERIES_ID}:R0`,'R0 پس از عبور شواهد Trial به‌عنوان طرح تأییدشده ثبت شد.',{evidenceFingerprint:evfp}],
     ['تولید','ثبت تولید','ProductionBatch','DEMO-PRODUCTION','شش بچ تولید نمونه با کنترل توزین، رطوبت، w/cm و Yield ثبت شد.',{batches:6}],
     ['کنترل کیفیت','پایش مقاومت','StrengthTest','DEMO-QC','نتایج Trial و تولید در کنترل کیفیت و آمار مقاومت ثبت شدند.',{tests:qcTests.length}],
-    ['دوام','تحلیل دوام','DurabilityAnalysis',durabilityRecord.id,'سناریوی دوام F0/S0/W0/C0 بررسی و ذخیره شد.',{overall:'good'}],
+    ['دوام','تحلیل دوام','DurabilityAnalysis',durabilityRecord.id,'سناریوی دوام F0/S0/W0/C0 بررسی و ذخیره شد.',{overall:durabilityRecord.overall}],
     ['هزینه و پایداری','تحلیل نمونه','EconomicAnalysis',economicsRecord.id,'تحلیل نمونه هزینه و کربن با پوشش 100% داده ذخیره شد.',{demoFactors:true}],
     ['بهینه‌سازی','مطالعه چندهدفه','OptimizationStudy',optimizerStudy.id,'مطالعه بهینه‌سازی با مدل مقاومت کالیبره‌شده و دامنه مجاز Trial ذخیره شد.',{r2:optimizerStudy.calibration.r2}]
   ];
@@ -374,13 +1057,22 @@ function makeAudit(){
 const sampleProject={id:PROJECT_ID,code:'TL-DEMO-25-400',name:'مجتمع اداری آفتاب شرق — فاز ۱ (پروژه نمونه)',status:'active',designScope:'base',client:'شرکت توسعه سازه سپهر (فرضی)',consultant:'مهندسین مشاور پایدار بتن (فرضی)',contractor:'شرکت عمران پارس‌سازه (فرضی)',manager:'مهندس آرمان رضایی (فرضی)',location:'کارگاه نمونه — منطقه مرکزی',type:'ساختمان اداری بتن‌آرمه',structureType:'building',startDate:'2026-05-15',endDate:'2027-05-15',commonSettings:clone(projectContext.commonSettings),requirements:clone(projectContext.requirements),baseSettings:clone(projectContext.baseSettings),specialSettings:clone(projectContext.specialSettings),notes:'پروژه کاملاً فرضی و از پیش تکمیل‌شده برای کنترل End-to-End نرم‌افزار Tolou. داده‌های قیمت، GWP و هویت اشخاص/شرکت‌ها واقعی نیستند.',archived:false,createdAt:'2026-05-15T08:00:00+03:30',updatedAt:'2026-08-12T10:00:00+03:30'};
 
 function engineAggregates(){ return snapshotAggregates.map(a=>{const c=clone(a);delete c.volume;delete c.ssd;delete c.od;delete c.batch;delete c.freeWater;return c;}); }
-const engineState={aggregates:engineAggregates(),admixtures:[],nextAggId:4,nextAdmixId:1,materialBindings:clone(materialBindings),aggregateBlendBinding:clone(aggregateBlendBinding),baseMethodId:'iran479',iranStage31:{mode:'site',siteGrade:'B',fcClass:'',fc:'25',series1:'',series2:'',qcValues:[],lastResult:clone(stage31)},iranStage32:{lastResult:clone(stage32)},iranStage33:{curve:'B',lastResult:clone(stage33)},iranStage34:{demandMode:'auto',reducerPct:'0',lastResult:clone(stage34)},iranStage35:{wcMode:'manual',cementClass:'42.5',coarseShape:'auto',manualWc:'0.475',waterCorrRate:'',scmType:'none',scmRatio:'0',silicaRisk:false,minCement:'',maxCement:'',lastResult:clone(stage35)},iranStage36:{entrappedAir:'2',intentionalAir:'0',lastResult:clone(stage36)}};
+const engineState={aggregates:engineAggregates(),admixtures:[],nextAggId:4,nextAdmixId:1,materialBindings:clone(materialBindings),aggregateBlendBinding:clone(aggregateBlendBinding),baseMethodId:'iran479',iranStage31:{mode:'site',siteGrade:'B',fcClass:'',fc:'25',series1:'',series2:'',qcValues:[],lastResult:clone(stage31)},iranStage32:{lastResult:clone(stage32)},iranStage33:{curve:'B',lastResult:clone(stage33)},iranStage34:{demandMode:'auto',reducerPct:'0',lastResult:clone(stage34)},iranStage35:{wcMode:'manual',cementClass:'425',coarseShape:'C',manualWc:'0.475',waterCorrRate:'',scmType:'none',scmRatio:'0',silicaRisk:false,minCement:'',maxCement:'',lastResult:clone(stage35)},iranStage36:{entrappedAir:'2',intentionalAir:'0',lastResult:clone(stage36)}};
 
 function seedSampleProject(storage){
   if(!storage||typeof storage.getItem!=='function'||typeof storage.setItem!=='function') return {ok:false,reason:'storage-unavailable'};
   try{
     const existingMarker=readJson(storage,SAMPLE_MARKER,{});
-    if(existingMarker?.version===SAMPLE_DATASET_VERSION&&existingMarker?.projectId===PROJECT_ID) return {ok:true,alreadySeeded:true,projectId:PROJECT_ID,seriesId:SERIES_ID};
+    const existingEngine=readJson(storage,'QC010_full_data',{});
+    const sampleEngineHealthy=
+      existingEngine?.baseMethodId==='iran479' &&
+      existingEngine?.aggregateBlendBinding?.id===AGG_CASE_ID &&
+      Array.isArray(existingEngine?.aggregates) &&
+      existingEngine.aggregates.length===3 &&
+      existingEngine.aggregates.every(a=>String(a.materialId||'').startsWith('MAT-DEMO-')) &&
+      existingEngine?.iranStage35?.wcMode==='manual' &&
+      Number(existingEngine?.iranStage35?.manualWc)===0.475;
+    if(existingMarker?.version===SAMPLE_DATASET_VERSION&&existingMarker?.projectId===PROJECT_ID&&sampleEngineHealthy) return {ok:true,alreadySeeded:true,projectId:PROJECT_ID,seriesId:SERIES_ID};
     const hub=readJson(storage,'Tolou_project_hub_v1',{schemaVersion:1,projects:[],activeProjectId:null,audit:[]});hub.schemaVersion=1;hub.projects=Array.isArray(hub.projects)?hub.projects:[];hub.audit=Array.isArray(hub.audit)?hub.audit:[];upsert(hub.projects,clone(sampleProject));const sampleAudit=makeAudit();hub.audit=hub.audit.filter(x=>x.projectId!==PROJECT_ID).concat(sampleAudit);if(!hub.activeProjectId)hub.activeProjectId=PROJECT_ID;storage.setItem('Tolou_project_hub_v1',JSON.stringify(hub));
 
     const ml=readJson(storage,'Tolou_material_library_v1',{schemaVersion:1,materials:[]});ml.schemaVersion=1;ml.materials=Array.isArray(ml.materials)?ml.materials:[];materials.forEach(m=>upsert(ml.materials,clone(m)));storage.setItem('Tolou_material_library_v1',JSON.stringify(ml));
@@ -399,7 +1091,7 @@ function seedSampleProject(storage){
 
     const opt=readJson(storage,'Tolou_multiobjective_optimizer_v1',{schemaVersion:1,studies:[],last:null});opt.schemaVersion=1;opt.studies=Array.isArray(opt.studies)?opt.studies:[];upsert(opt.studies,clone(optimizerStudy));if(!opt.last)opt.last={source:optimizerStudy.source,constraints:clone(optimizerStudy.constraints),objectives:clone(optimizerStudy.objectives)};storage.setItem('Tolou_multiobjective_optimizer_v1',JSON.stringify(opt));
 
-    const q10=readJson(storage,'QC010_full_data',{});if(!Array.isArray(q10.aggregates)||!q10.aggregates.length){storage.setItem('QC010_full_data',JSON.stringify(clone(engineState)));}
+    const q10=readJson(storage,'QC010_full_data',{});const sampleEngineUpgrade=existingMarker?.projectId===PROJECT_ID&&(existingMarker?.version!==SAMPLE_DATASET_VERSION||!sampleEngineHealthy);if(sampleEngineUpgrade||!Array.isArray(q10.aggregates)||!q10.aggregates.length){storage.setItem('QC010_full_data',JSON.stringify(clone(engineState)));}
 
     storage.setItem(SAMPLE_MARKER,JSON.stringify({version:SAMPLE_DATASET_VERSION,projectId:PROJECT_ID,seriesId:SERIES_ID,aggregateCaseId:AGG_CASE_ID,seededAt:new Date().toISOString(),dataset:'Tolou QA Sample C25/Cement400/TypeII',baselineChanged:false}));
     return {ok:true,projectId:PROJECT_ID,seriesId:SERIES_ID};

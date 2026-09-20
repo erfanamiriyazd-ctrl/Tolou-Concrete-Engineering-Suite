@@ -1,0 +1,34 @@
+name: QA Sample End-to-End
+
+on:
+  push:
+    branches:
+      - feature/qa-sample-stage4-trial-lab
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  validate-sample-project:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Validate full QA sample
+        shell: bash
+        run: |
+          set -o pipefail
+          npm run qa:sample 2>&1 | tee qa-result.txt
+
+      - name: Upload QA result
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: qa-sample-result
+          path: qa-result.txt
