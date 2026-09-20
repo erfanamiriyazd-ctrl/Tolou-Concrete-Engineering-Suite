@@ -1235,7 +1235,60 @@ const DUR_RULES={
  W0:{w:null,fc:17},W1:{w:null,fc:17},W2:{w:.50,fc:28},
  C0:{w:null,fc:17,cl:{reinforced:1.00,prestressed:.06}},C1:{w:null,fc:17,cl:{reinforced:.30,prestressed:.06}},C2:{w:.40,fc:35,cl:{reinforced:.15,prestressed:.06},cover:true}
 };
-function durLoad(){try{const x=JSON.parse(localStorage.getItem(DUR_KEY)||'null');if(x&&Array.isArray(x.records))durState=x}catch(e){}durRefreshMixOptions();durRenderHistory();durEvaluate(false)}
+function durLoadStoredRecord(r){
+ if(!r)return false;
+ const mixKey=r.mix||(r.seriesId!=null&&r.revision!=null?`${r.seriesId}|${r.revision}`:'');
+ const mix=de('durMix');
+ if(mix&&[...mix.options].some(o=>o.value===mixKey))mix.value=mixKey;
+ durLoadSnapshot();
+ const codes=Array.isArray(r.codes)?r.codes:(r.exposureScenario?.codes||[]);
+ if(codes[0]&&de('durF'))de('durF').value=codes[0];
+ if(codes[1]&&de('durS'))de('durS').value=codes[1];
+ if(codes[2]&&de('durW'))de('durW').value=codes[2];
+ if(codes[3]&&de('durC'))de('durC').value=codes[3];
+ if(r.member&&de('durMember'))de('durMember').value=r.member;
+ const set=(id,v)=>{if(de(id)&&v!==null&&v!==undefined&&v!=='')de(id).value=v};
+ set('durWcm',r.actual?.designWcm);
+ set('durFc',r.actual?.specifiedFc);
+ set('durAir',r.actual?.air);
+ set('durChloride',r.actual?.chloride);
+ set('durProjectWcm',r.projectLimits?.maxWcm);
+ set('durProjectFc',r.projectLimits?.minFc);
+ if(r.projectLimits?.maxChloride!=null)set('durProjectChloride',r.projectLimits.maxChloride);
+ if(r.actual?.calciumChloride&&de('durCalciumChloride'))de('durCalciumChloride').value=r.actual.calciumChloride;
+ if(r.materialBasis?.cement?.type==='II'&&de('durCementSystem'))de('durCementSystem').value='MS';
+ if(de('durNotes'))de('durNotes').value=r.notes||r.disposition||'';
+ const mappedChecks=(r.checks||[]).map(x=>({...x,state:x.state==='pass'?'good':x.state==='fail'?'bad':x.state==='review'||x.state==='not-evaluable'?'warn':x.state}));
+ const rendered={
+   at:r.at,
+   mix:mixKey,
+   codes,
+   member:r.member||'reinforced',
+   actual:{
+     w:r.actual?.designWcm??null,
+     fc:r.actual?.specifiedFc??null,
+     air:r.actual?.air??null,
+     chloride:r.actual?.chloride??null,
+     cement:r.materialBasis?.cement?.type==='II'?'MS':'unknown',
+     cacl2:r.actual?.calciumChloride||'unknown'
+   },
+   project:{
+     w:r.projectLimits?.maxWcm??null,
+     fc:r.projectLimits?.minFc??null,
+     chloride:r.projectLimits?.maxChloride??null
+   },
+   governing:{
+     maxW:r.governing?.maxW??r.projectLimits?.maxWcm??null,
+     minFc:r.governing?.minFc??r.projectLimits?.minFc??null
+   },
+   checks:mappedChecks,
+   overall:r.overall==='pass'?'good':r.overall==='fail'?'bad':'warn'
+ };
+ durState.last=rendered;
+ durRender(rendered);
+ return true;
+}
+function durLoad(){try{const x=JSON.parse(localStorage.getItem(DUR_KEY)||'null');if(x&&Array.isArray(x.records))durState=x}catch(e){}durRefreshMixOptions();durRenderHistory();const latest=(durState.records||[])[0];if(!durLoadStoredRecord(latest))durEvaluate(false)}
 function durPersist(){localStorage.setItem(DUR_KEY,JSON.stringify(durState));durRenderHistory()}
 function durAllRevisions(){loadTrialLab();const out=[];(trialLab.series||[]).forEach(s=>(s.revisions||[]).forEach(r=>out.push({key:`${s.id}|${r.revision}`,series:s,revision:r,approved:s.approvedRevision===r.revision})));return out}
 function durRefreshMixOptions(){const el=de('durMix');if(!el)return;const old=el.value,arr=durAllRevisions();el.innerHTML='<option value="">— انتخاب طرح از آزمایشگاه —</option>'+arr.map(x=>`<option value="${prodEsc(x.key)}">${prodEsc(x.series.code)} — ${prodEsc(x.series.name)} — R${x.revision.revision}${x.approved?' — تأییدشده':''}</option>`).join('');if(arr.some(x=>x.key===old))el.value=old;durLoadSnapshot()}
