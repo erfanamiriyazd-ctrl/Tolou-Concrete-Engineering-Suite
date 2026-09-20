@@ -770,7 +770,7 @@ async function runUiSmoke(win) {
       if(!saved?.seriesId||!saved?.fingerprint) throw new Error('D2 saved identity unavailable');
       await win.webContents.reload();
       await new Promise(r=>win.webContents.once('did-finish-load',r));
-      await sleep(1200);
+      await new Promise(r=>setTimeout(r,1200));
       const payload=await win.webContents.executeJavaScript(`
         (() => {
           const raw=localStorage.getItem('Tolou_trial_lab_v1');
