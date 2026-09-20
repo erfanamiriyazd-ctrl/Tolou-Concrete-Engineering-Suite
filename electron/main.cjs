@@ -425,6 +425,39 @@ async function runUiSmoke(win) {
           await sleep(220);
 
           const d=frame.contentDocument, w=frame.contentWindow;
+          const summarizeRaw = raw => {
+            try {
+              const x=JSON.parse(raw||'null')||{};
+              return {
+                exists:!!raw,
+                baseMethodId:x.baseMethodId||null,
+                aggregateCount:Array.isArray(x.aggregates)?x.aggregates.length:null,
+                aggregateNames:Array.isArray(x.aggregates)?x.aggregates.map(a=>a.name):[],
+                materialIds:Array.isArray(x.aggregates)?x.aggregates.map(a=>a.materialId||null):[],
+                blendId:x.aggregateBlendBinding?.id||null,
+                wcMode:x.iranStage35?.wcMode||null,
+                manualWc:x.iranStage35?.manualWc||null,
+                cementClass:x.iranStage35?.cementClass||null,
+                coarseShape:x.iranStage35?.coarseShape||null,
+                entrappedAir:x.iranStage36?.entrappedAir||null
+              };
+            } catch(e) { return {exists:!!raw,parseError:e.message}; }
+          };
+          const parentRaw=localStorage.getItem('QC010_full_data');
+          let frameBridgeRaw=null, frameLocalRaw=null, frameBridgeVisible=false;
+          try {
+            frameBridgeVisible=!!w.parent?.TolouEngineStateBridge;
+            frameBridgeRaw=w.parent?.TolouEngineStateBridge?.get?.('QC010_full_data')||null;
+          } catch(e) {}
+          try { frameLocalRaw=w.localStorage?.getItem?.('QC010_full_data')||null; } catch(e) {}
+
+          const persistenceProbe={
+            parentBridgeExists:!!window.TolouEngineStateBridge,
+            frameBridgeVisible,
+            parent:summarizeRaw(parentRaw),
+            bridgeSeenByFrame:summarizeRaw(frameBridgeRaw),
+            frameLocal:summarizeRaw(frameLocalRaw)
+          };
 
           const calcButton=[...d.querySelectorAll('button')].find(b=>(b.getAttribute('onclick')||'').replace(/\s/g,'')==='calculateMix()');
           if(!calcButton) throw new Error('UI calculate button not found');
@@ -438,6 +471,7 @@ async function runUiSmoke(win) {
             return {
               projectId: typeof projectHub!=='undefined'?projectHub.activeProjectId:null,
               baselineFailure:baseResp?.message||'unknown',
+              persistenceProbe,
               diagnostic:{
                 stage31:baselineDiagnostic?.stage31||null,
                 stage32:baselineDiagnostic?.stage32||null,
