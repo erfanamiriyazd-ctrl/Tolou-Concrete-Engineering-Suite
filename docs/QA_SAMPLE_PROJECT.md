@@ -168,3 +168,19 @@ Project-provided IRR prices have replaced the illustrative price factors for the
 - Transport, overhead and other unprovided costs remain zero and are not implied to be included.
 - Commercial price coverage for the entered material factors is now project-priced; GWP factors remain illustrative-only and unverified for EPD/LCA use.
 - Sample dataset version = 9.
+
+
+### Stage 9 Iran-1405 sourced operating-cost estimates
+Additional operating-cost assumptions were added using current Iranian 1405 sources and the project transport-distance setting:
+- Official road freight index: 16,680 IRR/ton-km.
+- Project haul distance: 15 km.
+- Inbound material transport estimate: approximately 540,495 IRR/m³.
+- Concrete delivery transport proxy: approximately 588,033 IRR/m³, based on concrete mass and the same ton-km rate.
+- Industrial electricity tariff basis: 3,605 IRR/kWh for industry below 1 MW.
+- Batching electricity consumption assumption: 0.9 kWh/m³, derived from Iranian 60 m³/h batching-plant power specifications; resulting electricity cost ≈ 3,245 IRR/m³.
+- Loader fuel assumption: 17 L/h at 60 m³/h; 80,700 IRR/L diesel proxy; resulting loader fuel cost ≈ 22,865 IRR/m³.
+- Direct labor model uses 1405 market salary medians for driver, QC and technical operator plus 23% employer insurance and 70% plant utilization; resulting direct labor cost ≈ 212,603 IRR/m³.
+- These items are tagged sourced-engineering-estimate/proxy where applicable and are not represented as invoice-grade audited costs.
+- Current modeled total cost including project material prices, pumping and the sourced operating-cost estimates is approximately 27.47 million IRR/m³.
+- Maintenance, depreciation, finance cost, tax/VAT, administration and unprovided site-specific overhead remain excluded until project-specific data is available.
+- Sample dataset version = 10.
