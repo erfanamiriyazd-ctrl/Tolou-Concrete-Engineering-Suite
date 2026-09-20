@@ -33,6 +33,7 @@ jobs:
         run: |
           $env:TOLOU_UI_SMOKE_DIR = Join-Path $PWD "ui-smoke"
           $env:TOLOU_UI_SMOKE_STAGE = "d5-revision-independence"
+      # D5 rerun marker: bounded reload chain
           npx electron .
 
       - name: Upload UI smoke evidence
