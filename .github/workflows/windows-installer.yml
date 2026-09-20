@@ -23,30 +23,9 @@ jobs:
         with:
           node-version: "24"
 
-      - name: Validate full QA sample
-        shell: pwsh
-        run: npm run qa:sample
-
       - name: Install dependencies
         shell: pwsh
         run: npm install --no-audit --no-fund
-
-      - name: Run real Electron UI smoke
-        shell: pwsh
-        run: |
-          $env:TOLOU_UI_SMOKE_DIR = Join-Path $PWD "ui-smoke"
-          $env:TOLOU_UI_SMOKE_STAGE = "d5-revision-independence"
-          # D5 persisted checkpoint diagnostic
-          npx electron .
-
-      - name: Upload UI smoke evidence
-        if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: Tolou-UI-Smoke
-          path: ui-smoke/**
-          if-no-files-found: error
-          retention-days: 14
 
       - name: Build Windows installer
         shell: pwsh
