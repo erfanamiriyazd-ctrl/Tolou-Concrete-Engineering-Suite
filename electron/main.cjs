@@ -655,6 +655,48 @@ async function runUiSmoke(win) {
     }
   }
 
+  async function stageD1SaveEntryProbe() {
+    await stageCEngineResponse();
+    const cResult=results.find(r=>r.name==='C-engine-response');
+    if(!cResult?.ok){
+      results.push({name:'D1-save-entry-probe',ok:false,error:'Stage C prerequisite failed'});
+      failures.push('D1-save-entry-probe: Stage C prerequisite failed');
+      return;
+    }
+    try {
+      const payload=await win.webContents.executeJavaScript(`
+        (() => {
+          const frame=document.getElementById('frame-base');
+          const d=frame?.contentDocument;
+          if(!d) throw new Error('QC-010 iframe unavailable after Stage C');
+          const nodes=[...d.querySelectorAll('button,a,input[type="button"],input[type="submit"],select')];
+          const controls=nodes.map(el=>({
+            tag:el.tagName,
+            id:el.id||'',
+            text:(el.innerText||el.value||el.getAttribute('aria-label')||el.title||'').trim(),
+            onclick:el.getAttribute('onclick')||'',
+            disabled:!!el.disabled,
+            visible:!!(el.offsetWidth||el.offsetHeight||el.getClientRects().length)
+          })).filter(x=>/ذخیره|ثبت|طرح|بازنگری|revision|save|mix/i.test([x.id,x.text,x.onclick].join(' ')));
+          const actionable=controls.filter(x=>x.visible&&!x.disabled);
+          return {controls,actionable,resultText:d.getElementById('resultsContainer')?.innerText||''};
+        })()
+      `,true);
+      const checks={
+        stageCResultStillRendered:payload.resultText.includes('Stage 3.7 Locked')&&payload.resultText.includes('9/9 PASS'),
+        saveOrRevisionControlExposed:payload.actionable.some(x=>/ذخیره|ثبت|بازنگری|revision|save/i.test([x.id,x.text,x.onclick].join(' ')))
+      };
+      const ok=Object.values(checks).every(Boolean);
+      results.push({name:'D1-save-entry-probe',ok,checks,payload});
+      if(!ok) failures.push('D1-save-entry-probe: '+Object.entries(checks).filter(([,v])=>!v).map(([k])=>k).join(', '));
+      await capture('D1-save-entry-probe');
+    } catch(error) {
+      results.push({name:'D1-save-entry-probe',ok:false,error:error?.stack||error?.message||String(error)});
+      failures.push('D1-save-entry-probe: '+(error?.message||String(error)));
+      await capture('D1-save-entry-probe-error').catch(()=>{});
+    }
+  }
+
   async function stage2MixLibrary() {
     try {
       const payload = await win.webContents.executeJavaScript(`
@@ -1674,6 +1716,7 @@ async function runUiSmoke(win) {
   if (stage === 'projects') await stage1Projects();
   else if (stage === 'project-to-qc010') await stageBProjectToQc010();
   else if (stage === 'engine-response') await stageCEngineResponse();
+  else if (stage === 'd1-save-entry') await stageD1SaveEntryProbe();
   else if (stage === 'mix-library') await stage2MixLibrary();
   else if (stage === 'durability') await stage3Durability();
   else if (stage === 'economics') await stage4Economics();
