@@ -110,3 +110,18 @@ Mix Series ID: `MX-DEMO-25-400`
 - 28-day production strengths = 33.1 / 33.6 / 32.9 / 33.8 / 32.4 / 33.3 MPa.
 - Mean production 28-day strength = 33.18 MPa, consistent with the Stage-3 required mean strength fcm = 32.53 MPa and the Stage-4 trial mean = 33.18 MPa.
 - Sample dataset version incremented to 5 so previously seeded QA installations receive the corrected Stage-6 production evidence.
+
+
+## Stage 7 — QC / Strength Statistics — COMPLETE
+- QC now stores both 7-day and 28-day results for all five laboratory trials and all six controlled production batches.
+- Trial and production records are linked to project PRJ-DEMO-25-400, mix series MX-DEMO-25-400, revision R0, design fingerprint and approval evidence fingerprint.
+- Production QC records are also linked back to the originating production batch and its release-gate status.
+- Material lot traceability is preserved for cement, water, fine aggregate, pea gravel and almond gravel.
+- Statistical summaries are stored separately for Trial 7d, Trial 28d, Production 7d, Production 28d and combined 28d populations.
+- Production 28-day strengths = 33.1 / 33.6 / 32.9 / 33.8 / 32.4 / 33.3 MPa.
+- Production 28-day mean = 33.18 MPa; sample SD ≈ 0.50 MPa; COV ≈ 1.51%.
+- All six production 28-day results exceed f'c = 25 MPa.
+- Production mean remains above Stage-3 fcm = 32.53 MPa.
+- QC trend data stores delta from specified strength, delta from required design mean and a rolling three-result mean where available.
+- The sample QC disposition is stable-controlled only when production strength, batch release controls and traceability all pass.
+- Sample dataset version incremented to 6 so previously seeded QA installations receive the completed Stage-7 QC dataset.
