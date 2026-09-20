@@ -934,7 +934,7 @@ async function runUiSmoke(win) {
           calcBtn.click();
           await sleep(220);
           const baseline=fw.TolouGetMixSnapshot();
-          if(!baseline?.ok)throw new Error('QC-010 baseline calculation failed: '+(baseline?.message||'unknown'));
+          if(!baseline?.ok){const audit=typeof fw.TolouGetIranStage37==='function'?fw.TolouGetIranStage37():null;throw new Error('QC-010 baseline calculation failed: '+(baseline?.message||'unknown')+' | gates='+JSON.stringify(audit?.gates||audit||null));}
 
           const storedSeries=(trialLab.series||[]).find(s=>s.id==='MX-DEMO-25-400');
           const storedR0=storedSeries?.revisions?.find(r=>Number(r.revision)===0);
