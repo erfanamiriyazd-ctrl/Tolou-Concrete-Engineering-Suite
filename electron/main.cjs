@@ -968,6 +968,18 @@ async function runUiSmoke(win) {
     }catch(error){results.push({name:'D4-register-path-trace',ok:false,error:error?.stack||error?.message||String(error)});failures.push('D4-register-path-trace: '+(error?.message||String(error)));await capture('D4-register-path-trace-error').catch(()=>{})}
   }
 
+  async function withAuditTimeout(promise, ms, label) {
+    let timer;
+    try {
+      return await Promise.race([
+        promise,
+        new Promise((_, reject) => { timer=setTimeout(() => reject(new Error(label+' timed out after '+ms+' ms')), ms); })
+      ]);
+    } finally {
+      clearTimeout(timer);
+    }
+  }
+
   async function stageD4CreateR1FromUi() {
     await stageD3PersistR0AfterReload();
     const d3=results.find(r=>r.name==='D3-r0-persistence');
@@ -980,7 +992,7 @@ async function runUiSmoke(win) {
       const seriesId=d3.before?.seriesId;
       const r0Before=d3.afterReload?.r0;
       if(!seriesId||!r0Before?.fingerprint) throw new Error('D3 identity unavailable');
-      const payload=await win.webContents.executeJavaScript(`
+      const payload=await withAuditTimeout(win.webContents.executeJavaScript(`
         (async()=>{
           const sleep=ms=>new Promise(r=>setTimeout(r,ms));
           const nav=document.querySelector('#nav button[data-view="mix-library"]');
@@ -1045,7 +1057,7 @@ async function runUiSmoke(win) {
             revisions:revs
           };
         })()
-      `,true);
+      `,true), 20000, 'D4 UI revision flow');
       const r0=payload.revisions?.find(r=>Number(r.revision)===0);
       const r1=payload.revisions?.find(r=>Number(r.revision)===1);
       const changed=payload.changed||{};
@@ -1096,7 +1108,7 @@ async function runUiSmoke(win) {
         win.webContents.reload();
       });
       await new Promise(r=>setTimeout(r,1200));
-      const payload=await win.webContents.executeJavaScript(`
+      const payload=await withAuditTimeout(win.webContents.executeJavaScript(`
         (async()=>{
           const sleep=ms=>new Promise(r=>setTimeout(r,ms));
           const lab=JSON.parse(localStorage.getItem('Tolou_trial_lab_v1')||'{"series":[]}');
@@ -1121,7 +1133,7 @@ async function runUiSmoke(win) {
           const loadedR1=await openRevision(1);
           return {series:{id:s?.id,projectId:s?.projectId,revisionCount:s?.revisions?.length},storedR0,storedR1,loadedR0,loadedR1};
         })()
-      `,true);
+      `,true), 15000, 'D5 revision independence UI flow');
       const same=(a,b)=>a&&b&&a.fingerprint===b.fingerprint&&Math.abs(Number(a.wcm)-Number(b.wcm))<1e-9&&Math.abs(Number(a.cement)-Number(b.cement))<1e-6&&Math.abs(Number(a.water)-Number(b.water))<1e-6&&Math.abs(Number(a.aggregateSSD)-Number(b.aggregateSSD))<1e-6;
       const checks={
         sameSeries:payload.series?.id===seriesId&&payload.series?.projectId==='PRJ-DEMO-25-400',
