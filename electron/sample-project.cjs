@@ -508,7 +508,7 @@ trials.forEach((t,i)=>{
       id:`ST-DEMO-TR-${i+1}-${age}`,
       date:addDays(t.date,age),
       testId:`QC010-001-${t.batchNo}-${age}d`,
-      mix:'QC010-001',seriesId:SERIES_ID,revision:'R0',revisionNo:0,lot:t.batchNo,
+      mix:'QC010-001',seriesId:SERIES_ID,revision:0,revisionLabel:'R0',revisionNo:0,lot:t.batchNo,
       plant:'آزمایشگاه طرح اختلاط',age,strength:v,target:25,designMeanTarget:stage31.fcm,
       specimens:clone(t.specimenSets[String(age)]||[]),
       materialLots:clone(t.materialLots),
@@ -525,7 +525,7 @@ productionBatches.forEach((b,i)=>{
   const strength7=round(b.qaStrength28*.73,1);
   qcTests.push({
     id:`ST-DEMO-P-${i+1}-7`,date:addDays(b.date,7),testId:`${b.ticket}-7d`,
-    mix:'QC010-001',seriesId:SERIES_ID,revision:'R0',revisionNo:0,lot:b.ticket,plant:b.plant,
+    mix:'QC010-001',seriesId:SERIES_ID,revision:0,revisionLabel:'R0',revisionNo:0,lot:b.ticket,plant:b.plant,
     age:7,strength:strength7,target:25,designMeanTarget:stage31.fcm,specimens:[round(strength7-.3,1),strength7,round(strength7+.3,1)],
     materialLots:clone(b.materialLots),materialLot:'CII-260518-A / FA-260520 / CA7-260520 / CA5-260520',
     notes:'کنترل روند 7روزه تولید نمونه؛ برای پذیرش نهایی، نتیجه 28روزه ملاک پرونده QA است.',
@@ -535,7 +535,7 @@ productionBatches.forEach((b,i)=>{
   });
   qcTests.push({
     id:`ST-DEMO-P-${i+1}-28`,date:addDays(b.date,28),testId:`${b.ticket}-28d`,
-    mix:'QC010-001',seriesId:SERIES_ID,revision:'R0',revisionNo:0,lot:b.ticket,plant:b.plant,
+    mix:'QC010-001',seriesId:SERIES_ID,revision:0,revisionLabel:'R0',revisionNo:0,lot:b.ticket,plant:b.plant,
     age:28,strength:b.qaStrength28,target:25,designMeanTarget:stage31.fcm,
     specimens:[round(b.qaStrength28-.3,1),b.qaStrength28,round(b.qaStrength28+.3,1)],
     materialLots:clone(b.materialLots),materialLot:'CII-260518-A / FA-260520 / CA7-260520 / CA5-260520',
