@@ -185,23 +185,26 @@ async function runUiSmoke(win) {
 
   let diagnostics = null;
   try {
-    diagnostics = await win.webContents.executeJavaScript(`
+    const raw = await win.webContents.executeJavaScript(`
       (() => {
-        const pid = 'PRJ-DEMO-25-400';
-        const s = (window.trialLab?.series || []).find(x => x.id === 'MX-DEMO-25-400') || null;
-        let e2e=null, contract=null, approval=null, integrity=null, finalValidation=null;
-        try { e2e = window.TolouE2EAudit?.run ? window.TolouE2EAudit.run(pid) : null; } catch(e) { e2e={error:String(e?.stack||e)}; }
-        try { contract = window.TolouContractEnforcement?.audit ? window.TolouContractEnforcement.audit() : null; } catch(e) { contract={error:String(e?.stack||e)}; }
-        try { approval = s && window.TolouApprovalIntegrity ? window.TolouApprovalIntegrity(s) : null;
-        const approvalFingerprints = s ? {
-          stored: s.approvalRecord?.evidenceFingerprint || null,
-          current: window.TolouTrialEvidenceFingerprint ? window.TolouTrialEvidenceFingerprint(s, s.approvedRevision) : null
-        } : null; } catch(e) { approval={error:String(e?.stack||e)}; }
-        try { integrity = window.TolouIntegrityGuard?.auditAll ? window.TolouIntegrityGuard.auditAll() : null; } catch(e) { integrity={error:String(e?.stack||e)}; }
-        try { finalValidation = window.TolouFinalValidation?.run ? window.TolouFinalValidation.run(pid) : null; } catch(e) { finalValidation={error:String(e?.stack||e)}; }
-        return {e2e,contract,approval,approvalFingerprints,integrity,finalValidation};
+        const pid='PRJ-DEMO-25-400';
+        const s=(window.trialLab?.series||[]).find(x=>x.id==='MX-DEMO-25-400')||null;
+        const e2e=window.TolouE2EAudit?.run?.(pid)||null;
+        const contract=window.TolouContractEnforcement?.audit?.()||null;
+        const approval=s&&window.TolouApprovalIntegrity?window.TolouApprovalIntegrity(s):null;
+        const currentFp=s&&window.TolouTrialEvidenceFingerprint?window.TolouTrialEvidenceFingerprint(s,s.approvedRevision):null;
+        const integrity=window.TolouIntegrityGuard?.auditAll?.()||null;
+        const finalValidation=window.TolouFinalValidation?.run?.(pid)||null;
+        return JSON.stringify({
+          approval:{valid:approval?.valid??null,status:approval?.status||null,reason:approval?.reason||null,stored:s?.approvalRecord?.evidenceFingerprint||null,current:currentFp},
+          e2e:{status:e2e?.status||null,summary:e2e?.summary||null,issues:(e2e?.issues||[]).map(x=>({severity:x.severity,module:x.module,code:x.code,entityId:x.entityId,message:x.message}))},
+          contract:{status:contract?.status||null,blocked:contract?.blocked??null,modules:(contract?.modules||[]).map(x=>({module:x.module,fn:x.fn,mode:x.mode,marker:x.marker}))},
+          integrity:{status:integrity?.status||null,errors:integrity?.errors??null,warnings:integrity?.warnings??null,issues:(integrity?.rows||[]).flatMap(r=>(r.issues||[]).map(x=>({seriesId:r.seriesId,revision:r.revision,severity:x.severity,code:x.code,path:x.path,message:x.message,value:x.value})))},
+          finalValidation:{status:finalValidation?.status||null,summary:finalValidation?.summary||null,checks:(finalValidation?.checks||[]).map(x=>({code:x.code,status:x.status,detail:x.detail}))}
+        });
       })()
     `, true);
+    diagnostics = JSON.parse(raw);
     fs.writeFileSync(path.join(dir, 'ui-diagnostics.json'), JSON.stringify(diagnostics, null, 2), 'utf8');
   } catch (error) {
     fs.writeFileSync(path.join(dir, 'ui-diagnostics-error.txt'), String(error?.stack || error), 'utf8');
