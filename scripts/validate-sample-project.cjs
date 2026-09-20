@@ -157,3 +157,10 @@ assert.ok(appSource.includes('r.seriesId=x.series.id;r.revision=x.revision.revis
 assert.ok(appSource.includes('seriesId:sel.series.id,revision:sel.revision.revision'), 'UX-06: optimizer source revision identity missing');
 assert.ok(appSource.includes("این طرح متعلق به پروژه فعال نیست؛ ابتدا پروژه صحیح را فعال کنید."), 'UX-06: active-project guard missing');
 assert.ok(appSource.includes("reason:'پیشنهاد موتور بهینه‌سازی چندهدفه — نیازمند آزمایش و تأیید مهندس'"), 'UX-06: optimizer candidate-to-revision path missing');
+
+// UX-07 contract: each trial batch is permanently tied to project + series + revision.
+assert.ok(appSource.includes('projectId:s.projectId||active,seriesId:s.id,revision:sourceRevision'), 'UX-07: trial identity contract missing');
+assert.ok(appSource.includes('trialRevision(s,t.revision)||latestRevision(s)'), 'UX-07: trial evaluation must use its own revision snapshot');
+assert.ok(appSource.includes('این پرونده طرح متعلق به پروژه فعال نیست؛ ابتدا پروژه صحیح را فعال کنید.'), 'UX-07: active-project trial guard missing');
+assert.ok(appSource.includes('<th>بازنگری</th>'), 'UX-07: revision must be visible in trial history');
+assert.ok(appSource.includes('<b>زمینه آزمایش:</b>'), 'UX-07: Persian trial context banner missing');
