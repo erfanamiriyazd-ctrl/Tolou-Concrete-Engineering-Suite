@@ -328,10 +328,17 @@ async function runUiSmoke(win) {
 
       const checks = {
         pageVisible: payload.visible === true,
-        mixRecognized: hasMixOption,
+        mixRecognized: hasMixOption && payload.currentValue === 'MX-DEMO-25-400|0',
         historyShowsRecord:
           payload.history.includes('QC010-001') &&
           payload.history.includes('F0/S0/W0/C0'),
+        analysisVisible:
+          payload.summary.includes('نیازمند بررسی') &&
+          (payload.rules.includes('chloride') || payload.rules.includes('کلرید') || payload.rules.includes('w/cm')),
+        kpisVisible:
+          payload.kpis.includes('0.50') &&
+          payload.kpis.includes('25 MPa') &&
+          payload.kpis.includes('F0 / S0 / W0 / C0'),
         recordIdentity:
           payload.record?.id === 'DUR-DEMO-001' &&
           payload.record?.projectId === 'PRJ-DEMO-25-400' &&
