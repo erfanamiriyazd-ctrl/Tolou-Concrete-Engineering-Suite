@@ -1077,6 +1077,60 @@ async function runUiSmoke(win) {
     }
   }
 
+  async function stageD5RevisionIndependence() {
+    await stageD4CreateR1FromUi();
+    const d4=results.find(r=>r.name==='D4-create-r1-ui');
+    if(!d4?.ok){results.push({name:'D5-revision-independence',ok:false,error:'D4 prerequisite failed'});failures.push('D5-revision-independence: D4 prerequisite failed');return}
+    try{
+      const seriesId=d4.payload?.series?.id;
+      const expectedR0=d4.payload?.revisions?.find(r=>Number(r.revision)===0);
+      const expectedR1=d4.payload?.revisions?.find(r=>Number(r.revision)===1);
+      await win.webContents.reload();
+      await new Promise(resolve=>win.webContents.once('did-finish-load',resolve));
+      await new Promise(r=>setTimeout(r,1200));
+      const payload=await win.webContents.executeJavaScript(`
+        (async()=>{
+          const sleep=ms=>new Promise(r=>setTimeout(r,ms));
+          const lab=JSON.parse(localStorage.getItem('Tolou_trial_lab_v1')||'{"series":[]}');
+          const s=(lab.series||[]).find(x=>x.id===${JSON.stringify(seriesId)});
+          const summarize=r=>r?{revision:r.revision,fingerprint:r.snapshot?.calculationFingerprint,wcm:r.snapshot?.wcm,cement:r.snapshot?.cementContent,water:r.snapshot?.effectiveWater,aggregateSSD:r.snapshot?.aggregateSSDTotal}:null;
+          const storedR0=summarize((s?.revisions||[]).find(r=>Number(r.revision)===0));
+          const storedR1=summarize((s?.revisions||[]).find(r=>Number(r.revision)===1));
+          document.querySelector('#nav button[data-view="mix-library"]')?.click();await sleep(300);
+          if(typeof loadTrialLab==='function')loadTrialLab();if(typeof mlRender==='function')mlRender();await sleep(200);
+          const view=document.getElementById('view-mix-library');
+          async function openRevision(rv){
+            const btn=[...view.querySelectorAll('button')].find(el=>(el.innerText||'').includes('اصلاح در QC-010')&&(el.getAttribute('onclick')||'').includes(${JSON.stringify(seriesId)})&&(el.getAttribute('onclick')||'').includes(','+rv+')'));
+            if(!btn) throw new Error('Revision R'+rv+' edit control unavailable');
+            btn.click();await sleep(800);
+            const w=document.getElementById('frame-base')?.contentWindow;
+            const snap=w?.TolouGetMixSnapshot?.();
+            if(!snap?.ok) throw new Error('Revision R'+rv+' failed to load into engine');
+            return {revision:rv,fingerprint:snap.snapshot?.calculationFingerprint,wcm:snap.snapshot?.wcm,cement:snap.snapshot?.cementContent,water:snap.snapshot?.effectiveWater,aggregateSSD:snap.snapshot?.aggregateSSDTotal};
+          }
+          const loadedR0=await openRevision(0);
+          document.querySelector('#nav button[data-view="mix-library"]')?.click();await sleep(250);if(typeof mlRender==='function')mlRender();
+          const loadedR1=await openRevision(1);
+          return {series:{id:s?.id,projectId:s?.projectId,revisionCount:s?.revisions?.length},storedR0,storedR1,loadedR0,loadedR1};
+        })()
+      `,true);
+      const same=(a,b)=>a&&b&&a.fingerprint===b.fingerprint&&Math.abs(Number(a.wcm)-Number(b.wcm))<1e-9&&Math.abs(Number(a.cement)-Number(b.cement))<1e-6&&Math.abs(Number(a.water)-Number(b.water))<1e-6&&Math.abs(Number(a.aggregateSSD)-Number(b.aggregateSSD))<1e-6;
+      const checks={
+        sameSeries:payload.series?.id===seriesId&&payload.series?.projectId==='PRJ-DEMO-25-400',
+        exactlyTwoRevisions:Number(payload.series?.revisionCount)===2,
+        r0PersistedUnchanged:same(payload.storedR0,expectedR0),
+        r1PersistedUnchanged:same(payload.storedR1,expectedR1),
+        revisionsAreDifferent:payload.storedR0?.fingerprint!==payload.storedR1?.fingerprint&&Math.abs(Number(payload.storedR0?.wcm)-Number(payload.storedR1?.wcm))>1e-9,
+        r0ReloadsIndependently:same(payload.loadedR0,payload.storedR0),
+        r1ReloadsIndependently:same(payload.loadedR1,payload.storedR1)
+      };
+      const ok=Object.values(checks).every(Boolean);
+      results.push({name:'D5-revision-independence',ok,checks,expectedR0,expectedR1,payload});
+      if(!ok)failures.push('D5-revision-independence: '+Object.entries(checks).filter(([,v])=>!v).map(([k])=>k).join(', '));
+      await capture('D5-revision-independence');
+    }catch(error){results.push({name:'D5-revision-independence',ok:false,error:error?.stack||error?.message||String(error)});failures.push('D5-revision-independence: '+(error?.message||String(error)));await capture('D5-revision-independence-error').catch(()=>{})}
+  }
+
   async function stageD4HydrationAudit() {
     await stageD3PersistR0AfterReload();
     const d3=results.find(r=>r.name==='D3-r0-persistence');
@@ -2200,6 +2254,7 @@ async function runUiSmoke(win) {
   else if (stage === 'd3-r0-persistence') await stageD3PersistR0AfterReload();
   else if (stage === 'd4-revision-ui-probe') await stageD4RevisionUiProbe();
   else if (stage === 'd4-create-r1-ui') await stageD4CreateR1FromUi();
+  else if (stage === 'd5-revision-independence') await stageD5RevisionIndependence();
   else if (stage === 'd4-save-context-trace') await stageD4SaveContextTrace();
   else if (stage === 'd4-register-path-trace') await stageD4RegisterPathTrace();
   else if (stage === 'd4-wc-control-probe') await stageD4WcControlProbe();
