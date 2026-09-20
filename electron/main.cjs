@@ -192,10 +192,14 @@ async function runUiSmoke(win) {
         let e2e=null, contract=null, approval=null, integrity=null, finalValidation=null;
         try { e2e = window.TolouE2EAudit?.run ? window.TolouE2EAudit.run(pid) : null; } catch(e) { e2e={error:String(e?.stack||e)}; }
         try { contract = window.TolouContractEnforcement?.audit ? window.TolouContractEnforcement.audit() : null; } catch(e) { contract={error:String(e?.stack||e)}; }
-        try { approval = s && window.TolouApprovalIntegrity ? window.TolouApprovalIntegrity(s) : null; } catch(e) { approval={error:String(e?.stack||e)}; }
+        try { approval = s && window.TolouApprovalIntegrity ? window.TolouApprovalIntegrity(s) : null;
+        const approvalFingerprints = s ? {
+          stored: s.approvalRecord?.evidenceFingerprint || null,
+          current: window.TolouTrialEvidenceFingerprint ? window.TolouTrialEvidenceFingerprint(s, s.approvedRevision) : null
+        } : null; } catch(e) { approval={error:String(e?.stack||e)}; }
         try { integrity = window.TolouIntegrityGuard?.auditAll ? window.TolouIntegrityGuard.auditAll() : null; } catch(e) { integrity={error:String(e?.stack||e)}; }
         try { finalValidation = window.TolouFinalValidation?.run ? window.TolouFinalValidation.run(pid) : null; } catch(e) { finalValidation={error:String(e?.stack||e)}; }
-        return {e2e,contract,approval,integrity,finalValidation};
+        return {e2e,contract,approval,approvalFingerprints,integrity,finalValidation};
       })()
     `, true);
     fs.writeFileSync(path.join(dir, 'ui-diagnostics.json'), JSON.stringify(diagnostics, null, 2), 'utf8');
