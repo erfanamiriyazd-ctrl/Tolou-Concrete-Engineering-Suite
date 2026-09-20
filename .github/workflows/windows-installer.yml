@@ -32,7 +32,7 @@ jobs:
         shell: pwsh
         run: |
           $env:TOLOU_UI_SMOKE_DIR = Join-Path $PWD "ui-smoke"
-          $env:TOLOU_UI_SMOKE_STAGE = "optimization"
+          $env:TOLOU_UI_SMOKE_STAGE = "engine-response"
           npx electron .
 
       - name: Upload UI smoke evidence
