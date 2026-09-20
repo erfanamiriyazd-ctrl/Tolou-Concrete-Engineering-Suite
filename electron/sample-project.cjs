@@ -1,7 +1,7 @@
 'use strict';
 
 const SAMPLE_MARKER = 'Tolou_sample_project_v1';
-const SAMPLE_DATASET_VERSION = 9;
+const SAMPLE_DATASET_VERSION = 10;
 const PROJECT_ID = 'PRJ-DEMO-25-400';
 const SERIES_ID = 'MX-DEMO-25-400';
 const AGG_CASE_ID = 'AGC-DEMO-25-400';
@@ -758,6 +758,30 @@ erows.forEach(r=>{
   };
 });
 const pumpingCostPerM3=2400000;
+const inboundFreightRateIrrPerTonKm=16680;
+const assumedMaterialHaulKm=15;
+const inboundMaterialTransportCostPerM3=round((400+ssdMasses.reduce((a,b)=>a+b,0))/1000*inboundFreightRateIrrPerTonKm*assumedMaterialHaulKm,2);
+const concreteDeliveryTransportCostPerM3=round((400+190+ssdMasses.reduce((a,b)=>a+b,0))/1000*inboundFreightRateIrrPerTonKm*assumedMaterialHaulKm,2);
+const electricityConsumptionKwhPerM3=.9;
+const electricityTariffIrrPerKwh=3605;
+const electricityCostPerM3=round(electricityConsumptionKwhPerM3*electricityTariffIrrPerKwh,2);
+const loaderFuelLph=17;
+const loaderFuelPriceIrrPerL=80700;
+const assumedPlantCapacityM3h=60;
+const loaderFuelCostPerM3=round(loaderFuelLph/assumedPlantCapacityM3h*loaderFuelPriceIrrPerL,2);
+const directLaborModel={
+  driverMonthlyIrr:410000000,
+  qcMonthlyIrr:600000000,
+  technicalOperatorMonthlyIrr:500000000,
+  employerInsurancePct:23,
+  utilization:.70,
+  hoursPerDay:8,
+  daysPerMonth:26,
+  capacityM3h:60
+};
+const directLaborMonthlyIrr=(directLaborModel.driverMonthlyIrr+directLaborModel.qcMonthlyIrr+directLaborModel.technicalOperatorMonthlyIrr)*(1+directLaborModel.employerInsurancePct/100);
+const modeledMonthlyProductionM3=directLaborModel.capacityM3h*directLaborModel.hoursPerDay*directLaborModel.daysPerMonth*directLaborModel.utilization;
+const directLaborCostPerM3=round(directLaborMonthlyIrr/modeledMonthlyProductionM3,2);
 const massClosure=round(erows.reduce((s,r)=>s+r.mass,0),3);
 const allPriceFactorsPresent=erows.every(r=>Number.isFinite(r.factor.price));
 const allGwpFactorsPresent=erows.every(r=>Number.isFinite(r.factor.gwp));
@@ -787,7 +811,12 @@ const economicsRecord={
   },
   materialCost:round(totalCost,2),
   pumpingCost:round(pumpingCostPerM3,2),
-  totalCost:round(totalCost+pumpingCostPerM3,2),
+  inboundMaterialTransportCost:inboundMaterialTransportCostPerM3,
+  concreteDeliveryTransportCost:concreteDeliveryTransportCostPerM3,
+  electricityCost:electricityCostPerM3,
+  loaderFuelCost:loaderFuelCostPerM3,
+  directLaborCost:directLaborCostPerM3,
+  totalCost:round(totalCost+pumpingCostPerM3+inboundMaterialTransportCostPerM3+concreteDeliveryTransportCostPerM3+electricityCostPerM3+loaderFuelCostPerM3+directLaborCostPerM3,2),
   totalCarbon:round(totalCarbon,2),
   priceCoverage:allPriceFactorsPresent?100:round(erows.filter(r=>Number.isFinite(r.factor.price)).length/erows.length*100,1),
   gwpCoverage:allGwpFactorsPresent?100:round(erows.filter(r=>Number.isFinite(r.factor.gwp)).length/erows.length*100,1),
@@ -805,23 +834,36 @@ const economicsRecord={
   strength:productionFcStats.mean,
   normalized:{
     materialCostPerMPa:round(totalCost/productionFcStats.mean,3),
-    totalCostPerMPa:round((totalCost+pumpingCostPerM3)/productionFcStats.mean,3),
+    totalCostPerMPa:round((totalCost+pumpingCostPerM3+inboundMaterialTransportCostPerM3+concreteDeliveryTransportCostPerM3+electricityCostPerM3+loaderFuelCostPerM3+directLaborCostPerM3)/productionFcStats.mean,3),
     carbonPerMPa:round(totalCarbon/productionFcStats.mean,3),
     cementKgPerMPa:round(400/productionFcStats.mean,3)
   },
+  assumptions:{
+    inboundFreight:{rateIrrPerTonKm:inboundFreightRateIrrPerTonKm,distanceKm:assumedMaterialHaulKm,quality:'official-rate + project-distance',source:'Iran road freight ton-km index 1405'},
+    concreteDelivery:{rateIrrPerTonKm:inboundFreightRateIrrPerTonKm,distanceKm:assumedMaterialHaulKm,quality:'engineering-proxy',source:'Iran road freight ton-km index 1405 applied to concrete mass'},
+    electricity:{consumptionKwhPerM3:electricityConsumptionKwhPerM3,tariffIrrPerKwh:electricityTariffIrrPerKwh,quality:'sourced-engineering-estimate',source:'Iranian 60 m3/h batching plant power specs + 1405 industrial tariff'},
+    loader:{fuelLph:loaderFuelLph,fuelPriceIrrPerL:loaderFuelPriceIrrPerL,capacityM3h:assumedPlantCapacityM3h,quality:'proxy-estimate',source:'loader fuel-consumption listings + 1405 mining diesel proxy'},
+    labor:{...directLaborModel,monthlyLoadedLaborIrr:round(directLaborMonthlyIrr,2),modeledMonthlyProductionM3:round(modeledMonthlyProductionM3,2),quality:'market-salary-model',source:'IranTalent 1405 salary medians + 23% employer insurance'}
+  },
   dataQuality:{
     computationalCompleteness:(allPriceFactorsPresent&&allGwpFactorsPresent)?'complete':'incomplete',
-    commercialValidity:allCommercialFactorsVerified?'project-priced':'incomplete',
+    commercialValidity:allCommercialFactorsVerified?'project-priced-plus-sourced-estimates':'incomplete',
     environmentalClaimValidity:allGwpFactorsVerified?'verified':'illustrative-only',
-    warning:'Price factors are project-provided and usable for current project costing; GWP factors remain illustrative and are not EPD/LCA verified.'
+    warning:'Material and pumping prices are project-provided. Freight, electricity, loader fuel and labor are sourced engineering estimates and must be replaced by site invoices/payroll for audited cost accounting. GWP factors remain illustrative and are not EPD/LCA verified.'
   },
   input:{
     name:'تحلیل اقتصادی/کربن پروژه نمونه 25/400',
     date:'2026-08-11',
     currency:'IRR',
     scope:'1 m³ بتن — صرفاً QA',
-    overhead:0,transportCost:0,pumpingCost:2400000,otherCost:0,otherCarbon:0,otherSource:'',
-    notes:'قیمت سیمان، ماسه، سنگدانه درشت، آب و پمپاژ از داده پروژه کاربر وارد شده‌اند. عوامل GWP همچنان نمایشی‌اند و برای EPD/LCA یا ادعای محیط‌زیستی معتبر نیستند.'
+    overhead:0,
+    transportCost:round(inboundMaterialTransportCostPerM3+concreteDeliveryTransportCostPerM3,2),
+    pumpingCost:2400000,
+    electricityCost:electricityCostPerM3,
+    loaderFuelCost:loaderFuelCostPerM3,
+    directLaborCost:directLaborCostPerM3,
+    otherCost:0,otherCarbon:0,otherSource:'',
+    notes:'قیمت سیمان، ماسه، سنگدانه درشت، آب و پمپاژ از داده پروژه کاربر وارد شده‌اند. حمل، برق، سوخت لودر و نیروی انسانی با مدل مرجع ۱۴۰۵ ایران برآورد شده‌اند و به‌عنوان sourced-engineering-estimate ثبت می‌شوند. عوامل GWP همچنان نمایشی‌اند و برای EPD/LCA یا ادعای محیط‌زیستی معتبر نیستند.'
   },
   rows:erows,
   disposition:'Project cost calculation uses user-provided IRR prices and pumping cost. Environmental factors remain illustrative-only until replaced by verified EPD/LCA data.',
