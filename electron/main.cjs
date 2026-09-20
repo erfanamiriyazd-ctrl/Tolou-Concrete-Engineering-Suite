@@ -215,7 +215,9 @@ async function runUiSmoke(win) {
 
       const checks = {
         pageVisible: payload.visible === true,
-        countAtLeastOne: Number(String(payload.count).replace(/[^0-9]/g,'')) >= 1,
+        countAtLeastOne: Number(String(payload.count)
+          .replace(/[۰-۹]/g, d => '۰۱۲۳۴۵۶۷۸۹'.indexOf(d))
+          .replace(/[^0-9]/g,'')) >= 1,
         listShowsMix: payload.list.includes('QC010-001') && payload.list.includes('C25'),
         listShowsProject: payload.list.includes('مجتمع اداری آفتاب شرق'),
         listShowsApproved: payload.list.includes('تأییدشده'),
