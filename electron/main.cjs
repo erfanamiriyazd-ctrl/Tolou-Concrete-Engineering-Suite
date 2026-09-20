@@ -1013,7 +1013,7 @@ async function runUiSmoke(win) {
 
           const frame=document.getElementById('frame-base');
           if(!frame) throw new Error('QC-010 frame unavailable after edit click');
-          const loaded=await waitFor('R0 snapshot after UI edit',()=>{const w=frame.contentWindow,x=w?.TolouGetMixSnapshot?.();return x?.ok&&x.snapshot?.calculationFingerprint===JSON.stringify(r0Before.fingerprint)?x:null});
+          const loaded=await waitFor('R0 snapshot after UI edit',()=>{const w=frame.contentWindow,x=w?.TolouGetMixSnapshot?.();return x?.ok&&x.snapshot?.calculationFingerprint===${JSON.stringify(r0Before.fingerprint)}?x:null});
           const d=frame.contentDocument,w=frame.contentWindow;
           if(!d||!w) throw new Error('QC-010 unavailable after R0 hydration');
 
