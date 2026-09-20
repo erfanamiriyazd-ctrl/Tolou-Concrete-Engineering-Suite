@@ -12,7 +12,8 @@
     "start": "electron .",
     "pack": "npm run icon:build && electron-builder --dir",
     "dist:win": "npm run icon:build && electron-builder --win nsis --publish never",
-    "icon:build": "node scripts/build-icon.cjs"
+    "icon:build": "node scripts/build-icon.cjs",
+    "qa:sample": "node scripts/validate-sample-project.cjs"
   },
   "devDependencies": {
     "electron": "^38.0.0",
