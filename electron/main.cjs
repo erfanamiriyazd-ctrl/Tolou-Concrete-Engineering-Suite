@@ -863,6 +863,119 @@ async function runUiSmoke(win) {
     }
   }
 
+  async function stageD4CreateR1FromUi() {
+    await stageD3PersistR0AfterReload();
+    const d3=results.find(r=>r.name==='D3-r0-persistence');
+    if(!d3?.ok){
+      results.push({name:'D4-create-r1-ui',ok:false,error:'D3 prerequisite failed'});
+      failures.push('D4-create-r1-ui: D3 prerequisite failed');
+      return;
+    }
+    try{
+      const seriesId=d3.before?.seriesId;
+      const r0Before=d3.afterReload?.r0;
+      if(!seriesId||!r0Before?.fingerprint) throw new Error('D3 identity unavailable');
+      const payload=await win.webContents.executeJavaScript(`
+        (async()=>{
+          const sleep=ms=>new Promise(r=>setTimeout(r,ms));
+          const nav=document.querySelector('#nav button[data-view="mix-library"]');
+          if(!nav) throw new Error('Mix Library nav unavailable');
+          nav.click(); await sleep(350);
+          if(typeof loadTrialLab==='function') loadTrialLab();
+          if(typeof mlRender==='function') mlRender();
+          await sleep(250);
+          const view=document.getElementById('view-mix-library');
+          const edit=[...view.querySelectorAll('button,a,[role="button"]')].find(el=>
+            /اصلاح در QC-010/.test((el.innerText||'').trim()) &&
+            (el.getAttribute('onclick')||'').includes(${JSON.stringify(seriesId)})
+          );
+          if(!edit) throw new Error('Real اصلاح در QC-010 control unavailable');
+          const editControl={text:(edit.innerText||'').trim(),onclick:edit.getAttribute('onclick')||''};
+          edit.click(); await sleep(700);
+
+          const frame=document.getElementById('frame-base'),d=frame?.contentDocument,w=frame?.contentWindow;
+          if(!d||!w) throw new Error('QC-010 unavailable after edit click');
+          const loaded=w.TolouGetMixSnapshot?.();
+          if(!loaded?.ok) throw new Error('R0 snapshot unavailable after UI edit');
+
+          const candidates=[...d.querySelectorAll('input')].filter(el=>{
+            const meta=[el.id,el.name,el.getAttribute('data-key'),el.getAttribute('placeholder')].filter(Boolean).join(' ');
+            return /(^|[^a-z])(wc|wcm|water.?cement)([^a-z]|$)/i.test(meta);
+          });
+          let wcInput=candidates.find(el=>Math.abs(Number(el.value)-0.46)<1e-9)||candidates.find(el=>!el.disabled&&!el.readOnly);
+          if(!wcInput) throw new Error('Editable w/c input unavailable');
+          const wcControl={id:wcInput.id||'',name:wcInput.name||'',before:wcInput.value};
+          wcInput.value='0.450';
+          wcInput.dispatchEvent(new Event('input',{bubbles:true}));
+          wcInput.dispatchEvent(new Event('change',{bubbles:true}));
+          await sleep(120);
+          if(typeof w.calculateMix!=='function') throw new Error('calculateMix unavailable');
+          w.calculateMix(); await sleep(900);
+          const changed=w.TolouGetMixSnapshot?.();
+          if(!changed?.ok) throw new Error('Changed snapshot unavailable');
+
+          const save=[...d.querySelectorAll('button')].find(b=>/ذخیره/.test((b.innerText||'').trim())&&/saveProject/.test(b.getAttribute('onclick')||''));
+          if(!save||save.disabled) throw new Error('Real Save unavailable for revision');
+          const beforeRaw=localStorage.getItem('Tolou_trial_lab_v1');
+          save.click(); await sleep(1000);
+          const afterRaw=localStorage.getItem('Tolou_trial_lab_v1');
+          const lab=JSON.parse(afterRaw||'{"series":[]}');
+          const s=(lab.series||[]).find(x=>x.id===${JSON.stringify(seriesId)});
+          const revs=(s?.revisions||[]).map(r=>({
+            revision:r.revision,
+            fingerprint:r.snapshot?.calculationFingerprint,
+            cement:r.snapshot?.cementContent,
+            water:r.snapshot?.effectiveWater,
+            wcm:r.snapshot?.wcm,
+            aggregateSSD:r.snapshot?.aggregateSSDTotal,
+            reason:r.reason||''
+          }));
+          return {
+            editControl,wcControl,
+            loaded:{fingerprint:loaded.snapshot?.calculationFingerprint,wcm:loaded.snapshot?.wcm},
+            changed:{fingerprint:changed.snapshot?.calculationFingerprint,wcm:changed.snapshot?.wcm,cement:changed.snapshot?.cementContent,water:changed.snapshot?.effectiveWater,aggregateSSD:changed.snapshot?.aggregateSSDTotal},
+            saveControl:{text:(save.innerText||'').trim(),onclick:save.getAttribute('onclick')||''},
+            storageChanged:beforeRaw!==afterRaw,
+            series:s?{id:s.id,code:s.code,projectId:s.projectId,revisionCount:(s.revisions||[]).length}:null,
+            revisions:revs
+          };
+        })()
+      `,true);
+      const r0=payload.revisions?.find(r=>Number(r.revision)===0);
+      const r1=payload.revisions?.find(r=>Number(r.revision)===1);
+      const changed=payload.changed||{};
+      const checks={
+        clickedRealEdit:/mlLoadRevision/.test(payload.editControl?.onclick||''),
+        r0LoadedIntoEngine:payload.loaded?.fingerprint===r0Before.fingerprint,
+        engineerInputActuallyChanged:Math.abs(Number(changed.wcm)-0.45)<1e-9,
+        recalculationChangedFingerprint:!!changed.fingerprint&&changed.fingerprint!==r0Before.fingerprint,
+        clickedRealSave:/saveProject/.test(payload.saveControl?.onclick||''),
+        persistenceChanged:payload.storageChanged===true,
+        sameSeries:payload.series?.id===seriesId&&payload.series?.projectId==='PRJ-DEMO-25-400',
+        r1Created:Number(payload.series?.revisionCount)===2&&Number(r1?.revision)===1,
+        r1MatchesLive:
+          r1?.fingerprint===changed.fingerprint &&
+          Math.abs(Number(r1?.wcm)-Number(changed.wcm))<1e-9 &&
+          Math.abs(Number(r1?.cement)-Number(changed.cement))<1e-6 &&
+          Math.abs(Number(r1?.water)-Number(changed.water))<1e-6 &&
+          Math.abs(Number(r1?.aggregateSSD)-Number(changed.aggregateSSD))<1e-6,
+        r0NotOverwritten:
+          Number(r0?.revision)===0 &&
+          r0?.fingerprint===r0Before.fingerprint &&
+          Math.abs(Number(r0?.wcm)-Number(r0Before.wcm))<1e-9 &&
+          Math.abs(Number(r0?.cement)-Number(r0Before.cement))<1e-6
+      };
+      const ok=Object.values(checks).every(Boolean);
+      results.push({name:'D4-create-r1-ui',ok,checks,r0Before,payload});
+      if(!ok) failures.push('D4-create-r1-ui: '+Object.entries(checks).filter(([,v])=>!v).map(([k])=>k).join(', '));
+      await capture('D4-create-r1-ui');
+    }catch(error){
+      results.push({name:'D4-create-r1-ui',ok:false,error:error?.stack||error?.message||String(error)});
+      failures.push('D4-create-r1-ui: '+(error?.message||String(error)));
+      await capture('D4-create-r1-ui-error').catch(()=>{});
+    }
+  }
+
   async function stage2MixLibrary() {
     try {
       const payload = await win.webContents.executeJavaScript(`
@@ -1886,6 +1999,7 @@ async function runUiSmoke(win) {
   else if (stage === 'd2-save-r0') await stageD2SaveR0FromUi();
   else if (stage === 'd3-r0-persistence') await stageD3PersistR0AfterReload();
   else if (stage === 'd4-revision-ui-probe') await stageD4RevisionUiProbe();
+  else if (stage === 'd4-create-r1-ui') await stageD4CreateR1FromUi();
   else if (stage === 'mix-library') await stage2MixLibrary();
   else if (stage === 'durability') await stage3Durability();
   else if (stage === 'economics') await stage4Economics();
