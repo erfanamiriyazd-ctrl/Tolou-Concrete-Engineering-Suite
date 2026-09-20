@@ -51,3 +51,21 @@ Mix Series ID: `MX-DEMO-25-400`
 - The final split was checked against the same RMSE objective used by Aggregate Intelligence and is a constrained near-optimum inside the configured source bounds.
 - Measured DRUW = 1680 kg/m³ is populated so combined SG, packing and voids are available.
 - The saved Aggregate Case is linked to project PRJ-DEMO-25-400 and embedded in the QC-010 mix snapshot through aggregateBlendBinding.
+
+
+## Stage 3 — QC-010 / Iran 479 engineering snapshot — COMPLETE
+- f'c = 25 MPa.
+- Workshop/site grade = B; SD used = 4.5 MPa.
+- Required mean strength: Eq. 3-1 = 32.53 MPa; Eq. 3-2 = 31.485 MPa; governing fcm = 32.53 MPa.
+- Slump target = 100 mm.
+- Type II cement = 400 kg/m³.
+- Effective water = 190 kg/m³; w/cm = 0.475.
+- Entrapped air = 2%; intentional air = 0%.
+- Absolute-volume aggregate remainder = 0.663015873 m³.
+- With the Stage-2 44/37/19 aggregate split, SSD aggregate masses are approximately 774.510 / 651.293 / 334.448 kg/m³.
+- Moisture correction uses 3.5/1.5/1.2% moisture and 1.5/1.0/0.8% absorption for fine/pea/almond fractions.
+- Aggregate free water = approximately 19.813 kg/m³, therefore water to add at batching = approximately 170.187 kg/m³.
+- Total SSD aggregate mass = approximately 1760.251 kg/m³ and total batch mass remains mass-balanced.
+- Stage 3.7 integration gate is stored as locked-for-trial with all 8 required gates populated.
+- Stage 3.1–3.6 objects now contain the fields consumed by the engineering dossier/report layer, avoiding blank QA report cells for the sample project.
+- Seed dataset version was incremented so an already-seeded QA installation can receive the corrected sample dataset without modifying the Golden Baseline.
