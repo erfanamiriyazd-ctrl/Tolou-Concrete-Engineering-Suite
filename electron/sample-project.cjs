@@ -1063,7 +1063,16 @@ function seedSampleProject(storage){
   if(!storage||typeof storage.getItem!=='function'||typeof storage.setItem!=='function') return {ok:false,reason:'storage-unavailable'};
   try{
     const existingMarker=readJson(storage,SAMPLE_MARKER,{});
-    if(existingMarker?.version===SAMPLE_DATASET_VERSION&&existingMarker?.projectId===PROJECT_ID) return {ok:true,alreadySeeded:true,projectId:PROJECT_ID,seriesId:SERIES_ID};
+    const existingEngine=readJson(storage,'QC010_full_data',{});
+    const sampleEngineHealthy=
+      existingEngine?.baseMethodId==='iran479' &&
+      existingEngine?.aggregateBlendBinding?.id===AGG_CASE_ID &&
+      Array.isArray(existingEngine?.aggregates) &&
+      existingEngine.aggregates.length===3 &&
+      existingEngine.aggregates.every(a=>String(a.materialId||'').startsWith('MAT-DEMO-')) &&
+      existingEngine?.iranStage35?.wcMode==='manual' &&
+      Number(existingEngine?.iranStage35?.manualWc)===0.475;
+    if(existingMarker?.version===SAMPLE_DATASET_VERSION&&existingMarker?.projectId===PROJECT_ID&&sampleEngineHealthy) return {ok:true,alreadySeeded:true,projectId:PROJECT_ID,seriesId:SERIES_ID};
     const hub=readJson(storage,'Tolou_project_hub_v1',{schemaVersion:1,projects:[],activeProjectId:null,audit:[]});hub.schemaVersion=1;hub.projects=Array.isArray(hub.projects)?hub.projects:[];hub.audit=Array.isArray(hub.audit)?hub.audit:[];upsert(hub.projects,clone(sampleProject));const sampleAudit=makeAudit();hub.audit=hub.audit.filter(x=>x.projectId!==PROJECT_ID).concat(sampleAudit);if(!hub.activeProjectId)hub.activeProjectId=PROJECT_ID;storage.setItem('Tolou_project_hub_v1',JSON.stringify(hub));
 
     const ml=readJson(storage,'Tolou_material_library_v1',{schemaVersion:1,materials:[]});ml.schemaVersion=1;ml.materials=Array.isArray(ml.materials)?ml.materials:[];materials.forEach(m=>upsert(ml.materials,clone(m)));storage.setItem('Tolou_material_library_v1',JSON.stringify(ml));
@@ -1082,7 +1091,7 @@ function seedSampleProject(storage){
 
     const opt=readJson(storage,'Tolou_multiobjective_optimizer_v1',{schemaVersion:1,studies:[],last:null});opt.schemaVersion=1;opt.studies=Array.isArray(opt.studies)?opt.studies:[];upsert(opt.studies,clone(optimizerStudy));if(!opt.last)opt.last={source:optimizerStudy.source,constraints:clone(optimizerStudy.constraints),objectives:clone(optimizerStudy.objectives)};storage.setItem('Tolou_multiobjective_optimizer_v1',JSON.stringify(opt));
 
-    const q10=readJson(storage,'QC010_full_data',{});const sampleEngineUpgrade=existingMarker?.projectId===PROJECT_ID&&existingMarker?.version!==SAMPLE_DATASET_VERSION;if(sampleEngineUpgrade||!Array.isArray(q10.aggregates)||!q10.aggregates.length){storage.setItem('QC010_full_data',JSON.stringify(clone(engineState)));}
+    const q10=readJson(storage,'QC010_full_data',{});const sampleEngineUpgrade=existingMarker?.projectId===PROJECT_ID&&(existingMarker?.version!==SAMPLE_DATASET_VERSION||!sampleEngineHealthy);if(sampleEngineUpgrade||!Array.isArray(q10.aggregates)||!q10.aggregates.length){storage.setItem('QC010_full_data',JSON.stringify(clone(engineState)));}
 
     storage.setItem(SAMPLE_MARKER,JSON.stringify({version:SAMPLE_DATASET_VERSION,projectId:PROJECT_ID,seriesId:SERIES_ID,aggregateCaseId:AGG_CASE_ID,seededAt:new Date().toISOString(),dataset:'Tolou QA Sample C25/Cement400/TypeII',baselineChanged:false}));
     return {ok:true,projectId:PROJECT_ID,seriesId:SERIES_ID};
