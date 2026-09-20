@@ -1,7 +1,7 @@
 'use strict';
 
 const SAMPLE_MARKER = 'Tolou_sample_project_v1';
-const SAMPLE_DATASET_VERSION = 13;
+const SAMPLE_DATASET_VERSION = 14;
 const PROJECT_ID = 'PRJ-DEMO-25-400';
 const SERIES_ID = 'MX-DEMO-25-400';
 const AGG_CASE_ID = 'AGC-DEMO-25-400';
@@ -279,7 +279,7 @@ const stage37={
 const mixSnapshot={
   engineVersion:'QC010-iran479-engine-3.7-locked',designMethodId:'iran479',designMethodLabel:'روش ملی ایران — نشریه ض-479',methodProfileId:'IR_NMD_479_1388',methodRuleSetId:'RULESET_IR_479',reference:'نشریه ض-479، چاپ دوم 1388',
   inputState:{projectName:projectContext.name,structureType:'building',standardType:'isiri',cementType:'II',cementDensity:'3150',cementContent:'400',slumpTarget:'100',maxAggSize:'25',targetStrength:'25',targetWc:'0.475',finalWater:'190',airContent:'2',airSystem:'non-air',fineAggregateFM:String(round(fineFM(),2)),ambientTemp:'25',humidity:'55'},
-  materialBindings:clone(materialBindings),aggregateBlendBinding:clone(aggregateBlendBinding),projectName:projectContext.name,projectLinkMode:'library',projectContext:clone(projectContext),standard:'iran479',cementType:'II',cementTypeLabel:'Type II',slump:100,dmax:25,targetStrength:25,targetWc:.475,cementDensity:3150,silicaDensity:2200,flyAshDensity:2300,slagDensity:2900,cementContent:400,silica:0,flyAsh:0,slag:0,totalCementitious:400,effectiveWater:190,batchWater:round(batchWater,6),freeWaterTotal:round(freeWaterTotal,6),finalWc:.475,wcm:.475,airContent:2,airSystem:'nonair',airExposure:'iran479',fineFM:round(fineFM(),3),knownVolume:round(1-aggVol,8),aggregateVolume:round(aggVol,8),volumeClosure:1,aggregateSSDTotal:round(totalAgg,6),aggregateBatchTotal:round(aggCalc.reduce((s,x)=>s+x.batch,0),6),totalWeight:round(totalWeight,6),iranNational:{stage31,stage32,stage33,stage34,stage35,stage36,stage37},integrationAudit:stage37,validationStatus:'locked-for-trial',calculationFingerprint:stage37.fingerprint,ruleTrace:[{id:'IR479_3_1_FCM',reference:'نشریه ض-479 Stage 3.1'},{id:'IR479_4_2_GRADING',reference:'نشریه ض-479 شکل 4-4'},{id:'IR479_3_4_FREE_WATER',reference:'نشریه ض-479 Stage 3.4'},{id:'IR479_3_5_WC',reference:'نشریه ض-479 Stage 3.5'},{id:'IR479_3_6_VOLUME',reference:'نشریه ض-479 Stage 3.6'},{id:'IR479_3_7_LOCK',reference:'Tolou Stage 3.7'}],aggregates:clone(snapshotAggregates),admixtures:[],fibers:[],timestamp:'2026-05-24T11:00:00+03:30'
+  materialBindings:clone(materialBindings),aggregateBlendBinding:clone(aggregateBlendBinding),projectName:projectContext.name,projectLinkMode:'library',projectContext:clone(projectContext),standard:'iran479',cementType:'II',cementTypeLabel:'Type II',slump:100,dmax:25,targetStrength:25,targetWc:.475,cementDensity:3150,silicaDensity:2200,flyAshDensity:2300,slagDensity:2900,cementContent:400,silica:0,flyAsh:0,slag:0,totalCementitious:400,effectiveWater:190,batchWater:round(batchWater,6),freeWaterTotal:round(freeWaterTotal,6),finalWc:.475,wcm:.475,airContent:2,airSystem:'nonair',airExposure:'iran479',fineFM:round(fineFM(),3),knownVolume:round(1-aggVol,8),aggregateVolume:round(aggVol,8),volumeClosure:1,aggregateSSDTotal:round(totalAgg,6),aggregateBatchTotal:round(aggCalc.reduce((s,x)=>s+x.batch,0),6),totalWeight:round(totalWeight,6),iranNational:{stage31,stage32,stage33,stage34,stage35,stage36,stage37},integrationAudit:stage37,validationStatus:'locked-for-trial',calculationFingerprint:stage37.fingerprint,ruleTrace:[{id:'IR479_3_1_FCM',reference:'نشریه ض-479 Stage 3.1'},{id:'IR479_4_2_GRADING',reference:'نشریه ض-479 شکل 4-4'},{id:'IR479_3_4_FREE_WATER',reference:'نشریه ض-479 Stage 3.4'},{id:'IR479_3_5_WC',reference:'نشریه ض-479 Stage 3.5'},{id:'IR479_3_6_VOLUME',reference:'نشریه ض-479 Stage 3.6'},{id:'IR479_3_7_LOCK',reference:'Tolou Stage 3.7'}],aggregates:clone(snapshotAggregates),admixtures:[],fibers:[],fillerContent:0,superplasticizer:0,vma:0,airEntrainer:0,retarder:0,timestamp:'2026-05-24T11:00:00+03:30'
 };
 
 function makeTrial(i,date,water,fc28,slump,air,density,moistures){
@@ -368,13 +368,8 @@ function makeTrial(i,date,water,fc28,slump,air,density,moistures){
         `w/cm واقعی ${wcm.toFixed(3)} ${withinWcm?'از حد 0.500 عبور نکرده':'از حد 0.500 عبور کرده'} است.`
       ]
     },
-    updatedAt:`${date}T16:00:00+03:30`,createdAt:`${date}T08:00:00+03:30`,
-  fillerContent:0,
-  superplasticizer:0,
-  vma:0,
-  airEntrainer:0,
-  retarder:0
-};
+    updatedAt:`${date}T16:00:00+03:30`,createdAt:`${date}T08:00:00+03:30`
+  };
 }
 const trials=[
   makeTrial(1,'2026-06-01',184,34.6,90,1.8,2358,[3.4,1.4,1.1]),
