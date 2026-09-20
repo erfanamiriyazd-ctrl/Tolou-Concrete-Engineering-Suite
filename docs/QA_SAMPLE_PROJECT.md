@@ -184,3 +184,29 @@ Additional operating-cost assumptions were added using current Iranian 1405 sour
 - Current modeled total cost including project material prices, pumping and the sourced operating-cost estimates is approximately 27.47 million IRR/m³.
 - Maintenance, depreciation, finance cost, tax/VAT, administration and unprovided site-specific overhead remain excluded until project-specific data is available.
 - Sample dataset version = 10.
+
+
+### Stage 9 cost reconciliation to actual ex-plant price
+User-provided commercial anchors:
+- Actual ex-plant concrete price, excluding pumping and VAT: 36,800,000 IRR/m³.
+- Actual delivery freight: 6,800,000 IRR/m³.
+- VAT: 10%.
+
+The previously modeled known ex-plant cost base equals 24,482,713 IRR/m³. The balancing gap to the actual ex-plant price is therefore 12,317,287 IRR/m³.
+
+For cost-model closure only, the gap is allocated across previously unfilled cost centers:
+- Depreciation: 40% = 4,926,914.80 IRR/m³.
+- Plant/admin overhead: 25% = 3,079,321.75 IRR/m³.
+- Maintenance: 20% = 2,463,457.40 IRR/m³.
+- Finance/working capital: 15% = 1,847,593.05 IRR/m³.
+
+These are balancing allocations, not independently measured/audited cost-center values.
+
+Commercial totals:
+- Ex-plant concrete: 36,800,000 IRR/m³.
+- Delivered before VAT: 43,600,000 IRR/m³.
+- VAT @10%: 4,360,000 IRR/m³.
+- Delivered incl. VAT: 47,960,000 IRR/m³.
+- Delivered incl. VAT + pumping: 50,360,000 IRR/m³.
+- Pumping remains a separate project-provided 2,400,000 IRR/m³ line item; no pumping VAT is assumed because none was provided.
+- Sample dataset version = 11.
