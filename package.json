@@ -1,6 +1,6 @@
 {
   "name": "tolou-concrete-engineering-suite",
-  "version": "0.9.0",
+  "version": "0.9.1",
   "description": "Tolou Concrete Engineering Suite - professional concrete engineering decision platform",
   "main": "electron/main.cjs",
   "author": {
