@@ -193,3 +193,13 @@ assert.ok(appSource.includes('function lifecycleInfo('), 'UX-11: lifecycleInfo i
 assert.ok(!appSource.includes('TolouپروژهLibraryBridge'), 'UX-11: mixed Persian programming identifier remains');
 assert.ok(!appSource.includes('lifecycleاطلاعات'), 'UX-11: translated programming identifier remains');
 assert.ok(appSource.includes('مرحله ۶.۵ — اعتبارسنجی نهایی سرتاسری و بستن رگرسیون'), 'UX-11: advanced workflow heading not Persianized');
+
+// UX-12 contract: preview and print share a real A4 paged document model.
+assert.ok(appSource.includes('width:210mm;height:297mm'), 'UX-12: physical A4 page dimensions missing');
+assert.ok(appSource.includes('@page{size:A4 portrait;margin:0}'), 'UX-12: print page size contract missing');
+assert.ok(appSource.includes('function reportPaginateMarkup(markup)'), 'UX-12: pagination engine missing');
+assert.ok(appSource.includes('صفحه \${pageNo} از \${total}'), 'UX-12: page numbering missing');
+assert.ok(appSource.includes('thead{display:table-header-group}'), 'UX-12: repeated table header print rule missing');
+assert.ok(appSource.includes('const b=reportPagedBuild()'), 'UX-12: print/export must consume paged report');
+assert.ok(!appSource.includes('pfLogoNone مانع'), 'UX-12: corrupted profile control id remains');
+assert.ok(!appSource.includes('repNone مانعAll'), 'UX-12: corrupted report control id remains');
