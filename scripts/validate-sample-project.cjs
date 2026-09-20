@@ -185,3 +185,11 @@ assert.ok(appSource.includes("source:prod?'production':'manual',productionBatchI
 assert.ok(appSource.includes("source:'trial',sourceRef:ref,seriesId:s.id,productionBatchId:null"), 'UX-10: trial provenance contract missing');
 assert.ok(appSource.includes('بچ تولید انتخاب‌شده متعلق به پروژه فعال نیست.'), 'UX-10: active-project production guard missing');
 assert.ok(appSource.includes('داده‌های آزمایشگاهی و بچ‌های واقعی تولید با منبع مستقل نگهداری می‌شوند.'), 'UX-10: Persian provenance guidance missing');
+
+// UX-11 contract: presentation is Persianized without mutating programming/data contracts.
+assert.ok(appSource.includes('TolouProjectLibraryBridge'), 'UX-11: project bridge identifier was mutated');
+assert.ok(appSource.includes('TolouProjectPackage'), 'UX-11: project package format identifier was mutated');
+assert.ok(appSource.includes('function lifecycleInfo('), 'UX-11: lifecycleInfo identifier was mutated');
+assert.ok(!appSource.includes('TolouپروژهLibraryBridge'), 'UX-11: mixed Persian programming identifier remains');
+assert.ok(!appSource.includes('lifecycleاطلاعات'), 'UX-11: translated programming identifier remains');
+assert.ok(appSource.includes('مرحله ۶.۵ — اعتبارسنجی نهایی سرتاسری و بستن رگرسیون'), 'UX-11: advanced workflow heading not Persianized');
