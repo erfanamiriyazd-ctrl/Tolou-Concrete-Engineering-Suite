@@ -456,7 +456,7 @@ async function runUiSmoke(win) {
           payload.history.includes('QC010-001'),
         hydratedKpis:
           payload.kpis.length > 50 &&
-          payload.kpis.includes('298') &&
+          payload.kpis.includes('kgCO₂e') &&
           payload.kpis.includes('33.2'),
         commercialSummary:
           (payload.summary.includes('۳۶٬۸۰۰٬۰۰۰') || payload.summary.includes('36,800,000')) &&
