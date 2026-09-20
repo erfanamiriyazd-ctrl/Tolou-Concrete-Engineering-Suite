@@ -757,6 +757,56 @@ async function runUiSmoke(win) {
     }
   }
 
+  async function stageD3PersistR0AfterReload() {
+    await stageD2SaveR0FromUi();
+    const d2=results.find(r=>r.name==='D2-save-r0-ui');
+    if(!d2?.ok){
+      results.push({name:'D3-r0-persistence',ok:false,error:'D2 prerequisite failed'});
+      failures.push('D3-r0-persistence: D2 prerequisite failed');
+      return;
+    }
+    try{
+      const saved=d2.payload?.match;
+      if(!saved?.seriesId||!saved?.fingerprint) throw new Error('D2 saved identity unavailable');
+      await win.webContents.reload();
+      await new Promise(r=>win.webContents.once('did-finish-load',r));
+      await sleep(1200);
+      const payload=await win.webContents.executeJavaScript(`
+        (() => {
+          const raw=localStorage.getItem('Tolou_trial_lab_v1');
+          const lab=JSON.parse(raw||'{"series":[]}');
+          const s=(lab.series||[]).find(x=>x.id===${JSON.stringify(saved.seriesId)});
+          const r=s?.revisions?.find(x=>Number(x.revision)===0);
+          return {
+            rawLength:(raw||'').length,
+            series:s?{id:s.id,code:s.code,projectId:s.projectId,revisionCount:(s.revisions||[]).length,approvedRevision:s.approvedRevision}:null,
+            r0:r?{revision:r.revision,fingerprint:r.snapshot?.calculationFingerprint,cement:r.snapshot?.cementContent,water:r.snapshot?.effectiveWater,wcm:r.snapshot?.wcm,aggregateSSD:r.snapshot?.aggregateSSDTotal}:null
+          };
+        })()
+      `,true);
+      const r0=payload.r0||{};
+      const checks={
+        seriesSurvivedReload:payload.series?.id===saved.seriesId,
+        projectLinkSurvived:payload.series?.projectId==='PRJ-DEMO-25-400',
+        r0Survived:payload.r0?.revision===0,
+        fingerprintUnchanged:r0.fingerprint===saved.fingerprint,
+        engineeringValuesUnchanged:
+          Math.abs(Number(r0.cement)-Number(saved.cement))<1e-6 &&
+          Math.abs(Number(r0.water)-Number(saved.water))<1e-6 &&
+          Math.abs(Number(r0.wcm)-Number(saved.wcm))<1e-9 &&
+          Math.abs(Number(r0.aggregateSSD)-Number(saved.aggregateSSD))<1e-6
+      };
+      const ok=Object.values(checks).every(Boolean);
+      results.push({name:'D3-r0-persistence',ok,checks,before:saved,afterReload:payload});
+      if(!ok) failures.push('D3-r0-persistence: '+Object.entries(checks).filter(([,v])=>!v).map(([k])=>k).join(', '));
+      await capture('D3-r0-persistence');
+    }catch(error){
+      results.push({name:'D3-r0-persistence',ok:false,error:error?.stack||error?.message||String(error)});
+      failures.push('D3-r0-persistence: '+(error?.message||String(error)));
+      await capture('D3-r0-persistence-error').catch(()=>{});
+    }
+  }
+
   async function stage2MixLibrary() {
     try {
       const payload = await win.webContents.executeJavaScript(`
@@ -1778,6 +1828,7 @@ async function runUiSmoke(win) {
   else if (stage === 'engine-response') await stageCEngineResponse();
   else if (stage === 'd1-save-entry') await stageD1SaveEntryProbe();
   else if (stage === 'd2-save-r0') await stageD2SaveR0FromUi();
+  else if (stage === 'd3-r0-persistence') await stageD3PersistR0AfterReload();
   else if (stage === 'mix-library') await stage2MixLibrary();
   else if (stage === 'durability') await stage3Durability();
   else if (stage === 'economics') await stage4Economics();
