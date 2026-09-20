@@ -1192,6 +1192,112 @@ async function runUiSmoke(win) {
     }
   }
 
+
+  async function stageEFTrialApprovalBatch() {
+    const d5=results.find(r=>r.name==='D5-revision-independence');
+    if(!d5?.ok){results.push({name:'E-trial-lab-r1',ok:false,error:'D5 prerequisite failed'});results.push({name:'F-approval-r1',ok:false,error:'D5 prerequisite failed'});failures.push('E-trial-lab-r1: D5 prerequisite failed');failures.push('F-approval-r1: D5 prerequisite failed');return}
+    try{
+      const seriesId=d5.payload?.series?.id;
+      const expectedR1=d5.payload?.storedR1;
+      const payload=await withAuditTimeout(win.webContents.executeJavaScript(\`
+        (async()=>{
+          const sleep=ms=>new Promise(r=>setTimeout(r,ms));
+          const waitFor=async(label,test,limit=120)=>{for(let n=0;n<limit;n++){const v=test();if(v)return v;await sleep(50)}throw new Error(label+' readiness condition not reached')};
+          const nav=document.querySelector('#nav button[data-view="trials"]');
+          if(!nav)throw new Error('Trial Lab nav unavailable');
+          nav.click();
+          const view=document.getElementById('view-trials');
+          await waitFor('Trial Lab view',()=>view?.classList.contains('active'));
+          if(typeof loadTrialLab==='function')loadTrialLab();
+          const seriesCard=await waitFor('Target trial series UI',()=>[...document.querySelectorAll('#tlSeriesList .tl-series')].find(el=>(el.innerText||'').includes("${SERIES_ID}")));
+          seriesCard.click();
+          await waitFor('Trial editor',()=>document.getElementById('tlBatchNo')&&document.querySelector('#tlEditor button[onclick="saveTrialBatch()"]'));
+          const set=(id,value)=>{const el=document.getElementById(id);if(!el)throw new Error(id+' unavailable');el.value=String(value);el.dispatchEvent(new Event('input',{bubbles:true}));el.dispatchEvent(new Event('change',{bubbles:true}))};
+          set('tlBatchNo','QA-R1-01');
+          set('tlBatchVolume','30');
+          set('tlOperator','QA Electron');
+          set('tlActualWater',217.5886);
+          set('tlActualCm',483.5302);
+          set('tlSlump','100');
+          set('tlFc28','32.0');
+          const save=document.querySelector('#tlEditor button[onclick="saveTrialBatch()"]');
+          if(!save)throw new Error('Real Trial save control unavailable');
+          save.click();
+          const trial=await waitFor('Persisted R1 trial',()=>{
+            const s=(trialLab.series||[]).find(x=>x.id==="${SERIES_ID}");
+            return s?.trials?.find(t=>t.batchNo==='QA-R1-01')||null;
+          });
+          const afterTrial={id:trial.id,revision:trial.revision,batchNo:trial.batchNo,actualWcm:trial.calculated?.actualWcm,fc28:trial.strengths?.['28'],slump:trial.fresh?.slump,evaluation:trial.evaluation};
+
+          const approve=[...document.querySelectorAll('#tlEditor button')].find(b=>(b.getAttribute('onclick')||'')==='approveCurrentRevision()');
+          if(!approve)throw new Error('Real Approval control unavailable');
+          const nativeConfirm=window.confirm;
+          window.confirm=()=>true;
+          try{approve.click()}finally{window.confirm=nativeConfirm}
+          const approved=await waitFor('Approval persistence',()=>{
+            const s=(trialLab.series||[]).find(x=>x.id==="${SERIES_ID}");
+            return s?.status==='approved'&&Number(s.approvedRevision)===1?s:null;
+          });
+          return {
+            seriesId:approved.id,projectId:approved.projectId,status:approved.status,approvedRevision:approved.approvedRevision,
+            r1:(approved.revisions||[]).find(r=>Number(r.revision)===1)?.snapshot||null,
+            trial:afterTrial,
+            approvalRecord:approved.approvalRecord||null,
+            ui:{trialSaveText:(save.innerText||'').trim(),approvalText:(approve.innerText||'').trim()}
+          };
+        })()
+      \`.replaceAll("${SERIES_ID}",JSON.stringify(seriesId)),true),20000,'E/F Trial + Approval UI batch');
+
+      const eChecks={
+        sameSeries:payload.seriesId===seriesId&&payload.projectId==='PRJ-DEMO-25-400',
+        trialOnR1:Number(payload.trial?.revision)===1&&payload.trial?.batchNo==='QA-R1-01',
+        realTrialInput:Math.abs(Number(payload.trial?.actualWcm)-0.45)<0.001&&Number(payload.trial?.fc28)===32&&Number(payload.trial?.slump)===100,
+        trialEvaluationPass:payload.trial?.evaluation?.level==='pass',
+        r1IdentityPreserved:payload.r1?.calculationFingerprint===expectedR1?.fingerprint
+      };
+      const eOk=Object.values(eChecks).every(Boolean);
+      results.push({name:'E-trial-lab-r1',ok:eOk,checks:eChecks,payload});
+      if(!eOk)failures.push('E-trial-lab-r1: '+Object.entries(eChecks).filter(([,v])=>!v).map(([k])=>k).join(', '));
+
+      const fChecks={
+        approvedR1:payload.status==='approved'&&Number(payload.approvedRevision)===1,
+        approvalLinksTrial:Array.isArray(payload.approvalRecord?.trialIds)&&payload.approvalRecord.trialIds.includes(payload.trial?.id),
+        noOverride:payload.approvalRecord?.overrideReason==null,
+        approvalRevisionMatches:Number(payload.approvalRecord?.revision)===1
+      };
+      const fOk=Object.values(fChecks).every(Boolean);
+      results.push({name:'F-approval-r1',ok:fOk,checks:fChecks,payload:{seriesId:payload.seriesId,status:payload.status,approvedRevision:payload.approvedRevision,approvalRecord:payload.approvalRecord}});
+      if(!fOk)failures.push('F-approval-r1: '+Object.entries(fChecks).filter(([,v])=>!v).map(([k])=>k).join(', '));
+      await capture('EF-trial-approval-ui');
+
+      await new Promise((resolve,reject)=>{
+        const timer=setTimeout(()=>{win.webContents.removeListener('did-finish-load',onLoad);reject(new Error('E/F reload timed out'))},15000);
+        const onLoad=()=>{clearTimeout(timer);resolve()};
+        win.webContents.once('did-finish-load',onLoad);win.webContents.reload();
+      });
+      const persisted=await win.webContents.executeJavaScript(\`(()=>{
+        const lab=JSON.parse(localStorage.getItem('Tolou_trial_lab_v1')||'{"series":[]}');
+        const s=(lab.series||[]).find(x=>x.id===\${JSON.stringify(seriesId)});
+        const t=(s?.trials||[]).find(x=>x.batchNo==='QA-R1-01');
+        const r1=(s?.revisions||[]).find(r=>Number(r.revision)===1);
+        return {series:s?{id:s.id,status:s.status,approvedRevision:s.approvedRevision,approvalRecord:s.approvalRecord}:null,trial:t?{id:t.id,revision:t.revision,level:t.evaluation?.level,actualWcm:t.calculated?.actualWcm}:null,r1Fingerprint:r1?.snapshot?.calculationFingerprint};
+      })()\`,true);
+      const persistenceChecks={
+        trialSurvivedReload:persisted.trial?.id===payload.trial?.id&&Number(persisted.trial?.revision)===1&&persisted.trial?.level==='pass',
+        approvalSurvivedReload:persisted.series?.status==='approved'&&Number(persisted.series?.approvedRevision)===1&&persisted.series?.approvalRecord?.trialIds?.includes(payload.trial?.id),
+        r1SurvivedApproval:persisted.r1Fingerprint===expectedR1?.fingerprint
+      };
+      const pOk=Object.values(persistenceChecks).every(Boolean);
+      results.push({name:'EF-persistence',ok:pOk,checks:persistenceChecks,persisted});
+      if(!pOk)failures.push('EF-persistence: '+Object.entries(persistenceChecks).filter(([,v])=>!v).map(([k])=>k).join(', '));
+      await capture('EF-persistence');
+    }catch(error){
+      results.push({name:'EF-trial-approval-batch',ok:false,error:error?.stack||error?.message||String(error)});
+      failures.push('EF-trial-approval-batch: '+(error?.message||String(error)));
+      await capture('EF-trial-approval-error').catch(()=>{});
+    }
+  }
+
   async function stageD4HydrationAudit() {
     await stageD3PersistR0AfterReload();
     const d3=results.find(r=>r.name==='D3-r0-persistence');
@@ -2315,7 +2421,7 @@ async function runUiSmoke(win) {
   else if (stage === 'd3-r0-persistence') await stageD3PersistR0AfterReload();
   else if (stage === 'd4-revision-ui-probe') await stageD4RevisionUiProbe();
   else if (stage === 'd4-create-r1-ui') await stageD4CreateR1FromUi();
-  else if (stage === 'd5-revision-independence') await stageD5RevisionIndependence();
+  else if (stage === 'd5-revision-independence') { await stageD5RevisionIndependence(); await stageEFTrialApprovalBatch(); }
   else if (stage === 'd4-save-context-trace') await stageD4SaveContextTrace();
   else if (stage === 'd4-register-path-trace') await stageD4RegisterPathTrace();
   else if (stage === 'd4-wc-control-probe') await stageD4WcControlProbe();
