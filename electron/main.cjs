@@ -2,6 +2,7 @@ const { app, BrowserWindow, Menu, shell, ipcMain, dialog, screen } = require('el
 const path = require('node:path');
 const { createPersistence } = require('./persistence.cjs');
 const { createWindowState } = require('./window-state.cjs');
+const { seedSampleProject } = require('./sample-project.cjs');
 
 const APP_NAME = 'Tolou Concrete Engineering Suite';
 const APP_ID = 'ir.tolou.concrete.engineering';
@@ -12,6 +13,29 @@ let persistence;
 let appIsQuitting = false;
 let mainWindow = null;
 let windowState = null;
+
+
+function buildSeededSampleStorage(existing = {}) {
+  const map = new Map();
+  for (const [key, value] of Object.entries(existing || {})) {
+    if (value !== null && value !== undefined) map.set(key, String(value));
+  }
+  const storage = {
+    getItem: (key) => map.has(key) ? map.get(key) : null,
+    setItem: (key, value) => map.set(key, String(value))
+  };
+  const result = seedSampleProject(storage);
+  return { result, storage: Object.fromEntries(map) };
+}
+
+ipcMain.on('tolou:sample:seed', (event, existing) => {
+  try {
+    event.returnValue = buildSeededSampleStorage(existing);
+  } catch (error) {
+    event.returnValue = { result: { ok: false, reason: error?.message || String(error) }, storage: existing || {} };
+  }
+});
+
 
 function persistenceBootstrapScript() {
   return `
