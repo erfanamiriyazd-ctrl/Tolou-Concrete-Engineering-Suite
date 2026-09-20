@@ -1085,8 +1085,12 @@ async function runUiSmoke(win) {
       const seriesId=d4.payload?.series?.id;
       const expectedR0=d4.payload?.revisions?.find(r=>Number(r.revision)===0);
       const expectedR1=d4.payload?.revisions?.find(r=>Number(r.revision)===1);
-      await win.webContents.reload();
-      await new Promise(resolve=>win.webContents.once('did-finish-load',resolve));
+      await new Promise((resolve,reject)=>{
+        const timer=setTimeout(()=>{win.webContents.removeListener('did-finish-load',onLoad);reject(new Error('D5 Suite reload timed out after 15 seconds'))},15000);
+        const onLoad=()=>{clearTimeout(timer);resolve()};
+        win.webContents.once('did-finish-load',onLoad);
+        win.webContents.reload();
+      });
       await new Promise(r=>setTimeout(r,1200));
       const payload=await win.webContents.executeJavaScript(`
         (async()=>{
