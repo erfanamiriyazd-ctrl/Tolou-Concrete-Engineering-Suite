@@ -1112,7 +1112,7 @@ async function runUiSmoke(win) {
         (async()=>{
           const sleep=ms=>new Promise(r=>setTimeout(r,ms));
           const trace=[];
-          const mark=(step,extra={})=>{trace.push({step,at:Date.now(),...extra});console.log('[D5_TRACE]',step,extra)};
+          const mark=(step,extra={})=>{const item={step,at:Date.now(),...extra};trace.push(item);localStorage.setItem('Tolou_D5_trace_v1',JSON.stringify(trace));console.log('[D5_TRACE]',step,extra)};
           mark('storage-read-start');
           const lab=JSON.parse(localStorage.getItem('Tolou_trial_lab_v1')||'{"series":[]}');
           mark('storage-read-done',{seriesCount:(lab.series||[]).length});
@@ -1165,7 +1165,15 @@ async function runUiSmoke(win) {
       results.push({name:'D5-revision-independence',ok,checks,expectedR0,expectedR1,payload});
       if(!ok)failures.push('D5-revision-independence: '+Object.entries(checks).filter(([,v])=>!v).map(([k])=>k).join(', '));
       await capture('D5-revision-independence');
-    }catch(error){results.push({name:'D5-revision-independence',ok:false,error:error?.stack||error?.message||String(error)});failures.push('D5-revision-independence: '+(error?.message||String(error)));await capture('D5-revision-independence-error').catch(()=>{})}
+    }catch(error){
+      let persistedTrace=[];
+      try{
+        persistedTrace=await win.webContents.executeJavaScript("JSON.parse(localStorage.getItem('Tolou_D5_trace_v1')||'[]')",true);
+      }catch(_){}
+      results.push({name:'D5-revision-independence',ok:false,error:error?.stack||error?.message||String(error),persistedTrace});
+      failures.push('D5-revision-independence: '+(error?.message||String(error))+' | last checkpoint: '+(persistedTrace.at(-1)?.step||'none'));
+      await capture('D5-revision-independence-error').catch(()=>{})
+    }
   }
 
   async function stageD4HydrationAudit() {
