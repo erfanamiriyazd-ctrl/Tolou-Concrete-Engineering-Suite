@@ -259,10 +259,120 @@ async function runUiSmoke(win) {
     }
   }
 
+
+  async function stage3Durability() {
+    try {
+      const payload = await win.webContents.executeJavaScript(`
+        (async () => {
+          const sleep = ms => new Promise(r => setTimeout(r, ms));
+          const nav = document.querySelector('#nav button[data-view="durability"]');
+          if (nav) nav.click();
+          await sleep(250);
+          if (typeof durLoad === 'function') durLoad();
+          if (typeof durRefreshMixOptions === 'function') durRefreshMixOptions();
+          await sleep(200);
+
+          const view = document.getElementById('view-durability');
+          const rect = view?.getBoundingClientRect();
+          const visible = !!view && view.classList.contains('active') && rect.width > 0 && rect.height > 0 &&
+            getComputedStyle(view).display !== 'none' && getComputedStyle(view).visibility !== 'hidden';
+
+          const mix = document.getElementById('durMix');
+          const history = document.getElementById('durHistory');
+          const summary = document.getElementById('durSummary');
+          const rules = document.getElementById('durRules');
+          const kpis = document.getElementById('durKpis');
+
+          const selectedOptions = mix ? [...mix.options].map(o => ({value:o.value,text:o.textContent})) : [];
+          const record = typeof durState !== 'undefined'
+            ? (durState.records || []).find(r => r.id === 'DUR-DEMO-001')
+            : null;
+
+          return {
+            visible,
+            options: selectedOptions,
+            currentValue: mix?.value || '',
+            history: history?.innerText || '',
+            summary: summary?.innerText || '',
+            rules: rules?.innerText || '',
+            kpis: kpis?.innerText || '',
+            record: record ? {
+              id: record.id,
+              projectId: record.projectId,
+              seriesId: record.seriesId,
+              revision: record.revision,
+              mix: record.mix,
+              mixLabel: record.mixLabel,
+              codes: record.exposureScenario?.codes || record.codes || [],
+              overall: record.overall,
+              blockingIssues: record.blockingIssues || [],
+              reviewItems: record.reviewItems || [],
+              designWcm: record.actual?.designWcm,
+              maxProductionWcm: record.actual?.maxProductionWcm,
+              specifiedFc: record.actual?.specifiedFc,
+              productionMeanFc28: record.actual?.productionMeanFc28,
+              maxWcm: record.projectLimits?.maxWcm,
+              minFc: record.projectLimits?.minFc,
+              designFingerprint: record.designFingerprint,
+              evidenceFingerprint: record.evidenceFingerprint
+            } : null
+          };
+        })()
+      `, true);
+
+      const hasMixOption = payload.options.some(o =>
+        o.value.includes('MX-DEMO-25-400') &&
+        o.text.includes('QC010-001') &&
+        o.text.includes('R0')
+      );
+
+      const checks = {
+        pageVisible: payload.visible === true,
+        mixRecognized: hasMixOption,
+        historyShowsRecord:
+          payload.history.includes('QC010-001') &&
+          payload.history.includes('F0/S0/W0/C0'),
+        recordIdentity:
+          payload.record?.id === 'DUR-DEMO-001' &&
+          payload.record?.projectId === 'PRJ-DEMO-25-400' &&
+          payload.record?.seriesId === 'MX-DEMO-25-400' &&
+          Number(payload.record?.revision) === 0,
+        exposureCodes:
+          JSON.stringify(payload.record?.codes) === JSON.stringify(['F0','S0','W0','C0']),
+        disposition:
+          payload.record?.overall === 'acceptable-with-open-items' &&
+          Array.isArray(payload.record?.blockingIssues) &&
+          payload.record.blockingIssues.length === 0 &&
+          Array.isArray(payload.record?.reviewItems) &&
+          payload.record.reviewItems.includes('chloride'),
+        engineeringValues:
+          Math.abs(Number(payload.record?.designWcm) - 0.475) < 1e-9 &&
+          Number(payload.record?.maxProductionWcm) <= 0.5 &&
+          Number(payload.record?.specifiedFc) === 25 &&
+          Number(payload.record?.productionMeanFc28) >= 32.53 &&
+          Number(payload.record?.maxWcm) === 0.5 &&
+          Number(payload.record?.minFc) === 25,
+        traceability:
+          !!payload.record?.designFingerprint &&
+          !!payload.record?.evidenceFingerprint
+      };
+
+      const ok = Object.values(checks).every(Boolean);
+      results.push({ name:'03-durability', ok, checks, payload });
+      if (!ok) failures.push('03-durability: ' + Object.entries(checks).filter(([,v])=>!v).map(([k])=>k).join(', '));
+      await capture('03-durability');
+    } catch (error) {
+      results.push({ name:'03-durability', ok:false, error:error?.stack || error?.message || String(error) });
+      failures.push('03-durability: ' + (error?.message || String(error)));
+      await capture('03-durability-error').catch(()=>{});
+    }
+  }
+
   await new Promise(r => setTimeout(r, 1200));
   if (stage === 'projects') await stage1Projects();
   else if (stage === 'mix-library') await stage2MixLibrary();
-  else if (stage === 'all') { await stage1Projects(); await stage2MixLibrary(); }
+  else if (stage === 'durability') await stage3Durability();
+  else if (stage === 'all') { await stage1Projects(); await stage2MixLibrary(); await stage3Durability(); }
 
   const report = { at:new Date().toISOString(), platform:process.platform, stage, failures, results };
   fs.writeFileSync(path.join(dir, 'ui-smoke-result.json'), JSON.stringify(report, null, 2), 'utf8');
