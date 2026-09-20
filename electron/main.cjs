@@ -807,6 +807,62 @@ async function runUiSmoke(win) {
     }
   }
 
+  async function stageD4RevisionUiProbe() {
+    await stageD3PersistR0AfterReload();
+    const d3=results.find(r=>r.name==='D3-r0-persistence');
+    if(!d3?.ok){
+      results.push({name:'D4-revision-ui-probe',ok:false,error:'D3 prerequisite failed'});
+      failures.push('D4-revision-ui-probe: D3 prerequisite failed');
+      return;
+    }
+    try{
+      const seriesId=d3.before?.seriesId;
+      const payload=await win.webContents.executeJavaScript(`
+        (async()=>{
+          const sleep=ms=>new Promise(r=>setTimeout(r,ms));
+          const nav=document.querySelector('#nav button[data-view="mix-library"]');
+          if(!nav) throw new Error('Mix Library nav unavailable');
+          nav.click(); await sleep(350);
+          if(typeof loadTrialLab==='function') loadTrialLab();
+          if(typeof mlRender==='function') mlRender();
+          await sleep(250);
+          const view=document.getElementById('view-mix-library');
+          const controls=[...view.querySelectorAll('button,a,[role="button"],input[type="button"],input[type="submit"]')].map(el=>{
+            const r=el.getBoundingClientRect(),cs=getComputedStyle(el);
+            return {
+              tag:el.tagName,id:el.id||'',text:(el.innerText||el.value||el.title||'').trim(),
+              onclick:el.getAttribute('onclick')||'',disabled:!!el.disabled,
+              visible:r.width>0&&r.height>0&&cs.display!=='none'&&cs.visibility!=='hidden'
+            };
+          });
+          const revisionControls=controls.filter(x=>/ویرایش|بازکردن|باز کردن|اصلاح|بازنگری|revision|edit|engine|موتور/i.test([x.id,x.text,x.onclick].join(' ')));
+          const lab=JSON.parse(localStorage.getItem('Tolou_trial_lab_v1')||'{"series":[]}');
+          const s=(lab.series||[]).find(x=>x.id===${JSON.stringify(seriesId)});
+          return {
+            viewVisible:!!view&&view.classList.contains('active'),
+            series:s?{id:s.id,code:s.code,projectId:s.projectId,revisions:(s.revisions||[]).map(r=>({revision:r.revision,fingerprint:r.snapshot?.calculationFingerprint}))}:null,
+            revisionControls,
+            allControls:controls
+          };
+        })()
+      `,true);
+      const checks={
+        mixLibraryVisible:payload.viewVisible===true,
+        savedSeriesPresent:payload.series?.id===seriesId,
+        r0Present:payload.series?.revisions?.some(r=>Number(r.revision)===0),
+        realRevisionEntryExposed:payload.revisionControls.some(x=>x.visible&&!x.disabled)
+      };
+      const ok=Object.values(checks).every(Boolean);
+      results.push({name:'D4-revision-ui-probe',ok,checks,payload});
+      if(!ok) failures.push('D4-revision-ui-probe: '+Object.entries(checks).filter(([,v])=>!v).map(([k])=>k).join(', '));
+      await capture('D4-revision-ui-probe');
+    }catch(error){
+      results.push({name:'D4-revision-ui-probe',ok:false,error:error?.stack||error?.message||String(error)});
+      failures.push('D4-revision-ui-probe: '+(error?.message||String(error)));
+      await capture('D4-revision-ui-probe-error').catch(()=>{});
+    }
+  }
+
   async function stage2MixLibrary() {
     try {
       const payload = await win.webContents.executeJavaScript(`
@@ -1829,6 +1885,7 @@ async function runUiSmoke(win) {
   else if (stage === 'd1-save-entry') await stageD1SaveEntryProbe();
   else if (stage === 'd2-save-r0') await stageD2SaveR0FromUi();
   else if (stage === 'd3-r0-persistence') await stageD3PersistR0AfterReload();
+  else if (stage === 'd4-revision-ui-probe') await stageD4RevisionUiProbe();
   else if (stage === 'mix-library') await stage2MixLibrary();
   else if (stage === 'durability') await stage3Durability();
   else if (stage === 'economics') await stage4Economics();
