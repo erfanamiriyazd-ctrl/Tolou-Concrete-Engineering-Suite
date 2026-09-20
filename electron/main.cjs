@@ -995,25 +995,27 @@ async function runUiSmoke(win) {
       const payload=await withAuditTimeout(win.webContents.executeJavaScript(`
         (async()=>{
           const sleep=ms=>new Promise(r=>setTimeout(r,ms));
+          const waitFor=async(label,test,limit=100)=>{for(let n=0;n<limit;n++){const value=test();if(value)return value;await sleep(50)}throw new Error(label+' readiness condition not reached')};
           const nav=document.querySelector('#nav button[data-view="mix-library"]');
           if(!nav) throw new Error('Mix Library nav unavailable');
-          nav.click(); await sleep(350);
+          nav.click();
           if(typeof loadTrialLab==='function') loadTrialLab();
           if(typeof mlRender==='function') mlRender();
-          await sleep(250);
           const view=document.getElementById('view-mix-library');
-          const edit=[...view.querySelectorAll('button,a,[role="button"]')].find(el=>
+          await waitFor('Mix Library UI',()=>view?.classList.contains('active'));
+          const findEdit=()=>[...view.querySelectorAll('button,a,[role="button"]')].find(el=>
             /اصلاح در QC-010/.test((el.innerText||'').trim()) &&
             (el.getAttribute('onclick')||'').includes(${JSON.stringify(seriesId)})
           );
-          if(!edit) throw new Error('Real اصلاح در QC-010 control unavailable');
+          const edit=await waitFor('Real اصلاح در QC-010 control',findEdit);
           const editControl={text:(edit.innerText||'').trim(),onclick:edit.getAttribute('onclick')||''};
-          edit.click(); await sleep(700);
+          edit.click();
 
-          const frame=document.getElementById('frame-base'),d=frame?.contentDocument,w=frame?.contentWindow;
-          if(!d||!w) throw new Error('QC-010 unavailable after edit click');
-          const loaded=w.TolouGetMixSnapshot?.();
-          if(!loaded?.ok) throw new Error('R0 snapshot unavailable after UI edit');
+          const frame=document.getElementById('frame-base');
+          if(!frame) throw new Error('QC-010 frame unavailable after edit click');
+          const loaded=await waitFor('R0 snapshot after UI edit',()=>{const w=frame.contentWindow,x=w?.TolouGetMixSnapshot?.();return x?.ok&&x.snapshot?.calculationFingerprint===JSON.stringify(r0Before.fingerprint)?x:null});
+          const d=frame.contentDocument,w=frame.contentWindow;
+          if(!d||!w) throw new Error('QC-010 unavailable after R0 hydration');
 
           const wcMode=d.getElementById('iran35WcMode');
           const wcInput=d.getElementById('iran35ManualWc');
