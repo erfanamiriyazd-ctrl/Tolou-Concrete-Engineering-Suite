@@ -1,7 +1,7 @@
 'use strict';
 
 const SAMPLE_MARKER = 'Tolou_sample_project_v1';
-const SAMPLE_DATASET_VERSION = 14;
+const SAMPLE_DATASET_VERSION = 15;
 const PROJECT_ID = 'PRJ-DEMO-25-400';
 const SERIES_ID = 'MX-DEMO-25-400';
 const AGG_CASE_ID = 'AGC-DEMO-25-400';
@@ -14,6 +14,7 @@ function round(v, d=6) { const p=10**d; return Math.round((Number(v)+Number.EPSI
 function readJson(storage,key,fallback){ try { const x=JSON.parse(storage.getItem(key)||'null'); return x && typeof x==='object' ? x : clone(fallback); } catch { return clone(fallback); } }
 function upsert(arr,item,key='id'){ const i=arr.findIndex(x=>x?.[key]===item[key]); if(i>=0) arr[i]=item; else arr.unshift(item); }
 function stableObj(obj){ if(obj===null||typeof obj!=='object') return obj; if(Array.isArray(obj)) return obj.map(stableObj); return Object.keys(obj).sort().reduce((o,k)=>(o[k]=stableObj(obj[k]),o),{}); }
+function stableString(v){ if(v===null||typeof v!=='object') return JSON.stringify(v); if(Array.isArray(v)) return '['+v.map(stableString).join(',')+']'; return '{'+Object.keys(v).sort().map(k=>JSON.stringify(k)+':'+stableString(v[k])).join(',')+'}'; }
 function fnv1a(str){ let h=2166136261>>>0; for(let i=0;i<str.length;i++){ h^=str.charCodeAt(i); h=Math.imul(h,16777619)>>>0; } return ('00000000'+h.toString(16)).slice(-8); }
 
 function logInterpolate(points, sieve, belowZero=true){
@@ -380,7 +381,7 @@ const trials=[
 ];
 
 function trialEvidencePayload(series,rv){ const rev=series.revisions.find(r=>Number(r.revision)===Number(rv)); const ts=series.trials.filter(t=>Number(t.revision)===Number(rv)); return {seriesId:series.id,revision:Number(rv),designFingerprint:rev?.snapshot?.calculationFingerprint||rev?.snapshot?.canonicalContract?.identity?.calculationFingerprint||null,acceptance:series.acceptance||{},trials:ts.map(t=>({id:t.id,batchNo:t.batchNo,date:t.date,actual:t.actual,fresh:t.fresh,strengths:t.strengths,hardened:t.hardened,batchChanges:t.batchChanges,updatedAt:t.updatedAt}))}; }
-function evidenceFingerprint(series,rv){ return 'TE-'+fnv1a(JSON.stringify(stableObj(trialEvidencePayload(series,rv)))); }
+function evidenceFingerprint(series,rv){ return 'TE-'+fnv1a(stableString(trialEvidencePayload(series,rv))); }
 function calcTrialStats(ts){ const vals=ts.map(t=>t.strengths['28']);const mean=vals.reduce((a,b)=>a+b,0)/vals.length;const sd=Math.sqrt(vals.reduce((s,v)=>s+(v-mean)**2,0)/(vals.length-1));const w=ts.map(t=>t.calculated.actualWcm),sl=ts.map(t=>t.fresh.slump),air=ts.map(t=>t.fresh.air),dens=ts.map(t=>t.fresh.density); return {mean,sd,cov:sd/mean*100,wMean:w.reduce((a,b)=>a+b,0)/w.length,wMax:Math.max(...w),slMean:sl.reduce((a,b)=>a+b,0)/sl.length,airMean:air.reduce((a,b)=>a+b,0)/air.length,densityMean:dens.reduce((a,b)=>a+b,0)/dens.length}; }
 const trialStats=calcTrialStats(trials);
 let mixSeries={id:SERIES_ID,projectId:PROJECT_ID,code:'QC010-001',name:'بتن معمولی C25 — سیمان تیپ II — عیار 400',engine:'QC-010',engineType:'بتن معمولی',status:'approved',createdAt:'2026-05-24T11:05:00+03:30',updatedAt:'2026-07-08T12:00:00+03:30',acceptance:{targetStrength:25,designMeanStrength:stage31.fcm,targetSlump:100,slumpTolerance:20,targetAir:2,airTolerance:1,maxWcm:.50,governingStandard:'نشریه ض-479 + الزامات پروژه نمونه'},approvedRevision:0,approvedAt:'2026-07-08T12:00:00+03:30',revisions:[{revision:0,createdAt:'2026-05-24T11:05:00+03:30',reason:'ثبت طرح اولیه روش ملی پس از عبور Gate 3.7',snapshot:clone(mixSnapshot)}],trials:clone(trials)};
