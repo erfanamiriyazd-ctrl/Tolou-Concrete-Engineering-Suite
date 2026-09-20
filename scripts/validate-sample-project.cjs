@@ -138,3 +138,15 @@ assert.ok(mainSource.includes('async function seedQaSampleIntoRenderer'), 'start
 assert.ok(mainSource.includes("win.webContents.on('did-finish-load', async () =>"), 'startup wiring: did-finish-load integration missing');
 assert.ok(mainSource.includes('win.webContents.reload()'), 'startup wiring: renderer reload after seed missing');
 assert.ok(!preloadSource.includes('function seedQaSampleProject()'), 'startup wiring: legacy preload seeder must be removed');
+
+
+const appSource = fs.readFileSync(path.join(__dirname, '..', 'app', 'index.html'), 'utf8');
+const preloadBridgeSource = fs.readFileSync(path.join(__dirname, '..', 'electron', 'preload.cjs'), 'utf8');
+const bootstrapIndex = appSource.indexOf('id="tolou-qa-sample-bootstrap"');
+const projectLoaderIndex = appSource.indexOf('function projectLoad()');
+const trialLoaderIndex = appSource.indexOf('function loadTrialLab()');
+assert.ok(bootstrapIndex >= 0, 'startup wiring: renderer pre-loader QA bootstrap missing');
+assert.ok(projectLoaderIndex > bootstrapIndex, 'startup wiring: project loader executes before QA bootstrap');
+assert.ok(trialLoaderIndex > bootstrapIndex, 'startup wiring: trial loader executes before QA bootstrap');
+assert.ok(preloadBridgeSource.includes("sample: {"), 'startup wiring: sample bridge namespace missing');
+assert.ok(preloadBridgeSource.includes("ipcRenderer.sendSync('tolou:sample:seed'"), 'startup wiring: synchronous seed IPC missing');
