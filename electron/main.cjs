@@ -1121,18 +1121,24 @@ async function runUiSmoke(win) {
           const summarize=r=>r?{revision:r.revision,fingerprint:r.snapshot?.calculationFingerprint,wcm:r.snapshot?.wcm,cement:r.snapshot?.cementContent,water:r.snapshot?.effectiveWater,aggregateSSD:r.snapshot?.aggregateSSDTotal}:null;
           const storedR0=summarize((s?.revisions||[]).find(r=>Number(r.revision)===0));
           const storedR1=summarize((s?.revisions||[]).find(r=>Number(r.revision)===1));
+          const uiStateBefore={
+            lastView:localStorage.getItem('TolouUnified_lastView'),
+            activeViews:[...document.querySelectorAll('.view.active')].map(x=>x.id),
+            mixLibraryActive:document.getElementById('view-mix-library')?.classList.contains('active')||false,
+            mlListExists:!!document.getElementById('mlList'),
+            mlDetailExists:!!document.getElementById('mlDetail'),
+            revisionButtons:[...document.querySelectorAll('#view-mix-library button')].filter(el=>(el.innerText||'').includes('اصلاح در')).length
+          };
+          mark('post-reload-ui-state',uiStateBefore);
           mark('library-open-start');
-          const navBtn=document.querySelector('#nav button[data-view="mix-library"]');
-          if(!navBtn) throw new Error('Mix Library nav control unavailable');
-          const originalMlFiltered=window.mlFiltered;
-          const originalMlRenderDetail=window.mlRenderDetail;
-          const originalMlRender=window.mlRender;
-          if(typeof originalMlFiltered==='function')window.mlFiltered=function(){mark('mlFiltered-enter');const out=originalMlFiltered.apply(this,arguments);mark('mlFiltered-done',{count:Array.isArray(out)?out.length:null});return out};
-          if(typeof originalMlRenderDetail==='function')window.mlRenderDetail=function(){mark('mlRenderDetail-enter');const out=originalMlRenderDetail.apply(this,arguments);mark('mlRenderDetail-done');return out};
-          if(typeof originalMlRender==='function')window.mlRender=function(){mark('mlRender-enter');const out=originalMlRender.apply(this,arguments);mark('mlRender-done');return out};
-          mark('nav-click-start');
-          navBtn.click();
-          mark('nav-click-returned');
+          if(typeof openView!=='function')throw new Error('openView unavailable after reload');
+          mark('openView-direct-start');
+          openView('mix-library');
+          mark('openView-direct-returned',{
+            activeViews:[...document.querySelectorAll('.view.active')].map(x=>x.id),
+            mixLibraryActive:document.getElementById('view-mix-library')?.classList.contains('active')||false,
+            revisionButtons:[...document.querySelectorAll('#view-mix-library button')].filter(el=>(el.innerText||'').includes('اصلاح در')).length
+          });
           await sleep(300);
           mark('library-open-done');
           if(typeof loadTrialLab==='function')loadTrialLab();if(typeof mlRender==='function')mlRender();await sleep(200);
