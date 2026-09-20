@@ -1766,9 +1766,10 @@ window.mlGoStage=function(view,sid,rv){const s=trialLab.series.find(x=>x.id===si
 const _oldMlRenderDetail=mlRenderDetail;
 mlRenderDetail=function(){_oldMlRenderDetail();const box=proEl('mlDetail'),s=trialLab.series.find(x=>x.id===mixLibSelectedId);if(!box||!s)return;const r=mixLatest(s),life=lifecycleInfo(s,r),anchor=box.querySelector('.ml-detail-grid');if(!anchor)return;const wrap=document.createElement('div');wrap.innerHTML=`<div class="flow-note"><b>زنجیره داده:</b> این پرونده منبع مشترک همه ماژول‌هاست. اصلاح در موتور باید به‌صورت بازنگری جدید دوباره در همین کتابخانه ثبت شود؛ سپس آزمایش، تأیید، تولید، QC و گزارش به همین شناسه متصل می‌شوند.</div><div class="ml-lifecycle">${life.map(x=>`<button class="ml-stage ${x.done?'done':'current'} ${x.report?'report':''}" onclick="mlGoStage('${x.view}','${s.id}',${r?.revision??0})"><b>${x.label}</b><span>${x.sub}</span></button>`).join('')}</div>`;anchor.parentNode.insertBefore(wrap,anchor.nextSibling)};
 const _oldMlLoadRevision=window.mlLoadRevision;
-window.mlLoadRevision=function(id,rv){const s=trialLab.series.find(x=>x.id===id);if(s){const view=s.engine==='QC-010'?'base':'special';mixEngineContext[view]={seriesId:id,sourceRevision:Number(rv)}}return _oldMlLoadRevision(id,rv)};
+let mixEngineContextNavigationLock=null;
+window.mlLoadRevision=function(id,rv){const s=trialLab.series.find(x=>x.id===id);if(s){const view=s.engine==='QC-010'?'base':'special';mixEngineContext[view]={seriesId:id,sourceRevision:Number(rv)};mixEngineContextNavigationLock=view}try{return _oldMlLoadRevision(id,rv)}finally{mixEngineContextNavigationLock=null}};
 const _oldOpenSourceEngine=window.openSourceEngine;
-window.openSourceEngine=function(){const s=activeSeries();if(s){const view=s.engine==='QC-010'?'base':'special',r=latestRevision(s);mixEngineContext[view]={seriesId:s.id,sourceRevision:r?.revision??0}}return _oldOpenSourceEngine()};
+window.openSourceEngine=function(){const s=activeSeries(),view=s?(s.engine==='QC-010'?'base':'special'):null;if(s){const r=latestRevision(s);mixEngineContext[view]={seriesId:s.id,sourceRevision:r?.revision??0};mixEngineContextNavigationLock=view}try{return _oldOpenSourceEngine()}finally{mixEngineContextNavigationLock=null}};
 // Report: expose lifecycle as a selectable section.
 if(!REPORT_SECTIONS.some(x=>x[0]==='lifecycle')) REPORT_SECTIONS.splice(2,0,['lifecycle','وضعیت چرخه و سلامت داده']);
 const _oldReportBuild=reportBuild;
@@ -1776,7 +1777,7 @@ reportBuild=function(){const html=_oldReportBuild();if(!html)return html;const s
 // Home live context + designer.
 const _oldHomeRenderV3=homeRender;
 homeRender=function(){try{_oldHomeRenderV3()}catch(e){};const pr=projectActive(),series=trialLab?.series||[],approved=series.filter(s=>s.approvedRevision!=null).length;const live=proEl('homeLiveContext');if(live)live.innerHTML=`<b>زمینه جاری:</b> ${pEsc(pr?pr.code+' — '+pr.name:'پروژه فعالی انتخاب نشده')}<br><b>بانک طرح‌ها:</b> ${formatFa(series.length)} پرونده · ${formatFa(approved)} دارای بازنگری تأییدشده`;const n=proEl('homeDesignerName'),r=proEl('homeDesignerRole');if(n)n.textContent=profileState.fullName||'طراح نرم‌افزار';if(r)r.textContent=profileState.role||profileState.discipline||''};
-document.addEventListener('click',e=>{const b=e.target.closest('[data-view="base"],[data-open="base"],[data-view="special"],[data-open="special"]');if(!b)return;const v=(b.dataset.view||b.dataset.open);if(v==='base'||v==='special')mixEngineContext[v]=null},true);
+document.addEventListener('click',e=>{const b=e.target.closest('[data-view="base"],[data-open="base"],[data-view="special"],[data-open="special"]');if(!b)return;const v=(b.dataset.view||b.dataset.open);if((v==='base'||v==='special')&&mixEngineContextNavigationLock!==v)mixEngineContext[v]=null},true);
 applySectionThemes();
 
 
