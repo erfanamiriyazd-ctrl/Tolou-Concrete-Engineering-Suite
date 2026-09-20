@@ -462,6 +462,68 @@ async function runUiSmoke(win) {
           const calcButton=[...d.querySelectorAll('button')].find(b=>(b.getAttribute('onclick')||'').replace(/\s/g,'')==='calculateMix()');
           if(!calcButton) throw new Error('UI calculate button not found');
 
+          // Real operator setup inside QC-010: select central materials and stored aggregate blend from the UI.
+          if(typeof w.TolouRefreshEngineeringLibrary==='function') w.TolouRefreshEngineeringLibrary();
+          await sleep(180);
+          const selectByOptionText=(id,needle)=>{
+            const el=d.getElementById(id);
+            if(!el) throw new Error('Missing UI select '+id);
+            const opt=[...el.options].find(o=>(o.textContent||'').includes(needle)||(o.value||'').includes(needle));
+            if(!opt) throw new Error('Option '+needle+' not found in '+id+'; options='+[...el.options].map(o=>o.textContent).join(' | '));
+            el.value=opt.value;
+            el.dispatchEvent(new Event('change',{bubbles:true}));
+            return el;
+          };
+          const clickSiblingButton=(selectId)=>{
+            const el=d.getElementById(selectId);
+            const btn=el?.parentElement?.querySelector('button');
+            if(!btn) throw new Error('Apply button missing for '+selectId);
+            btn.click();
+          };
+          selectByOptionText('tolouLibCement','CEM-DEM-02');
+          clickSiblingButton('tolouLibCement');
+          await sleep(100);
+          selectByOptionText('tolouLibWater','WAT-DEM-01');
+          clickSiblingButton('tolouLibWater');
+          await sleep(100);
+          selectByOptionText('tolouLibBlend','AGC-DEMO-25-400');
+          clickSiblingButton('tolouLibBlend');
+          await sleep(220);
+
+          const setUi=(id,val,eventType='change')=>{
+            const el=d.getElementById(id);
+            if(!el) throw new Error('Missing engineering input '+id);
+            el.value=String(val);
+            el.dispatchEvent(new Event(eventType,{bubbles:true}));
+            if(eventType!=='change') el.dispatchEvent(new Event('change',{bubbles:true}));
+            return el;
+          };
+
+          // Explicit engineer decisions required by the Iran 479 engine; no hidden guessing.
+          setUi('iran33Curve','B');
+          setUi('iran34DemandMode','high');
+          setUi('iran34ReducerPct','0','input');
+          setUi('iran35WcMode','manual');
+          setUi('iran35CementClass','425');
+          setUi('iran35CoarseShape','C');
+          setUi('iran35ManualWc','0.475','input');
+          setUi('iran35WaterCorrRate','1.5','input');
+          setUi('iran36EntrappedAir','1.0','input');
+          setUi('iran36IntentionalAir','0','input');
+          await sleep(220);
+
+          const operatorSetup={
+            cement:d.getElementById('tolouLibCement')?.selectedOptions?.[0]?.textContent||'',
+            water:d.getElementById('tolouLibWater')?.selectedOptions?.[0]?.textContent||'',
+            blend:d.getElementById('tolouLibBlend')?.selectedOptions?.[0]?.textContent||'',
+            aggregateText:d.getElementById('aggContainer')?.innerText||'',
+            bindingText:d.getElementById('materialBindingStatus')?.innerText||'',
+            stage33:d.getElementById('iran33Status')?.innerText||'',
+            stage34:d.getElementById('iran34Status')?.innerText||'',
+            stage35:d.getElementById('iran35Status')?.innerText||'',
+            stage36:d.getElementById('iran36Status')?.innerText||''
+          };
+
           // Baseline calculation through real UI button.
           calcButton.click(); await sleep(220);
           const baseResp=typeof w.TolouGetMixSnapshot==='function' ? w.TolouGetMixSnapshot() : null;
@@ -513,6 +575,7 @@ async function runUiSmoke(win) {
             projectId: typeof projectHub!=='undefined'?projectHub.activeProjectId:null,
             modeValue:mode.value,
             manualValue:manual.value,
+            operatorSetup,
             activeTab,
             resultText,
             baseline:{
@@ -543,6 +606,15 @@ async function runUiSmoke(win) {
         baselineCalculated:false
       } : {
         projectContextPreserved: payload.projectId==='PRJ-DEMO-25-400',
+        operatorSetupComplete:
+          payload.operatorSetup?.cement?.includes('CEM-DEM-02') &&
+          payload.operatorSetup?.water?.includes('WAT-DEM-01') &&
+          payload.operatorSetup?.blend?.includes('AGC-DEMO-25-400') &&
+          payload.operatorSetup?.bindingText?.includes('CEM-DEM-02') &&
+          payload.operatorSetup?.bindingText?.includes('AGC-DEMO-25-400') &&
+          payload.operatorSetup?.aggregateText?.includes('ماسه شسته') &&
+          payload.operatorSetup?.aggregateText?.includes('شن نخودی') &&
+          payload.operatorSetup?.aggregateText?.includes('شن بادامی'),
         baselineCalculated:
           b.gateStatus==='locked-for-trial' &&
           Number(b.requiredPassed)===Number(b.requiredTotal) &&
