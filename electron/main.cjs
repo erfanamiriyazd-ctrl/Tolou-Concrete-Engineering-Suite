@@ -1209,7 +1209,7 @@ async function runUiSmoke(win) {
           const view=document.getElementById('view-trials');
           await waitFor('Trial Lab view',()=>view?.classList.contains('active'));
           if(typeof loadTrialLab==='function')loadTrialLab();
-          const seriesCard=await waitFor('Target trial series UI',()=>[...document.querySelectorAll('#tlSeriesList .tl-series')].find(el=>(el.innerText||'').includes("${SERIES_ID}")));
+          const seriesCard=await waitFor('Target trial series UI',()=>[...document.querySelectorAll('#tlSeriesList .tl-series')].find(el=>(el.innerText||'').includes("${seriesId}")));
           seriesCard.click();
           await waitFor('Trial editor',()=>document.getElementById('tlBatchNo')&&document.querySelector('#tlEditor button[onclick="saveTrialBatch()"]'));
           const set=(id,value)=>{const el=document.getElementById(id);if(!el)throw new Error(id+' unavailable');el.value=String(value);el.dispatchEvent(new Event('input',{bubbles:true}));el.dispatchEvent(new Event('change',{bubbles:true}))};
@@ -1224,7 +1224,7 @@ async function runUiSmoke(win) {
           if(!save)throw new Error('Real Trial save control unavailable');
           save.click();
           const trial=await waitFor('Persisted R1 trial',()=>{
-            const s=(trialLab.series||[]).find(x=>x.id==="${SERIES_ID}");
+            const s=(trialLab.series||[]).find(x=>x.id==="${seriesId}");
             return s?.trials?.find(t=>t.batchNo==='QA-R1-01')||null;
           });
           const afterTrial={id:trial.id,revision:trial.revision,batchNo:trial.batchNo,actualWcm:trial.calculated?.actualWcm,fc28:trial.strengths?.['28'],slump:trial.fresh?.slump,evaluation:trial.evaluation};
@@ -1235,7 +1235,7 @@ async function runUiSmoke(win) {
           window.confirm=()=>true;
           try{approve.click()}finally{window.confirm=nativeConfirm}
           const approved=await waitFor('Approval persistence',()=>{
-            const s=(trialLab.series||[]).find(x=>x.id==="${SERIES_ID}");
+            const s=(trialLab.series||[]).find(x=>x.id==="${seriesId}");
             return s?.status==='approved'&&Number(s.approvedRevision)===1?s:null;
           });
           return {
@@ -1246,7 +1246,7 @@ async function runUiSmoke(win) {
             ui:{trialSaveText:(save.innerText||'').trim(),approvalText:(approve.innerText||'').trim()}
           };
         })()
-      `.replaceAll("${SERIES_ID}",JSON.stringify(seriesId)),true),20000,'E/F Trial + Approval UI batch');
+      `.replaceAll("${seriesId}",JSON.stringify(seriesId)),true),20000,'E/F Trial + Approval UI batch');
 
       const eChecks={
         sameSeries:payload.seriesId===seriesId&&payload.projectId==='PRJ-DEMO-25-400',
