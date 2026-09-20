@@ -976,6 +976,67 @@ async function runUiSmoke(win) {
     }
   }
 
+  async function stageD4HydrationAudit() {
+    await stageD3PersistR0AfterReload();
+    const d3=results.find(r=>r.name==='D3-r0-persistence');
+    if(!d3?.ok){ results.push({name:'D4-hydration-audit',ok:false,error:'D3 prerequisite failed'}); failures.push('D4-hydration-audit: D3 prerequisite failed'); return; }
+    try {
+      const seriesId=d3.before?.seriesId;
+      const expected=d3.afterReload?.r0;
+      const payload=await win.webContents.executeJavaScript(`
+        (async()=>{
+          const sleep=ms=>new Promise(r=>setTimeout(r,ms));
+          document.querySelector('#nav button[data-view="mix-library"]')?.click();
+          await sleep(350);
+          if(typeof mlRender==='function') mlRender();
+          await sleep(200);
+          const view=document.getElementById('view-mix-library');
+          const edit=[...view.querySelectorAll('button')].find(el=>(el.innerText||'').includes('اصلاح در QC-010')&&(el.getAttribute('onclick')||'').includes(${JSON.stringify(seriesId)}));
+          if(!edit) throw new Error('Real اصلاح در QC-010 control unavailable');
+          edit.click();
+          await sleep(900);
+          const frame=document.getElementById('frame-base'),d=frame?.contentDocument,w=frame?.contentWindow;
+          if(!d||!w) throw new Error('QC-010 unavailable after real revision edit');
+          const mode=d.getElementById('iran35WcMode');
+          const manual=d.getElementById('iran35ManualWc');
+          if(!mode||!manual) throw new Error('Canonical Stage 3.5 controls missing after TolouLoadMixSnapshot');
+          const snap=w.TolouGetMixSnapshot?.();
+          return {
+            edit:{text:(edit.innerText||'').trim(),onclick:edit.getAttribute('onclick')||''},
+            controls:{
+              mode:{id:mode.id,value:mode.value,disabled:!!mode.disabled,readOnly:!!mode.readOnly},
+              manual:{id:manual.id,value:manual.value,disabled:!!manual.disabled,readOnly:!!manual.readOnly}
+            },
+            snapshot:snap?.ok?{
+              fingerprint:snap.snapshot?.calculationFingerprint,
+              wcm:snap.snapshot?.wcm,
+              finalWc:snap.snapshot?.finalWc,
+              inputWcMode:snap.snapshot?.inputState?.iranStage35?.wcMode,
+              inputManualWc:snap.snapshot?.inputState?.iranStage35?.manualWc
+            }:{ok:false,message:snap?.message||'snapshot unavailable'}
+          };
+        })()
+      `,true);
+      const checks={
+        realEditClicked:/mlLoadRevision/.test(payload.edit?.onclick||''),
+        canonicalControlsPresent:payload.controls?.mode?.id==='iran35WcMode'&&payload.controls?.manual?.id==='iran35ManualWc',
+        modeHydrated:payload.controls?.mode?.value==='manual',
+        manualWcHydrated:Math.abs(Number(payload.controls?.manual?.value)-Number(expected?.wcm))<1e-9,
+        snapshotIdentityPreserved:payload.snapshot?.fingerprint===expected?.fingerprint,
+        snapshotWcPreserved:Math.abs(Number(payload.snapshot?.wcm)-Number(expected?.wcm))<1e-9,
+        editableAfterLoad:!payload.controls?.manual?.disabled&&!payload.controls?.manual?.readOnly
+      };
+      const ok=Object.values(checks).every(Boolean);
+      results.push({name:'D4-hydration-audit',ok,checks,expected,payload});
+      if(!ok) failures.push('D4-hydration-audit: '+Object.entries(checks).filter(([,v])=>!v).map(([k])=>k).join(', '));
+      await capture('D4-hydration-audit');
+    } catch(error) {
+      results.push({name:'D4-hydration-audit',ok:false,error:error?.stack||error?.message||String(error)});
+      failures.push('D4-hydration-audit: '+(error?.message||String(error)));
+      await capture('D4-hydration-audit-error').catch(()=>{});
+    }
+  }
+
   async function stageD4WcControlProbe() {
     await stageD3PersistR0AfterReload();
     const d3=results.find(r=>r.name==='D3-r0-persistence');
@@ -2039,6 +2100,7 @@ async function runUiSmoke(win) {
   else if (stage === 'd4-revision-ui-probe') await stageD4RevisionUiProbe();
   else if (stage === 'd4-create-r1-ui') await stageD4CreateR1FromUi();
   else if (stage === 'd4-wc-control-probe') await stageD4WcControlProbe();
+  else if (stage === 'd4-hydration-audit') await stageD4HydrationAudit();
   else if (stage === 'mix-library') await stage2MixLibrary();
   else if (stage === 'durability') await stage3Durability();
   else if (stage === 'economics') await stage4Economics();
