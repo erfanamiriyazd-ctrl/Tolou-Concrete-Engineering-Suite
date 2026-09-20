@@ -898,19 +898,19 @@ async function runUiSmoke(win) {
           const loaded=w.TolouGetMixSnapshot?.();
           if(!loaded?.ok) throw new Error('R0 snapshot unavailable after UI edit');
 
-          const candidates=[...d.querySelectorAll('input')].filter(el=>{
-            const meta=[el.id,el.name,el.getAttribute('data-key'),el.getAttribute('placeholder')].filter(Boolean).join(' ');
-            return /(^|[^a-z])(wc|wcm|water.?cement)([^a-z]|$)/i.test(meta);
-          });
-          let wcInput=candidates.find(el=>Math.abs(Number(el.value)-0.46)<1e-9)||candidates.find(el=>!el.disabled&&!el.readOnly);
-          if(!wcInput) throw new Error('Editable w/c input unavailable');
-          const wcControl={id:wcInput.id||'',name:wcInput.name||'',before:wcInput.value};
+          const wcMode=d.getElementById('iran35WcMode');
+          const wcInput=d.getElementById('iran35ManualWc');
+          if(!wcMode||!wcInput) throw new Error('Canonical Stage 3.5 controls unavailable');
+          if(wcMode.value!=='manual') throw new Error('R0 Stage 3.5 mode was not hydrated as manual');
+          if(wcInput.disabled||wcInput.readOnly) throw new Error('Canonical manual w/c control is not editable');
+          const wcControl={id:wcInput.id||'',name:wcInput.name||'',before:wcInput.value,mode:wcMode.value};
           wcInput.value='0.450';
           wcInput.dispatchEvent(new Event('input',{bubbles:true}));
           wcInput.dispatchEvent(new Event('change',{bubbles:true}));
           await sleep(120);
-          if(typeof w.calculateMix!=='function') throw new Error('calculateMix unavailable');
-          w.calculateMix(); await sleep(900);
+          const calcButton=[...d.querySelectorAll('button')].find(b=>(b.getAttribute('onclick')||'').replace(/\\s/g,'')==='calculateMix()');
+          if(!calcButton||calcButton.disabled) throw new Error('Real Calculate button unavailable');
+          calcButton.click(); await sleep(900);
           const changed=w.TolouGetMixSnapshot?.();
           if(!changed?.ok) throw new Error('Changed snapshot unavailable');
 
