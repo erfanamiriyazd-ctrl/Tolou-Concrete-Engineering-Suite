@@ -178,3 +178,10 @@ assert.ok(appSource.includes('else if(arr.length===1){el.value=arr[0].id;prodNew
 assert.ok(appSource.includes('projectId:ap.series.projectId||projectActiveId(),seriesId:ap.series.id'), 'UX-09: production draft context missing');
 assert.ok(appSource.includes("وضعیت تأیید این طرح تغییر کرده است؛ بچ جدید را از بازنگری تأییدشده فعلی ایجاد کنید."), 'UX-09: stale approval guard missing');
 assert.ok(appSource.includes("approvalDecision:d.approvalRecord?.overrideReason?'تأیید استثنایی':'تأییدشده'"), 'UX-09: approval traceability missing');
+
+// UX-10 contract: QC keeps production/trial provenance and feeds traceable project feedback.
+assert.ok(appSource.includes('id="qcProductionBatch"'), 'UX-10: production batch selector missing');
+assert.ok(appSource.includes("source:prod?'production':'manual',productionBatchId:prod?.id||null,seriesId:"), 'UX-10: QC production traceability missing');
+assert.ok(appSource.includes("source:'trial',sourceRef:ref,seriesId:s.id,productionBatchId:null"), 'UX-10: trial provenance contract missing');
+assert.ok(appSource.includes('بچ تولید انتخاب‌شده متعلق به پروژه فعال نیست.'), 'UX-10: active-project production guard missing');
+assert.ok(appSource.includes('داده‌های آزمایشگاهی و بچ‌های واقعی تولید با منبع مستقل نگهداری می‌شوند.'), 'UX-10: Persian provenance guidance missing');
