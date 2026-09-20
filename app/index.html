@@ -378,6 +378,32 @@ body.sidebar-collapsed .sidebar-collapse-dock{padding:8px 7px 11px!important}
 .topbar .mark .tolou-brand-mark{width:100%!important;height:100%!important;display:block!important;object-fit:cover!important;border-radius:inherit!important}
 </style>
 
+
+<script id="tolou-qa-sample-bootstrap">
+(() => {
+  try {
+    if (!window.tolouDesktop?.sample?.bootstrap) return;
+    const existing = {};
+    for (let i = 0; i < localStorage.length; i += 1) {
+      const key = localStorage.key(i);
+      if (key !== null) existing[key] = localStorage.getItem(key);
+    }
+    const seeded = window.tolouDesktop.sample.bootstrap(existing);
+    if (!seeded?.result?.ok || !seeded?.storage) return;
+    for (const [key, value] of Object.entries(seeded.storage)) {
+      if (value !== null && value !== undefined) localStorage.setItem(key, String(value));
+    }
+    window.__tolouQaSampleBootstrap = {
+      ok: true,
+      projectId: seeded.result.projectId || null,
+      seriesId: seeded.result.seriesId || null,
+      alreadySeeded: !!seeded.result.alreadySeeded
+    };
+  } catch (error) {
+    window.__tolouQaSampleBootstrap = { ok:false, reason:String(error?.message || error) };
+  }
+})();
+</script>
 </head>
 <body>
 <div class="shell">
