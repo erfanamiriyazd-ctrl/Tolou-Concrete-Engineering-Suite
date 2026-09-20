@@ -976,6 +976,44 @@ async function runUiSmoke(win) {
     }
   }
 
+  async function stageD4WcControlProbe() {
+    await stageD3PersistR0AfterReload();
+    const d3=results.find(r=>r.name==='D3-r0-persistence');
+    if(!d3?.ok){ results.push({name:'D4-wc-control-probe',ok:false,error:'D3 prerequisite failed'}); failures.push('D4-wc-control-probe: D3 prerequisite failed'); return; }
+    try{
+      const seriesId=d3.before?.seriesId;
+      const payload=await win.webContents.executeJavaScript(`
+        (async()=>{
+          const sleep=ms=>new Promise(r=>setTimeout(r,ms));
+          document.querySelector('#nav button[data-view="mix-library"]')?.click(); await sleep(350);
+          if(typeof loadTrialLab==='function') loadTrialLab();
+          if(typeof mlRender==='function') mlRender();
+          await sleep(250);
+          const view=document.getElementById('view-mix-library');
+          const edit=[...view.querySelectorAll('button,a,[role="button"]')].find(el=>/اصلاح در QC-010/.test((el.innerText||'').trim())&&(el.getAttribute('onclick')||'').includes(${JSON.stringify(seriesId)}));
+          if(!edit) throw new Error('Real اصلاح در QC-010 control unavailable');
+          edit.click(); await sleep(800);
+          const frame=document.getElementById('frame-base'),d=frame?.contentDocument,w=frame?.contentWindow;
+          if(!d||!w) throw new Error('QC-010 unavailable after edit');
+          const snap=w.TolouGetMixSnapshot?.();
+          const controls=[...d.querySelectorAll('input,select,textarea')].map(el=>{
+            const r=el.getBoundingClientRect(),cs=getComputedStyle(el);
+            const labels=[...d.querySelectorAll('label')].filter(l=>l.htmlFor===el.id||l.contains(el)).map(l=>(l.innerText||'').trim()).join(' | ');
+            const parentText=(el.parentElement?.innerText||'').trim().slice(0,180);
+            return {tag:el.tagName,type:el.type||'',id:el.id||'',name:el.name||'',value:el.value,disabled:!!el.disabled,readOnly:!!el.readOnly,visible:r.width>0&&r.height>0&&cs.display!=='none'&&cs.visibility!=='hidden',labels,parentText};
+          });
+          const likely=controls.filter(x=>/w\/c|wcm|water.?cement|آب.*سیمان|نسبت.*آب/i.test([x.id,x.name,x.labels,x.parentText].join(' '))||Math.abs(Number(x.value)-0.46)<1e-9);
+          return {edit:{text:(edit.innerText||'').trim(),onclick:edit.getAttribute('onclick')||''},snapshot:snap?.ok?{fingerprint:snap.snapshot?.calculationFingerprint,wcm:snap.snapshot?.wcm}:null,likely,controls};
+        })()
+      `,true);
+      const checks={editClicked:/mlLoadRevision/.test(payload.edit?.onclick||''),r0Loaded:payload.snapshot?.fingerprint===d3.afterReload?.r0?.fingerprint,controlsEnumerated:Array.isArray(payload.controls)&&payload.controls.length>0,likelyWcControlFound:Array.isArray(payload.likely)&&payload.likely.length>0};
+      const ok=Object.values(checks).every(Boolean);
+      results.push({name:'D4-wc-control-probe',ok,checks,payload});
+      if(!ok) failures.push('D4-wc-control-probe: '+Object.entries(checks).filter(([,v])=>!v).map(([k])=>k).join(', '));
+      await capture('D4-wc-control-probe');
+    }catch(error){ results.push({name:'D4-wc-control-probe',ok:false,error:error?.stack||error?.message||String(error)}); failures.push('D4-wc-control-probe: '+(error?.message||String(error))); await capture('D4-wc-control-probe-error').catch(()=>{}); }
+  }
+
   async function stage2MixLibrary() {
     try {
       const payload = await win.webContents.executeJavaScript(`
@@ -2000,6 +2038,7 @@ async function runUiSmoke(win) {
   else if (stage === 'd3-r0-persistence') await stageD3PersistR0AfterReload();
   else if (stage === 'd4-revision-ui-probe') await stageD4RevisionUiProbe();
   else if (stage === 'd4-create-r1-ui') await stageD4CreateR1FromUi();
+  else if (stage === 'd4-wc-control-probe') await stageD4WcControlProbe();
   else if (stage === 'mix-library') await stage2MixLibrary();
   else if (stage === 'durability') await stage3Durability();
   else if (stage === 'economics') await stage4Economics();
