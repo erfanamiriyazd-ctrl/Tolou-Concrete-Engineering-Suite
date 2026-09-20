@@ -127,3 +127,14 @@ console.log(JSON.stringify({
   economics:{exPlant:erec.exPlantConcretePrice,freight:erec.deliveryFreight,deliveredVat:erec.deliveredWithVat,pumping:erec.pumpingCost,total:erec.totalCost},
   optimizer:{candidates:orec.candidates.length,feasible:orec.feasibleCount}
 }, null, 2));
+
+
+// Startup wiring contract: the packaged app must seed from Electron main and reload renderer state.
+const fs = require('fs');
+const path = require('path');
+const mainSource = fs.readFileSync(path.join(__dirname, '..', 'electron', 'main.cjs'), 'utf8');
+const preloadSource = fs.readFileSync(path.join(__dirname, '..', 'electron', 'preload.cjs'), 'utf8');
+assert.ok(mainSource.includes('async function seedQaSampleIntoRenderer'), 'startup wiring: main-process seeder missing');
+assert.ok(mainSource.includes("win.webContents.on('did-finish-load', async () =>"), 'startup wiring: did-finish-load integration missing');
+assert.ok(mainSource.includes('win.webContents.reload()'), 'startup wiring: renderer reload after seed missing');
+assert.ok(!preloadSource.includes('function seedQaSampleProject()'), 'startup wiring: legacy preload seeder must be removed');
