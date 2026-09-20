@@ -1357,7 +1357,7 @@ function ecoHydrateStoredRecord(r,showToast=true){
  set('ecoName',inp.name||r.name||'');
  set('ecoDate',inp.date||String(r.savedAt||r.at||'').slice(0,10));
  const currency=inp.currency||'IRR';
- if(['تومان','ریال','USD','EUR','IRR'].includes(currency)){set('ecoCurrency',currency);set('ecoCurrencyCustom','')}
+ if(['تومان','ریال','USD','EUR'].includes(currency)){set('ecoCurrency',currency);set('ecoCurrencyCustom','')}
  else{set('ecoCurrency','custom');set('ecoCurrencyCustom',currency)}
  set('ecoScope',inp.scope||r.basis?.scope||'1 m³ concrete');
  set('ecoOverhead',inp.overhead??r.adminPlantOverheadAllocation??0);
@@ -1414,7 +1414,18 @@ function ecoNew(){ee('ecoMix').value='';ee('ecoName').value='';ee('ecoDate').val
 function ecoClearFactors(){if(!ecoRows.length)return;if(!confirm('قیمت، ضریب انتشار و مرجع داده برای مواد همین طرح پاک شود؟'))return;ecoRows.forEach(r=>delete ecoState.factors[r.key]);ecoPersist();ecoRenderRows();ecoCalculate(true)}
 function ecoExport(){const payload={format:'TolouCostSustainability',version:1,exportedAt:new Date().toISOString(),state:ecoState,current:ecoCalculate(false)};download('Tolou-Cost-Sustainability-'+new Date().toISOString().slice(0,10)+'.json',JSON.stringify(payload,null,2));toast('خروجی داده ساخته شد.')}
 function ecoCsv(){const r=ecoCalculate(false);if(!r.rows.length){toast('داده‌ای برای خروجی وجود ندارد.');return}const q=x=>'"'+String(x??'').replace(/"/g,'""')+'"';let csv='ماده,گروه,جرم kg/m3,قیمت,مبنای قیمت,هزینه/m3,ضریب kgCO2e/kg,kgCO2e/m3,مرجع\n';r.rows.forEach(x=>{csv+=[x.name,x.group,x.mass,x.factor.price??'',x.factor.basis,x.cost??'',x.factor.gwp??'',x.carbon??'',x.factor.source||''].map(q).join(',')+'\n'});csv+='\n'+['مجموع هزینه',r.totalCost,r.input.currency,'مجموع اثر اقلیمی',r.totalCarbon,'kgCO2e/m3','پوشش قیمت',r.priceCoverage+'%','پوشش انتشار',r.gwpCoverage+'%'].map(q).join(',');download('Tolou-Cost-Sustainability-'+new Date().toISOString().slice(0,10)+'.csv','\ufeff'+csv,'text/csv;charset=utf-8');toast('خروجی جدولی ساخته شد.')}
-function ecoRenderAll(){ecoRenderRows();if(ecoRows.length)ecoCalculate(true);ecoRenderHistory();ecoRenderCompare()}
+function ecoRenderAll(){
+ const key=ev('ecoMix');
+ const stored=key?(ecoState.records||[]).find(r=>r.mixKey===key):null;
+ if(stored){
+   ecoHydrateStoredRecord(stored,false);
+ }else{
+   ecoRenderRows();
+   if(ecoRows.length)ecoCalculate(true);
+ }
+ ecoRenderHistory();
+ ecoRenderCompare();
+}
 ee('ecoMix').addEventListener('change',ecoLoadMix);['ecoName','ecoDate','ecoCurrency','ecoCurrencyCustom','ecoScope','ecoOverhead','ecoTransportCost','ecoOtherCost','ecoOtherCarbon','ecoOtherSource','ecoNotes'].forEach(id=>ee(id).addEventListener('input',()=>ecoCalculate(true)));ee('ecoCalculate').addEventListener('click',()=>ecoCalculate(true));ee('ecoSave').addEventListener('click',ecoSave);ee('ecoNew').addEventListener('click',ecoNew);ee('ecoClearFactors').addEventListener('click',ecoClearFactors);ee('ecoExport').addEventListener('click',ecoExport);ee('ecoCsv').addEventListener('click',ecoCsv);ecoLoad();
 
 
