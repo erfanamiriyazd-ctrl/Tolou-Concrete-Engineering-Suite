@@ -352,7 +352,7 @@ async function runUiSmoke(win) {
           Number(f.slump?.value) === 100 &&
           Number(f.targetWc?.value) === 0.5 &&
           Number(f.maxAggSize?.value) === 25 &&
-          f.airSystem?.value === 'non-air' &&
+          f.airSystem?.value === 'nonair' &&
           f.environment?.value === 'normal',
         iran479ProfileTransferred:
           f.iranSiteGrade?.value === 'B' &&
