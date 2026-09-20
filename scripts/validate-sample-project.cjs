@@ -171,3 +171,10 @@ assert.ok(appSource.includes("decision:'rejected'"), 'UX-08: rejected decision r
 assert.ok(appSource.includes("decision:override?'override-approved':'approved'"), 'UX-08: approval/override history missing');
 assert.ok(appSource.includes("s.status==='rejected'?'ردشده':'در انتظار بررسی'"), 'UX-08: Persian approval statuses missing');
 assert.ok(appSource.includes('برای ادامه، بازنگری جدید ثبت کنید.'), 'UX-08: rejected-to-new-revision guidance missing');
+
+// UX-09 contract: production consumes only the approved revision of the active project.
+assert.ok(appSource.includes("&&(!active||s.projectId===active)"), 'UX-09: production must filter by active project');
+assert.ok(appSource.includes('else if(arr.length===1){el.value=arr[0].id;prodNewDraft()}'), 'UX-09: single approved revision should auto-bind');
+assert.ok(appSource.includes('projectId:ap.series.projectId||projectActiveId(),seriesId:ap.series.id'), 'UX-09: production draft context missing');
+assert.ok(appSource.includes("وضعیت تأیید این طرح تغییر کرده است؛ بچ جدید را از بازنگری تأییدشده فعلی ایجاد کنید."), 'UX-09: stale approval guard missing');
+assert.ok(appSource.includes("approvalDecision:d.approvalRecord?.overrideReason?'تأیید استثنایی':'تأییدشده'"), 'UX-09: approval traceability missing');
