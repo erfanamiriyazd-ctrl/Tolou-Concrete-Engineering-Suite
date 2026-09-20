@@ -455,9 +455,11 @@ async function runUiSmoke(win) {
           payload.history.includes('تحلیل اقتصادی/کربن پروژه نمونه 25/400') ||
           payload.history.includes('QC010-001'),
         hydratedKpis:
-          (payload.kpis.includes('۵۰٬۳۶۰٬۰۰۰') || payload.kpis.includes('50,360,000')) &&
+          payload.kpis.includes('هزینه کل / m³') &&
+          payload.kpis.includes('IRR') &&
           payload.kpis.includes('298') &&
-          payload.kpis.includes('33.2'),
+          payload.kpis.includes('33.2') &&
+          payload.kpis.includes('100.0%'),
         commercialSummary:
           (payload.summary.includes('۳۶٬۸۰۰٬۰۰۰') || payload.summary.includes('36,800,000')) &&
           (payload.summary.includes('۶٬۸۰۰٬۰۰۰') || payload.summary.includes('6,800,000')) &&
