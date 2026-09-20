@@ -1,5 +1,6 @@
 const { app, BrowserWindow, Menu, shell, ipcMain, dialog, screen } = require('electron');
 const path = require('node:path');
+const fs = require('node:fs');
 const { createPersistence } = require('./persistence.cjs');
 const { createWindowState } = require('./window-state.cjs');
 const { seedSampleProject } = require('./sample-project.cjs');
@@ -83,6 +84,118 @@ async function seedQaSampleIntoRenderer(win) {
     return { ...seeded.result, changed: true };
   } catch (error) {
     return { ok: false, reason: error?.message || String(error) };
+  }
+}
+
+async function runUiSmoke(win) {
+  const dir = process.env.TOLOU_UI_SMOKE_DIR;
+  if (!dir) return;
+  fs.mkdirSync(dir, { recursive: true });
+  const failures = [];
+  const results = [];
+  const sanitize = (name) => String(name).replace(/[^a-z0-9_-]/gi, '-');
+
+  async function step(name, view, prepare, selector, expected) {
+    try {
+      const payload = await win.webContents.executeJavaScript(`
+        (async () => {
+          const sleep = ms => new Promise(r => setTimeout(r, ms));
+          if (typeof openView === 'function') openView(${JSON.stringify(view)});
+          ${prepare || ''}
+          await sleep(150);
+          const el = document.querySelector(${JSON.stringify(selector)});
+          return {
+            exists: !!el,
+            text: el ? (el.innerText || el.textContent || '').trim() : '',
+            html: el ? (el.innerHTML || '').slice(0, 12000) : ''
+          };
+        })()
+      `, true);
+      const ok = payload.exists && expected.every(x => payload.text.includes(x) || payload.html.includes(x));
+      results.push({ name, view, selector, expected, ok, text: payload.text.slice(0, 4000) });
+      if (!ok) failures.push(name + ': expected ' + expected.join(' | '));
+      const image = await win.webContents.capturePage();
+      fs.writeFileSync(path.join(dir, sanitize(name) + '.png'), image.toPNG());
+    } catch (error) {
+      results.push({ name, ok: false, error: error?.stack || error?.message || String(error) });
+      failures.push(name + ': ' + (error?.message || String(error)));
+    }
+  }
+
+  await new Promise(r => setTimeout(r, 1200));
+
+  await step(
+    '01-projects',
+    'projects',
+    "if(typeof projectLoad==='function')projectLoad();",
+    '#prProjectList',
+    ['TL-DEMO-25-400','مجتمع اداری آفتاب شرق']
+  );
+
+  await step(
+    '02-mix-library',
+    'mix-library',
+    "if(typeof mlRender==='function')mlRender();",
+    '#mlList',
+    ['QC010-001','C25']
+  );
+
+  await step(
+    '03-durability',
+    'durability',
+    "if(typeof durLoad==='function')durLoad();",
+    '#durHistory',
+    ['QC010-001','F0/S0/W0/C0']
+  );
+
+  await step(
+    '04-economics',
+    'economics',
+    "if(typeof ecoLoad==='function')ecoLoad();",
+    '#ecoHistory',
+    ['تحلیل اقتصادی/کربن پروژه نمونه 25/400']
+  );
+
+  await step(
+    '05-optimization',
+    'optimization',
+    "if(typeof optLoad==='function')optLoad();",
+    '#optHistory',
+    ['QC010-001','شدنی']
+  );
+
+  await step(
+    '06-reports',
+    'reports',
+    `
+      if(typeof reportLoad==='function')reportLoad();
+      const rep=document.getElementById('repMix');
+      if(rep){
+        const wanted=[...rep.options].find(o=>String(o.value).includes('MX-DEMO-25-400::0')) || [...rep.options].find(o=>o.value);
+        if(wanted){rep.value=wanted.value;}
+      }
+      if(typeof reportBuild==='function'){
+        const html=reportBuild();
+        if(html)document.getElementById('repPreview').innerHTML=html;
+      }
+    `,
+    '#repPreview',
+    ['مجتمع اداری آفتاب شرق','2350.251','QC010-001']
+  );
+
+  const report = {
+    at: new Date().toISOString(),
+    platform: process.platform,
+    failures,
+    results
+  };
+  fs.writeFileSync(path.join(dir, 'ui-smoke-result.json'), JSON.stringify(report, null, 2), 'utf8');
+  if (failures.length) {
+    console.error('TOLOU_UI_SMOKE_FAIL', failures);
+    app.exit(3);
+  } else {
+    console.log('TOLOU_UI_SMOKE_PASS');
+    app.exit(0);
   }
 }
 
@@ -321,6 +434,16 @@ function createMainWindow() {
     }
 
     win.webContents.executeJavaScript(persistenceBootstrapScript(), true).catch(() => {});
+    if (process.env.TOLOU_UI_SMOKE_DIR) {
+      runUiSmoke(win).catch(error => {
+        console.error('Tolou UI smoke failed:', error);
+        try {
+          fs.mkdirSync(process.env.TOLOU_UI_SMOKE_DIR, { recursive: true });
+          fs.writeFileSync(path.join(process.env.TOLOU_UI_SMOKE_DIR, 'ui-smoke-fatal.txt'), String(error?.stack || error), 'utf8');
+        } catch {}
+        app.exit(4);
+      });
+    }
   });
 
   win.webContents.setWindowOpenHandler(({ url }) => {
