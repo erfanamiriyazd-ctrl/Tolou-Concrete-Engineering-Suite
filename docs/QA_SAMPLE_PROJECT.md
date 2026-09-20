@@ -15,7 +15,7 @@ This Windows QA build seeds one complete fictitious project **once** through the
 - Non-air-entrained; nominal entrapped air: 2%
 
 ## Aggregate QA basis
-Three aggregate fractions are used: fine sand, 4.75–12.5 mm pea gravel, and 12.5–25 mm almond gravel. At every INSO 302 control sieve used in the sample material profiles, the stored percent passing is the arithmetic midpoint of the profile's lower and upper bounds. The Aggregate Intelligence case uses a 44.5 / 35.0 / 20.5 mass split and the Iran-479 B25 target curve.
+Three aggregate fractions are used: fine sand, 4.75–12.5 mm pea gravel, and 12.5–25 mm almond gravel. At every INSO 302 control sieve used in the sample material profiles, the stored percent passing is the arithmetic midpoint of the profile's lower and upper bounds. The Aggregate Intelligence case uses a 44 / 37 / 19 mass split and the Iran-479 B25 target curve. This split is a constrained near-optimum for the stored midpoint gradations within the sample source bounds.
 
 ## End-to-end populated modules
 Project Hub → Material Intelligence → Aggregate Intelligence → QC-010 snapshot → Trial Mix Lab → approval evidence → Production/Batching → QC statistics → Durability → Cost/Sustainability QA data → Optimization study.
@@ -39,3 +39,15 @@ Mix Series ID: `MX-DEMO-25-400`
   - Dmax = 25 mm, normal environment, non-air-entrained system.
   - Type II cement, mixing water, fine aggregate, 4.75–12.5 mm coarse aggregate, and 12.5–25 mm coarse aggregate are present as revisioned Material Intelligence records.
   - Supplier/source/lot/test date and engineering properties are populated with fictitious QA data.
+
+
+## Stage 2 — Aggregate Intelligence — COMPLETE
+- Fine aggregate, 4.75–12.5 mm coarse aggregate, and 12.5–25 mm coarse aggregate are linked to Material Intelligence revisions.
+- At every explicit INSO 302 control sieve stored in each source profile, percent passing equals the arithmetic midpoint of the stored lower/upper limits.
+- Fine aggregate FM = 2.80 from the stored midpoint gradation.
+- Aggregate blend target = Iran Publication 479, Dmax 25 mm, Curve B.
+- Blend calculation basis = volume, derived from mass fractions and source specific gravities.
+- Final QA blend = 44% fine / 37% pea gravel / 19% almond gravel by mass.
+- The final split was checked against the same RMSE objective used by Aggregate Intelligence and is a constrained near-optimum inside the configured source bounds.
+- Measured DRUW = 1680 kg/m³ is populated so combined SG, packing and voids are available.
+- The saved Aggregate Case is linked to project PRJ-DEMO-25-400 and embedded in the QC-010 mix snapshot through aggregateBlendBinding.
