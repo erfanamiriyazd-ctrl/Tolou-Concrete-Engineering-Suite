@@ -65,14 +65,14 @@ const materials=[
   makeMaterial(materialIds.almond,materialCodes.almond,'coarse_aggregate','شن بادامی 12.5–25 mm (فرضی)',{density:2680,specificGravity:2.68,cementType:'',cementStrengthClass:'',scmType:'',absorption:0.8,moisture:1.2,dmax:25,particleShape:'angular',surfaceTexture:'rough',fm:null,roddedUnitWeight:1630,admixtureType:'',dosage:null,dosageUnit:'%',fiberType:'',length:null,diameter:null,tensileStrength:null,elasticModulus:null,gradation:materialGradation('inso_c5','INSO 302 — سنگدانه درشت رده 5','Table 3',almondRanges,almondPoints)},{supplier:'معدن آفتاب شرق (فرضی)',source:'دپو شن بادامی C',standard:'INSO 302:1399',lot:'CA5-260520'})
 ];
 
-const massWeights=[0.445,0.35,0.205], sgs=[2.64,2.66,2.68];
+const massWeights=[0.44,0.37,0.19], sgs=[2.64,2.66,2.68];
 const volumeRaw=massWeights.map((w,i)=>w/sgs[i]);
 const volumeSum=volumeRaw.reduce((a,b)=>a+b,0);
 const volumeFractions=volumeRaw.map(v=>v/volumeSum);
 const aggregateSources=[
-  {id:'AGS-DEMO-SAND',name:'ماسه شسته رودخانه‌ای 0–4.75 mm (فرضی)',kind:'fine',dmax:4.75,materialId:materialIds.fine,materialRevision:1,weight:44.5,min:40,max:50,locked:false,sg:2.64,particleShape:'rounded',surfaceTexture:'smooth',standardProfile:{profileId:'inso_fine_1',label:'INSO 302 — ریزدانه جدول 1',standard:'INSO 302:1399',table:'Table 1'},passing:passingObject(finePoints),limits:limitsObject(fineRanges)},
-  {id:'AGS-DEMO-PEA',name:'شن نخودی 4.75–12.5 mm (فرضی)',kind:'coarse',dmax:12.5,materialId:materialIds.pea,materialRevision:1,weight:35,min:25,max:40,locked:false,sg:2.66,particleShape:'rounded',surfaceTexture:'rough',standardProfile:{profileId:'inso_c7',label:'INSO 302 — سنگدانه درشت رده 7',standard:'INSO 302:1399',table:'Table 3'},passing:passingObject(peaPoints),limits:limitsObject(peaRanges)},
-  {id:'AGS-DEMO-ALMOND',name:'شن بادامی 12.5–25 mm (فرضی)',kind:'coarse',dmax:25,materialId:materialIds.almond,materialRevision:1,weight:20.5,min:15,max:30,locked:false,sg:2.68,particleShape:'angular',surfaceTexture:'rough',standardProfile:{profileId:'inso_c5',label:'INSO 302 — سنگدانه درشت رده 5',standard:'INSO 302:1399',table:'Table 3'},passing:passingObject(almondPoints),limits:limitsObject(almondRanges)}
+  {id:'AGS-DEMO-SAND',name:'ماسه شسته رودخانه‌ای 0–4.75 mm (فرضی)',kind:'fine',dmax:4.75,materialId:materialIds.fine,materialRevision:1,weight:44,min:40,max:50,locked:false,sg:2.64,particleShape:'rounded',surfaceTexture:'smooth',standardProfile:{profileId:'inso_fine_1',label:'INSO 302 — ریزدانه جدول 1',standard:'INSO 302:1399',table:'Table 1'},passing:passingObject(finePoints),limits:limitsObject(fineRanges)},
+  {id:'AGS-DEMO-PEA',name:'شن نخودی 4.75–12.5 mm (فرضی)',kind:'coarse',dmax:12.5,materialId:materialIds.pea,materialRevision:1,weight:37,min:25,max:40,locked:false,sg:2.66,particleShape:'rounded',surfaceTexture:'rough',standardProfile:{profileId:'inso_c7',label:'INSO 302 — سنگدانه درشت رده 7',standard:'INSO 302:1399',table:'Table 3'},passing:passingObject(peaPoints),limits:limitsObject(peaRanges)},
+  {id:'AGS-DEMO-ALMOND',name:'شن بادامی 12.5–25 mm (فرضی)',kind:'coarse',dmax:25,materialId:materialIds.almond,materialRevision:1,weight:19,min:15,max:30,locked:false,sg:2.68,particleShape:'angular',surfaceTexture:'rough',standardProfile:{profileId:'inso_c5',label:'INSO 302 — سنگدانه درشت رده 5',standard:'INSO 302:1399',table:'Table 3'},passing:passingObject(almondPoints),limits:limitsObject(almondRanges)}
 ];
 
 const IR25={s:[.15,.3,.6,1.18,2.36,4.75,9.5,19,25],B:[4.5,9.5,16.5,24.5,35,50,67,90,100]};
@@ -91,7 +91,7 @@ function buildAggregateResult(){
   return {sieves,combined:combined.map(v=>round(v,4)),target:target.map(v=>round(v,4)),deviation:deviation.map(v=>round(v,4)),ipr:ipr.map(v=>round(v,4)),metrics:{fm:round(fineFM(),3),nationalFm:round(nationalAcc/100,3),cf:round(cf,3),wf:round(wf,3),sg:round(sg,5),packing:round(packing,3),voids:round(voids,3),rmse:round(rmse,3)},envelope:{low:sieves.map(()=>null),high:sieves.map(()=>null),valid:sieves.map(()=>false),hasAny:false,basis:'volume'},blendBasis:'volume',massFractions:massWeights,volumeFractions:volumeFractions.map(v=>round(v,8)),targetMeta:{profileId:'IR_NMD_479_1388',ruleId:'IR479_4_2_GRADING',section:'4-2',figure:'4-4',dmax:25,curve:'B',sourceType:'digitized-figure',digitizationUncertaintyPct:1,basis:'volume'},calculatedAt:'2026-05-22T10:15:00+03:30'};
 }
 const aggregateResult=buildAggregateResult();
-const aggregateCurrent={name:'ترکیب سه‌جزئی استاندارد — پروژه نمونه 25/400',dmax:25,exponent:.45,targetMode:'iran479',iranCurve:'B',cementitious:400,measuredDRUW:1680,notes:'سه منبع سنگدانه با درصد عبوری دقیقاً در وسط حدود کنترل INSO 302 روی الک‌های استاندارد. سهم‌های ترکیب برای نزدیک‌شدن به منحنی B روش ملی تنظیم شده‌اند.',sources:aggregateSources,lastResult:aggregateResult};
+const aggregateCurrent={name:'ترکیب سه‌جزئی استاندارد — پروژه نمونه 25/400',dmax:25,exponent:.45,targetMode:'iran479',iranCurve:'B',cementitious:400,measuredDRUW:1680,notes:'سه منبع سنگدانه با درصد عبوری دقیقاً در وسط حدود کنترل INSO 302 روی الک‌های استاندارد. سهم‌های جرمی 44/37/19 درصد با بهینه‌سازی محدودشده در بازه‌های مجاز برای نزدیک‌شدن به منحنی B روش ملی انتخاب شده‌اند.',sources:aggregateSources,lastResult:aggregateResult};
 const aggregateCase={id:AGG_CASE_ID,projectId:PROJECT_ID,name:aggregateCurrent.name,createdAt:'2026-05-22T10:15:00+03:30',snapshot:clone(aggregateCurrent),metrics:clone(aggregateResult.metrics)};
 
 const cement=400, effectiveWater=190, airPct=2;
