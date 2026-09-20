@@ -711,6 +711,8 @@ async function runUiSmoke(win) {
           const sectionChecks = [...document.querySelectorAll('[data-report-section]')].map(x => ({
             key:x.dataset.reportSection, checked:x.checked
           }));
+          preview?.scrollIntoView({ block:'start', inline:'nearest' });
+          await sleep(150);
 
           return {
             visible,
