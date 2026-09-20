@@ -28,3 +28,14 @@ The sample seeder merges fixed sample IDs into the existing stores only on first
 Marker: `Tolou_sample_project_v1`
 Project ID: `PRJ-DEMO-25-400`
 Mix Series ID: `MX-DEMO-25-400`
+
+
+## Stage validation status
+- Stage 1 — Project Hub + Material Intelligence: COMPLETE
+  - Project code/name/status/scope and fictitious parties populated.
+  - f'c = 25 MPa, slump = 100 mm, max w/cm = 0.50.
+  - Iran 479 selected as the base design method.
+  - Workshop/site grade = B and Iran strength class = 25 MPa.
+  - Dmax = 25 mm, normal environment, non-air-entrained system.
+  - Type II cement, mixing water, fine aggregate, 4.75–12.5 mm coarse aggregate, and 12.5–25 mm coarse aggregate are present as revisioned Material Intelligence records.
+  - Supplier/source/lot/test date and engineering properties are populated with fictitious QA data.
