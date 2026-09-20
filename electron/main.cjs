@@ -1199,7 +1199,7 @@ async function runUiSmoke(win) {
     try{
       const seriesId=d5.payload?.series?.id;
       const expectedR1=d5.payload?.storedR1;
-      const payload=await withAuditTimeout(win.webContents.executeJavaScript(\`
+      const payload=await withAuditTimeout(win.webContents.executeJavaScript(`
         (async()=>{
           const sleep=ms=>new Promise(r=>setTimeout(r,ms));
           const waitFor=async(label,test,limit=120)=>{for(let n=0;n<limit;n++){const v=test();if(v)return v;await sleep(50)}throw new Error(label+' readiness condition not reached')};
@@ -1246,7 +1246,7 @@ async function runUiSmoke(win) {
             ui:{trialSaveText:(save.innerText||'').trim(),approvalText:(approve.innerText||'').trim()}
           };
         })()
-      \`.replaceAll("${SERIES_ID}",JSON.stringify(seriesId)),true),20000,'E/F Trial + Approval UI batch');
+      `.replaceAll("${SERIES_ID}",JSON.stringify(seriesId)),true),20000,'E/F Trial + Approval UI batch');
 
       const eChecks={
         sameSeries:payload.seriesId===seriesId&&payload.projectId==='PRJ-DEMO-25-400',
@@ -1275,13 +1275,13 @@ async function runUiSmoke(win) {
         const onLoad=()=>{clearTimeout(timer);resolve()};
         win.webContents.once('did-finish-load',onLoad);win.webContents.reload();
       });
-      const persisted=await win.webContents.executeJavaScript(\`(()=>{
+      const persisted=await win.webContents.executeJavaScript(`(()=>{
         const lab=JSON.parse(localStorage.getItem('Tolou_trial_lab_v1')||'{"series":[]}');
-        const s=(lab.series||[]).find(x=>x.id===\${JSON.stringify(seriesId)});
+        const s=(lab.series||[]).find(x=>x.id===${JSON.stringify(seriesId)});
         const t=(s?.trials||[]).find(x=>x.batchNo==='QA-R1-01');
         const r1=(s?.revisions||[]).find(r=>Number(r.revision)===1);
         return {series:s?{id:s.id,status:s.status,approvedRevision:s.approvedRevision,approvalRecord:s.approvalRecord}:null,trial:t?{id:t.id,revision:t.revision,level:t.evaluation?.level,actualWcm:t.calculated?.actualWcm}:null,r1Fingerprint:r1?.snapshot?.calculationFingerprint};
-      })()\`,true);
+      })()`,true);
       const persistenceChecks={
         trialSurvivedReload:persisted.trial?.id===payload.trial?.id&&Number(persisted.trial?.revision)===1&&persisted.trial?.level==='pass',
         approvalSurvivedReload:persisted.series?.status==='approved'&&Number(persisted.series?.approvedRevision)===1&&persisted.series?.approvalRecord?.trialIds?.includes(payload.trial?.id),
