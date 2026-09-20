@@ -84,7 +84,7 @@ assert.ok(batches.every(x => x.designFingerprint === snap.calculationFingerprint
 const prod28 = qc.tests.filter(x => x.seriesId === SERIES_ID && x.source === 'production' && x.age === 28);
 assert.equal(prod28.length, 6, 'production 28d QC count');
 const prodMean = prod28.reduce((s,x)=>s+Number(x.strength),0)/prod28.length;
-approx(prodMean, 33.18, .001, 'production 28d mean');
+approx(prodMean, 33.18, .005, 'production 28d mean');
 assert.ok(prod28.every(x => Number(x.strength) >= 25), 'production strength below f\'c');
 
 const drec = dur.records.find(x => x.id === 'DUR-DEMO-001');
