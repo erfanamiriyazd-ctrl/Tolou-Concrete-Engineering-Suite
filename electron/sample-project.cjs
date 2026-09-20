@@ -1,7 +1,7 @@
 'use strict';
 
 const SAMPLE_MARKER = 'Tolou_sample_project_v1';
-const SAMPLE_DATASET_VERSION = 15;
+const SAMPLE_DATASET_VERSION = 16;
 const PROJECT_ID = 'PRJ-DEMO-25-400';
 const SERIES_ID = 'MX-DEMO-25-400';
 const AGG_CASE_ID = 'AGC-DEMO-25-400';
@@ -208,8 +208,8 @@ const stage35={
   fcm:32.53,
   wcMode:'manual',
   wcBase:.475,
-  cementStrengthClass:'42.5',
-  coarseShape:'mixed-average',
+  cementStrengthClass:'425',
+  coarseShape:'C',
   sourceType:'QA locked sample result',
   sourceFigure:null,
   waterCorrection:{required:false,rateKgPer10KgCement:null},
@@ -1057,7 +1057,7 @@ function makeAudit(){
 const sampleProject={id:PROJECT_ID,code:'TL-DEMO-25-400',name:'مجتمع اداری آفتاب شرق — فاز ۱ (پروژه نمونه)',status:'active',designScope:'base',client:'شرکت توسعه سازه سپهر (فرضی)',consultant:'مهندسین مشاور پایدار بتن (فرضی)',contractor:'شرکت عمران پارس‌سازه (فرضی)',manager:'مهندس آرمان رضایی (فرضی)',location:'کارگاه نمونه — منطقه مرکزی',type:'ساختمان اداری بتن‌آرمه',structureType:'building',startDate:'2026-05-15',endDate:'2027-05-15',commonSettings:clone(projectContext.commonSettings),requirements:clone(projectContext.requirements),baseSettings:clone(projectContext.baseSettings),specialSettings:clone(projectContext.specialSettings),notes:'پروژه کاملاً فرضی و از پیش تکمیل‌شده برای کنترل End-to-End نرم‌افزار Tolou. داده‌های قیمت، GWP و هویت اشخاص/شرکت‌ها واقعی نیستند.',archived:false,createdAt:'2026-05-15T08:00:00+03:30',updatedAt:'2026-08-12T10:00:00+03:30'};
 
 function engineAggregates(){ return snapshotAggregates.map(a=>{const c=clone(a);delete c.volume;delete c.ssd;delete c.od;delete c.batch;delete c.freeWater;return c;}); }
-const engineState={aggregates:engineAggregates(),admixtures:[],nextAggId:4,nextAdmixId:1,materialBindings:clone(materialBindings),aggregateBlendBinding:clone(aggregateBlendBinding),baseMethodId:'iran479',iranStage31:{mode:'site',siteGrade:'B',fcClass:'',fc:'25',series1:'',series2:'',qcValues:[],lastResult:clone(stage31)},iranStage32:{lastResult:clone(stage32)},iranStage33:{curve:'B',lastResult:clone(stage33)},iranStage34:{demandMode:'auto',reducerPct:'0',lastResult:clone(stage34)},iranStage35:{wcMode:'manual',cementClass:'42.5',coarseShape:'auto',manualWc:'0.475',waterCorrRate:'',scmType:'none',scmRatio:'0',silicaRisk:false,minCement:'',maxCement:'',lastResult:clone(stage35)},iranStage36:{entrappedAir:'2',intentionalAir:'0',lastResult:clone(stage36)}};
+const engineState={aggregates:engineAggregates(),admixtures:[],nextAggId:4,nextAdmixId:1,materialBindings:clone(materialBindings),aggregateBlendBinding:clone(aggregateBlendBinding),baseMethodId:'iran479',iranStage31:{mode:'site',siteGrade:'B',fcClass:'',fc:'25',series1:'',series2:'',qcValues:[],lastResult:clone(stage31)},iranStage32:{lastResult:clone(stage32)},iranStage33:{curve:'B',lastResult:clone(stage33)},iranStage34:{demandMode:'auto',reducerPct:'0',lastResult:clone(stage34)},iranStage35:{wcMode:'manual',cementClass:'425',coarseShape:'C',manualWc:'0.475',waterCorrRate:'',scmType:'none',scmRatio:'0',silicaRisk:false,minCement:'',maxCement:'',lastResult:clone(stage35)},iranStage36:{entrappedAir:'2',intentionalAir:'0',lastResult:clone(stage36)}};
 
 function seedSampleProject(storage){
   if(!storage||typeof storage.getItem!=='function'||typeof storage.setItem!=='function') return {ok:false,reason:'storage-unavailable'};
@@ -1082,7 +1082,7 @@ function seedSampleProject(storage){
 
     const opt=readJson(storage,'Tolou_multiobjective_optimizer_v1',{schemaVersion:1,studies:[],last:null});opt.schemaVersion=1;opt.studies=Array.isArray(opt.studies)?opt.studies:[];upsert(opt.studies,clone(optimizerStudy));if(!opt.last)opt.last={source:optimizerStudy.source,constraints:clone(optimizerStudy.constraints),objectives:clone(optimizerStudy.objectives)};storage.setItem('Tolou_multiobjective_optimizer_v1',JSON.stringify(opt));
 
-    const q10=readJson(storage,'QC010_full_data',{});if(!Array.isArray(q10.aggregates)||!q10.aggregates.length){storage.setItem('QC010_full_data',JSON.stringify(clone(engineState)));}
+    const q10=readJson(storage,'QC010_full_data',{});const sampleEngineUpgrade=existingMarker?.projectId===PROJECT_ID&&existingMarker?.version!==SAMPLE_DATASET_VERSION;if(sampleEngineUpgrade||!Array.isArray(q10.aggregates)||!q10.aggregates.length){storage.setItem('QC010_full_data',JSON.stringify(clone(engineState)));}
 
     storage.setItem(SAMPLE_MARKER,JSON.stringify({version:SAMPLE_DATASET_VERSION,projectId:PROJECT_ID,seriesId:SERIES_ID,aggregateCaseId:AGG_CASE_ID,seededAt:new Date().toISOString(),dataset:'Tolou QA Sample C25/Cement400/TypeII',baselineChanged:false}));
     return {ok:true,projectId:PROJECT_ID,seriesId:SERIES_ID};
