@@ -385,8 +385,37 @@ function calcTrialStats(ts){ const vals=ts.map(t=>t.strengths['28']);const mean=
 const trialStats=calcTrialStats(trials);
 let mixSeries={id:SERIES_ID,projectId:PROJECT_ID,code:'QC010-001',name:'بتن معمولی C25 — سیمان تیپ II — عیار 400',engine:'QC-010',engineType:'بتن معمولی',status:'approved',createdAt:'2026-05-24T11:05:00+03:30',updatedAt:'2026-07-08T12:00:00+03:30',acceptance:{targetStrength:25,designMeanStrength:stage31.fcm,targetSlump:100,slumpTolerance:20,targetAir:2,airTolerance:1,maxWcm:.50,governingStandard:'نشریه ض-479 + الزامات پروژه نمونه'},approvedRevision:0,approvedAt:'2026-07-08T12:00:00+03:30',revisions:[{revision:0,createdAt:'2026-05-24T11:05:00+03:30',reason:'ثبت طرح اولیه روش ملی پس از عبور Gate 3.7',snapshot:clone(mixSnapshot)}],trials:clone(trials)};
 const evfp=evidenceFingerprint(mixSeries,0);
-mixSeries.revisions[0].calibration={version:'TolouTrialCalibration/1.0',generatedAt:'2026-07-08T11:50:00+03:30',revision:0,evidenceFingerprint:evfp,status:'ready',stats:{revision:0,trialIds:trials.map(t=>t.id),n:5,fc28:{n:5,mean:round(trialStats.mean,3),sd:round(trialStats.sd,3),covPct:round(trialStats.cov,2),min:29.4,max:32},slump:{n:5,mean:trialStats.slMean,min:90,max:110},air:{n:5,mean:trialStats.airMean,min:1.8,max:2.2},actualWcm:{n:5,mean:round(trialStats.wMean,4),max:round(trialStats.wMax,4)},density:{n:5,mean:trialStats.densityMean,design:round(totalWeight,3),meanDeviationPct:round((trialStats.densityMean-totalWeight)/totalWeight*100,3)},completeness:{trials:5,withFc28:5,withSlump:5,withAir:5,withWcm:5,withDensity:5},acceptance:clone(mixSeries.acceptance)},findings:[{level:trialStats.mean>=stage31.fcm?'pass':'review',code:'FC28_DESIGN_MEAN',text:`میانگین مقاومت 28روزه ${trialStats.mean.toFixed(2)} MPa در برابر fcm طراحی ${stage31.fcm.toFixed(2)} MPa کنترل شد.`},{level:'pass',code:'FC28_SPECIFIED',text:'تمام نتایج 28روزه از مقاومت مشخصه 25.00 MPa بیشتر هستند.'},{level:'pass',code:'SLUMP_RANGE',text:'تمام نتایج اسلامپ داخل بازه 80 تا 120 mm هستند.'},{level:'pass',code:'AIR_RANGE',text:'تمام نتایج هوا داخل بازه تعریف‌شده هستند.'},{level:'pass',code:'WCM_LIMIT',text:'تمام w/cmهای واقعی ثبت‌شده از حد 0.500 عبور نکرده‌اند.'},{level:'info',code:'STAT_READY',text:`بر اساس 5 نتیجه 28روزه: SD = ${trialStats.sd.toFixed(2)} MPa و COV = ${trialStats.cov.toFixed(1)}%.`}],principle:'No automatic mix correction is applied. Engineer review is required before creating the next revision.'};
-mixSeries.approvalRecord={revision:0,at:mixSeries.approvedAt,trialIds:trials.map(t=>t.id),overrideReason:null,evidenceFingerprint:evfp,calibrationStatus:'ready',calibrationVersion:'TolouTrialCalibration/1.0',integrityStatus:'valid',integrityReason:'Evidence fingerprint captured at approval.'};
+mixSeries.revisions[0].calibration={version:'TolouTrialCalibration/1.0',generatedAt:'2026-07-08T11:50:00+03:30',revision:0,evidenceFingerprint:evfp,status:'ready',stats:{revision:0,trialIds:trials.map(t=>t.id),n:5,fc28:{n:5,mean:round(trialStats.mean,3),sd:round(trialStats.sd,3),covPct:round(trialStats.cov,2),min:round(Math.min(...trials.map(t=>t.strengths['28'])),1),max:round(Math.max(...trials.map(t=>t.strengths['28'])),1),designMean:stage31.fcm,specifiedStrength:25},slump:{n:5,mean:trialStats.slMean,min:90,max:110},air:{n:5,mean:trialStats.airMean,min:1.8,max:2.2},actualWcm:{n:5,mean:round(trialStats.wMean,4),max:round(trialStats.wMax,4)},density:{n:5,mean:trialStats.densityMean,design:round(totalWeight,3),meanDeviationPct:round((trialStats.densityMean-totalWeight)/totalWeight*100,3)},completeness:{trials:5,withFc28:5,withSlump:5,withAir:5,withWcm:5,withDensity:5},acceptance:clone(mixSeries.acceptance)},findings:[{level:trialStats.mean>=stage31.fcm?'pass':'review',code:'FC28_DESIGN_MEAN',text:`میانگین مقاومت 28روزه ${trialStats.mean.toFixed(2)} MPa در برابر fcm طراحی ${stage31.fcm.toFixed(2)} MPa کنترل شد.`},{level:'pass',code:'FC28_SPECIFIED',text:'تمام نتایج 28روزه از مقاومت مشخصه 25.00 MPa بیشتر هستند.'},{level:'pass',code:'SLUMP_RANGE',text:'تمام نتایج اسلامپ داخل بازه 80 تا 120 mm هستند.'},{level:'pass',code:'AIR_RANGE',text:'تمام نتایج هوا داخل بازه تعریف‌شده هستند.'},{level:'pass',code:'WCM_LIMIT',text:'تمام w/cmهای واقعی ثبت‌شده از حد 0.500 عبور نکرده‌اند.'},{level:'info',code:'STAT_READY',text:`بر اساس 5 نتیجه 28روزه: SD = ${trialStats.sd.toFixed(2)} MPa و COV = ${trialStats.cov.toFixed(1)}%.`}],principle:'No automatic mix correction is applied. Engineer review is required before creating the next revision.'};
+const approvalGates=[
+  {id:'design-lock',label:'Design snapshot locked',ok:mixSnapshot.validationStatus==='locked-for-trial',detail:mixSnapshot.calculationFingerprint},
+  {id:'trial-count',label:'Minimum trial evidence',ok:trials.length>=3,detail:`${trials.length} trial batches linked to R0`},
+  {id:'specified-strength',label:'Specified strength',ok:trials.every(t=>t.strengths['28']>=25),detail:"All 28-day results >= f'c 25 MPa"},
+  {id:'design-mean',label:'Required mean strength',ok:trialStats.mean>=stage31.fcm,detail:`Mean ${trialStats.mean.toFixed(2)} MPa vs fcm ${stage31.fcm.toFixed(2)} MPa`},
+  {id:'wcm',label:'Maximum w/cm',ok:trials.every(t=>t.calculated.actualWcm<=.50),detail:'All trial w/cm <= 0.500'},
+  {id:'slump',label:'Slump acceptance',ok:trials.every(t=>Math.abs(t.fresh.slump-100)<=20),detail:'All trials within 80–120 mm'},
+  {id:'air',label:'Air acceptance',ok:trials.every(t=>Math.abs(t.fresh.air-2)<=1),detail:'All trials within 1–3%'},
+  {id:'evidence',label:'Evidence fingerprint',ok:Boolean(evfp&&evfp.startsWith('TE-')),detail:evfp}
+];
+const approvalReady=approvalGates.every(g=>g.ok);
+if(!approvalReady) mixSeries.status='review';
+mixSeries.approvalRecord={
+  revision:0,
+  at:mixSeries.approvedAt,
+  decision:approvalReady?'approved':'review-required',
+  approvedBy:'مهندس کنترل کیفیت بتن — کاربر نمونه QA',
+  reviewerRole:'Senior Concrete QC Engineer',
+  trialIds:trials.map(t=>t.id),
+  overrideReason:null,
+  designFingerprint:mixSnapshot.calculationFingerprint,
+  evidenceFingerprint:evfp,
+  calibrationStatus:mixSeries.revisions[0].calibration.status,
+  calibrationVersion:'TolouTrialCalibration/1.0',
+  integrityStatus:approvalReady?'valid':'invalid',
+  integrityReason:approvalReady?'All mandatory approval gates passed and evidence fingerprint was captured at approval.':'One or more mandatory approval gates failed.',
+  gates:approvalGates,
+  designBasis:{fc:25,fcm:stage31.fcm,cementKgM3:400,effectiveWaterKgM3:190,wcm:.475,slumpMm:100,dmaxMm:25,aggregateMassSplit:[44,37,19]},
+  engineeringDisposition:'R0 may proceed to controlled production. Any material source/revision, aggregate blend, cement content, design w/cm or acceptance change requires a new revision and new evidence review.'
+};
 
 function makeProductionBatch(i,date,ticket,moistures,deviations,waterDev,slump,air,temp,strength28){
   const volume=7, ingredients=[]; let freeTarget=0,freeActual=0,totalActual=0,cemActual=0;
