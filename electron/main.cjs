@@ -1139,8 +1139,11 @@ async function runUiSmoke(win) {
             mixLibraryActive:document.getElementById('view-mix-library')?.classList.contains('active')||false,
             revisionButtons:[...document.querySelectorAll('#view-mix-library button')].filter(el=>(el.innerText||'').includes('اصلاح در')).length
           });
-          await sleep(300);
-          mark('library-open-done');
+          mark('library-open-done',{
+            mlListChildren:document.getElementById('mlList')?.children?.length??null,
+            mlDetailButtons:document.querySelectorAll('#mlDetail button').length,
+            revisionButtons:[...document.querySelectorAll('#view-mix-library button')].filter(el=>(el.innerText||'').includes('اصلاح در')).length
+          });
           if(typeof loadTrialLab==='function')loadTrialLab();if(typeof mlRender==='function')mlRender();await sleep(200);
           const view=document.getElementById('view-mix-library');
           async function openRevision(rv){
