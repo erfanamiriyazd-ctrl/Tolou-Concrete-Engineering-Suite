@@ -1,7 +1,7 @@
 'use strict';
 
 const SAMPLE_MARKER = 'Tolou_sample_project_v1';
-const SAMPLE_DATASET_VERSION = 6;
+const SAMPLE_DATASET_VERSION = 7;
 const PROJECT_ID = 'PRJ-DEMO-25-400';
 const SERIES_ID = 'MX-DEMO-25-400';
 const AGG_CASE_ID = 'AGC-DEMO-25-400';
@@ -579,7 +579,129 @@ const qcSummary={
   interpretation:'کنترل آماری نمونه بر مبنای نتایج ثبت‌شده همین پروژه است؛ نتایج 7روزه برای روند و نتایج 28روزه برای ارزیابی پرونده QA استفاده شده‌اند.'
 };
 
-const durabilityRecord={id:'DUR-DEMO-001',projectId:PROJECT_ID,at:'2026-08-10T12:00:00+03:30',mix:`${SERIES_ID}|0`,mixLabel:'QC010-001 — بتن معمولی C25 — سیمان تیپ II — عیار 400 — R0',codes:['F0','S0','W0','C0'],member:'reinforced',actual:{w:.475,fc:25,air:2,chloride:.08,cement:'MS',cacl2:'no'},project:{w:.50,fc:25,chloride:null},governing:{maxW:.50,minFc:25},checks:[{code:'w/cm',state:'good',why:'w/cm طرح = 0.475؛ حداکثر پروژه = 0.500.','ref':'Project requirement / durability check'},{code:"f'c",state:'good',why:"f'c طرح = 25.0 MPa؛ حداقل پروژه = 25.0 MPa.",ref:'Project requirement'},{code:'کلرید',state:'good',why:'کلرید نمونه = 0.080% مواد سیمانی؛ در سناریوی C0 کنترل شده است.',ref:'QA sample durability input'}],overall:'good',notes:'سناریوی مواجهه معمول و غیرمهاجم برای بررسی اتصال موتور دوام؛ مقادیر آزمایشگاهی فرضی‌اند.'};
+const durabilityChecks=[
+  {
+    code:'design-integrity',
+    state:(mixSeries.approvalRecord?.decision==='approved'&&mixSeries.approvalRecord?.designFingerprint===mixSnapshot.calculationFingerprint)?'pass':'fail',
+    value:mixSnapshot.calculationFingerprint,
+    limit:'Approved R0 fingerprint must match',
+    why:'تحلیل دوام فقط روی همان R0 تأییدشده معتبر است.',
+    ref:'Tolou approval integrity'
+  },
+  {
+    code:'qc-status',
+    state:qcSummary.disposition==='stable-controlled'?'pass':'review',
+    value:qcSummary.disposition,
+    limit:'stable-controlled',
+    why:'وضعیت آماری تولید باید قبل از اتکای دوام به طرح، پایدار و قابل ردیابی باشد.',
+    ref:'Tolou Stage 7 QC summary'
+  },
+  {
+    code:'w/cm',
+    state:.475<=.50?'pass':'fail',
+    value:.475,
+    limit:.50,
+    why:'w/cm طرح = 0.475 و حداکثر الزام پروژه = 0.500.',
+    ref:'Project requirement / approved R0'
+  },
+  {
+    code:"f'c",
+    state:25>=25?'pass':'fail',
+    value:25,
+    limit:25,
+    why:"مقاومت مشخصه طرح = 25 MPa و حداقل الزام پروژه = 25 MPa.",
+    ref:'Project requirement / approved R0'
+  },
+  {
+    code:'production-mean',
+    state:productionFcStats.mean>=stage31.fcm?'pass':'review',
+    value:productionFcStats.mean,
+    limit:stage31.fcm,
+    why:`میانگین مقاومت 28روزه تولید ${productionFcStats.mean.toFixed(2)} MPa در برابر fcm = ${stage31.fcm.toFixed(2)} MPa کنترل شد.`,
+    ref:'Tolou Stage 7 production statistics'
+  },
+  {
+    code:'cement-type',
+    state:'info',
+    value:'Portland Type II',
+    limit:null,
+    why:'نوع سیمان R0 همان سیمان پرتلند تیپ II ثبت‌شده در Material Intelligence است؛ این رکورد به‌تنهایی جایگزین ارزیابی شیمیایی/محیطی اختصاصی نیست.',
+    ref:'Material Intelligence revision 1'
+  },
+  {
+    code:'chloride',
+    state:'not-evaluable',
+    value:.08,
+    unit:'% cementitious',
+    limit:null,
+    why:'کلرید نمونه QA = 0.080% مواد سیمانی ثبت شده، اما در Requirements پروژه حد مجاز عددی کلرید ذخیره نشده است؛ بنابراین Pass/Fail قطعی صادر نمی‌شود.',
+    ref:'QA sample input / missing project numeric limit'
+  },
+  {
+    code:'calcium-chloride',
+    state:'pass',
+    value:'no',
+    limit:'no',
+    why:'در داده نمونه استفاده از CaCl2 ثبت نشده است.',
+    ref:'QA sample input'
+  }
+];
+const durabilityBlocking=durabilityChecks.filter(x=>x.state==='fail');
+const durabilityReview=durabilityChecks.filter(x=>x.state==='review'||x.state==='not-evaluable');
+const durabilityRecord={
+  id:'DUR-DEMO-001',
+  projectId:PROJECT_ID,
+  seriesId:SERIES_ID,
+  revision:0,
+  at:'2026-08-10T12:00:00+03:30',
+  mix:`${SERIES_ID}|0`,
+  mixLabel:'QC010-001 — بتن معمولی C25 — سیمان تیپ II — عیار 400 — R0',
+  designFingerprint:mixSnapshot.calculationFingerprint,
+  evidenceFingerprint:evfp,
+  approvalDecision:mixSeries.approvalRecord.decision,
+  qcDisposition:qcSummary.disposition,
+  exposureScenario:{
+    codes:['F0','S0','W0','C0'],
+    label:'سناریوی QA — شرایط معمول داخلی / غیرمهاجم',
+    source:'Project Hub sample exposure + durability QA coding',
+    disclaimer:'این کدگذاری برای اتصال End-to-End پروژه نمونه ذخیره شده و بدون Standard Profile دارای حدود عددی، ادعای انطباق مستقل استانداردی ایجاد نمی‌کند.'
+  },
+  member:'reinforced',
+  materialBasis:{
+    cement:{type:'II',materialId:materialIds.cement,revision:1,lot:'CII-260518-A'},
+    aggregates:{blend:[44,37,19],caseId:AGG_CASE_ID},
+    water:{materialId:materialIds.water,revision:1}
+  },
+  actual:{
+    designWcm:.475,
+    maxProductionWcm:productionStats.maxWcm,
+    specifiedFc:25,
+    productionMeanFc28:productionFcStats.mean,
+    air:2,
+    chloride:.08,
+    chlorideUnit:'% cementitious',
+    calciumChloride:'no'
+  },
+  projectLimits:{maxWcm:.50,minFc:25,maxChloride:null},
+  governing:{maxW:.50,minFc:25,maxChloride:null},
+  checks:durabilityChecks,
+  blockingIssues:durabilityBlocking.map(x=>x.code),
+  reviewItems:durabilityReview.map(x=>x.code),
+  overall:durabilityBlocking.length?'fail':(durabilityReview.length?'acceptable-with-open-items':'pass'),
+  disposition:durabilityBlocking.length
+    ?'Do not release durability assessment until blocking items are resolved.'
+    :'R0 is acceptable for the defined non-aggressive QA scenario based on project w/cm, strength and QC evidence; chloride compliance remains unclassified until a project/standard numeric limit is assigned.',
+  revalidationTriggers:[
+    'Material source or revision change',
+    'Aggregate blend change',
+    'Cement type/content change',
+    'Design or production w/cm limit change',
+    'Exposure classification change',
+    'Project chloride limit assignment/change',
+    'QC disposition change from stable-controlled'
+  ],
+  notes:'تحلیل دوام نمونه به داده‌های واقعی R0، Approval و QC متصل است. داده‌های آزمایشگاهی/محیطی فرضی‌اند و موارد بدون حد مرجع به‌صورت not-evaluable باقی می‌مانند.'
+};
 
 const ecoFactors={
   [`MAT:${materialIds.cement}`]:{price:3600,basis:'ton',gwp:.72,source:'QA SAMPLE — قیمت و GWP نمایشی؛ جایگزین داده واقعی/EPD شود.'},
