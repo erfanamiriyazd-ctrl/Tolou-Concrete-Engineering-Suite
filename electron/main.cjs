@@ -1111,27 +1111,44 @@ async function runUiSmoke(win) {
       const payload=await withAuditTimeout(win.webContents.executeJavaScript(`
         (async()=>{
           const sleep=ms=>new Promise(r=>setTimeout(r,ms));
+          const trace=[];
+          const mark=(step,extra={})=>{trace.push({step,at:Date.now(),...extra});console.log('[D5_TRACE]',step,extra)};
+          mark('storage-read-start');
           const lab=JSON.parse(localStorage.getItem('Tolou_trial_lab_v1')||'{"series":[]}');
+          mark('storage-read-done',{seriesCount:(lab.series||[]).length});
           const s=(lab.series||[]).find(x=>x.id===${JSON.stringify(seriesId)});
           const summarize=r=>r?{revision:r.revision,fingerprint:r.snapshot?.calculationFingerprint,wcm:r.snapshot?.wcm,cement:r.snapshot?.cementContent,water:r.snapshot?.effectiveWater,aggregateSSD:r.snapshot?.aggregateSSDTotal}:null;
           const storedR0=summarize((s?.revisions||[]).find(r=>Number(r.revision)===0));
           const storedR1=summarize((s?.revisions||[]).find(r=>Number(r.revision)===1));
+          mark('library-open-start');
           document.querySelector('#nav button[data-view="mix-library"]')?.click();await sleep(300);
+          mark('library-open-done');
           if(typeof loadTrialLab==='function')loadTrialLab();if(typeof mlRender==='function')mlRender();await sleep(200);
           const view=document.getElementById('view-mix-library');
           async function openRevision(rv){
             const btn=[...view.querySelectorAll('button')].find(el=>(el.innerText||'').includes('اصلاح در QC-010')&&(el.getAttribute('onclick')||'').includes(${JSON.stringify(seriesId)})&&(el.getAttribute('onclick')||'').includes(','+rv+')'));
             if(!btn) throw new Error('Revision R'+rv+' edit control unavailable');
-            btn.click();await sleep(800);
+            mark('R'+rv+'-click-start');
+            btn.click();
+            mark('R'+rv+'-click-returned');
+            await sleep(800);
+            mark('R'+rv+'-snapshot-start');
             const w=document.getElementById('frame-base')?.contentWindow;
             const snap=w?.TolouGetMixSnapshot?.();
             if(!snap?.ok) throw new Error('Revision R'+rv+' failed to load into engine');
+            mark('R'+rv+'-snapshot-done',{fingerprint:snap.snapshot?.calculationFingerprint,wcm:snap.snapshot?.wcm});
             return {revision:rv,fingerprint:snap.snapshot?.calculationFingerprint,wcm:snap.snapshot?.wcm,cement:snap.snapshot?.cementContent,water:snap.snapshot?.effectiveWater,aggregateSSD:snap.snapshot?.aggregateSSDTotal};
           }
+          mark('R0-open-start');
           const loadedR0=await openRevision(0);
+          mark('R0-open-done');
+          mark('return-library-start');
           document.querySelector('#nav button[data-view="mix-library"]')?.click();await sleep(250);if(typeof mlRender==='function')mlRender();
+          mark('return-library-done');
+          mark('R1-open-start');
           const loadedR1=await openRevision(1);
-          return {series:{id:s?.id,projectId:s?.projectId,revisionCount:s?.revisions?.length},storedR0,storedR1,loadedR0,loadedR1};
+          mark('R1-open-done');
+          return {trace,series:{id:s?.id,projectId:s?.projectId,revisionCount:s?.revisions?.length},storedR0,storedR1,loadedR0,loadedR1};
         })()
       `,true), 15000, 'D5 revision independence UI flow');
       const same=(a,b)=>a&&b&&a.fingerprint===b.fingerprint&&Math.abs(Number(a.wcm)-Number(b.wcm))<1e-9&&Math.abs(Number(a.cement)-Number(b.cement))<1e-6&&Math.abs(Number(a.water)-Number(b.water))<1e-6&&Math.abs(Number(a.aggregateSSD)-Number(b.aggregateSSD))<1e-6;
