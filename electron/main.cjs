@@ -905,8 +905,8 @@ async function runUiSmoke(win) {
         })()
       `,true);
       const checks={
-        contextPresentAfterEdit:payload.contextAfterEdit?.seriesId===seriesId,
-        contextPresentBeforeSave:payload.contextBeforeSave?.seriesId===seriesId,
+        contextPresentAfterEdit:payload.contextAfterEdit?.base?.seriesId===seriesId,
+        contextPresentBeforeSave:payload.contextBeforeSave?.base?.seriesId===seriesId,
         saveWrapperInstalled:payload.saveFunctionMeta?.wired===true,
         registerCalled:Array.isArray(payload.registerCalls)&&payload.registerCalls.length>0
       };
