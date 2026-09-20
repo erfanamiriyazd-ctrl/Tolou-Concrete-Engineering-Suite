@@ -638,8 +638,9 @@ async function runUiSmoke(win) {
         fingerprintChanged:
           !!b.fingerprint && !!n.fingerprint && b.fingerprint!==n.fingerprint,
         resultRendered:
-          payload.activeTab==='tab10' &&
           payload.resultText.includes('موتور روش ملی ایران') &&
+          payload.resultText.includes('Stage 3.7 Locked') &&
+          payload.resultText.includes('9/9 PASS') &&
           payload.resultText.includes('Calculated') &&
           payload.resultText.includes('Trial Required')
       };
