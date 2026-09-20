@@ -1201,17 +1201,20 @@ async function runUiSmoke(win) {
       const expectedR1=d5.payload?.storedR1;
       const payload=await withAuditTimeout(win.webContents.executeJavaScript(`
         (async()=>{
+          const TRACE_KEY='Tolou_EF_trace_v1';
+          const mark=step=>{let a=[];try{a=JSON.parse(localStorage.getItem(TRACE_KEY)||'[]')}catch(e){}a.push({step,at:new Date().toISOString()});localStorage.setItem(TRACE_KEY,JSON.stringify(a.slice(-60)))};
+          localStorage.setItem(TRACE_KEY,'[]');mark('start');
           const sleep=ms=>new Promise(r=>setTimeout(r,ms));
           const waitFor=async(label,test,limit=120)=>{for(let n=0;n<limit;n++){const v=test();if(v)return v;await sleep(50)}throw new Error(label+' readiness condition not reached')};
           const nav=document.querySelector('#nav button[data-view="trials"]');
           if(!nav)throw new Error('Trial Lab nav unavailable');
-          nav.click();
+          mark('nav-found');nav.click();mark('nav-click-returned');
           const view=document.getElementById('view-trials');
-          await waitFor('Trial Lab view',()=>view?.classList.contains('active'));
-          if(typeof loadTrialLab==='function')loadTrialLab();
+          await waitFor('Trial Lab view',()=>view?.classList.contains('active'));mark('trial-view-active');
+          if(typeof loadTrialLab==='function')loadTrialLab();mark('trial-lab-loaded');
           const seriesCard=await waitFor('Target trial series UI',()=>[...document.querySelectorAll('#tlSeriesList .tl-series')].find(el=>(el.innerText||'').includes("${seriesId}")));
-          seriesCard.click();
-          await waitFor('Trial editor',()=>document.getElementById('tlBatchNo')&&document.querySelector('#tlEditor button[onclick="saveTrialBatch()"]'));
+          mark('series-found');seriesCard.click();mark('series-click-returned');
+          await waitFor('Trial editor',()=>document.getElementById('tlBatchNo')&&document.querySelector('#tlEditor button[onclick="saveTrialBatch()"]'));mark('trial-editor-ready');
           const set=(id,value)=>{const el=document.getElementById(id);if(!el)throw new Error(id+' unavailable');el.value=String(value);el.dispatchEvent(new Event('input',{bubbles:true}));el.dispatchEvent(new Event('change',{bubbles:true}))};
           set('tlBatchNo','QA-R1-01');
           set('tlBatchVolume','30');
@@ -1222,22 +1225,24 @@ async function runUiSmoke(win) {
           set('tlFc28','32.0');
           const save=document.querySelector('#tlEditor button[onclick="saveTrialBatch()"]');
           if(!save)throw new Error('Real Trial save control unavailable');
-          save.click();
+          mark('trial-save-click');save.click();mark('trial-save-returned');
           const trial=await waitFor('Persisted R1 trial',()=>{
             const s=(trialLab.series||[]).find(x=>x.id==="${seriesId}");
             return s?.trials?.find(t=>t.batchNo==='QA-R1-01')||null;
           });
+          mark('trial-persisted');
           const afterTrial={id:trial.id,revision:trial.revision,batchNo:trial.batchNo,actualWcm:trial.calculated?.actualWcm,fc28:trial.strengths?.['28'],slump:trial.fresh?.slump,evaluation:trial.evaluation};
 
           const approve=[...document.querySelectorAll('#tlEditor button')].find(b=>(b.getAttribute('onclick')||'')==='approveCurrentRevision()');
           if(!approve)throw new Error('Real Approval control unavailable');
           const nativeConfirm=window.confirm;
           window.confirm=()=>true;
-          try{approve.click()}finally{window.confirm=nativeConfirm}
+          mark('approval-click');try{approve.click()}finally{window.confirm=nativeConfirm}mark('approval-click-returned');
           const approved=await waitFor('Approval persistence',()=>{
             const s=(trialLab.series||[]).find(x=>x.id==="${seriesId}");
             return s?.status==='approved'&&Number(s.approvedRevision)===1?s:null;
           });
+          mark('approval-persisted');
           return {
             seriesId:approved.id,projectId:approved.projectId,status:approved.status,approvedRevision:approved.approvedRevision,
             r1:(approved.revisions||[]).find(r=>Number(r.revision)===1)?.snapshot||null,
@@ -1292,8 +1297,9 @@ async function runUiSmoke(win) {
       if(!pOk)failures.push('EF-persistence: '+Object.entries(persistenceChecks).filter(([,v])=>!v).map(([k])=>k).join(', '));
       await capture('EF-persistence');
     }catch(error){
-      results.push({name:'EF-trial-approval-batch',ok:false,error:error?.stack||error?.message||String(error)});
-      failures.push('EF-trial-approval-batch: '+(error?.message||String(error)));
+      let efTrace=[];try{efTrace=await win.webContents.executeJavaScript(`(()=>{try{return JSON.parse(localStorage.getItem('Tolou_EF_trace_v1')||'[]')}catch(e){return []}})()`,true)}catch(e){}
+      results.push({name:'EF-trial-approval-batch',ok:false,error:error?.stack||error?.message||String(error),trace:efTrace});
+      failures.push('EF-trial-approval-batch: '+(error?.message||String(error))+' | last checkpoint: '+(efTrace.at(-1)?.step||'none'));
       await capture('EF-trial-approval-error').catch(()=>{});
     }
   }
