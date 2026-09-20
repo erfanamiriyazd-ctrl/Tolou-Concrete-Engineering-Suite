@@ -1736,7 +1736,7 @@ window.TolouRegisterCurrentMix=function(view){
    if(existing){
      const prev=mixLatest(existing);if(prev&&mixSnapshotSignature(prev.snapshot)===mixSnapshotSignature(snap)){mixLibSelectedId=existing.id;openView('mix-library');mlRender();toast(`این وضعیت قبلاً به‌عنوان R${prev.revision} در ${existing.code} ثبت شده است.`);return;}
      const rev=Math.max(-1,...(existing.revisions||[]).map(x=>Number(x.revision)||0))+1;
-     const reason=prompt(`این موتور از پرونده ${existing.code} بارگذاری شده است. شرح بازنگری جدید R${rev}:`,'اصلاح مهندسی از موتور اصلی')||'اصلاح مهندسی از موتور اصلی';
+     let reason='اصلاح مهندسی از موتور اصلی';try{if(typeof window.prompt==='function'){const entered=window.prompt(`این موتور از پرونده ${existing.code} بارگذاری شده است. شرح بازنگری جدید R${rev}:`,reason);if(entered&&String(entered).trim())reason=String(entered).trim()}}catch(e){console.warn('Revision reason prompt unavailable; using auditable default reason.',e)}
      existing.revisions.push({revision:rev,createdAt:new Date().toISOString(),reason,snapshot:snap});existing.updatedAt=new Date().toISOString();
      saveTrialLab();mixLibSelectedId=existing.id;activeSeriesId=existing.id;mixEngineContext[view]={seriesId:existing.id,sourceRevision:rev};
      if(existing.projectId)projectLog('طرح اختلاط','ثبت بازنگری از موتور','MixRevision',`${existing.id}:R${rev}`,`بازنگری R${rev} از ${engine} در کتابخانه ثبت شد.`,existing.projectId);
