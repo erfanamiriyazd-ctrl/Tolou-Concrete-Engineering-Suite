@@ -679,13 +679,153 @@ async function runUiSmoke(win) {
     }
   }
 
+
+  async function stage6Reports() {
+    try {
+      const payload = await win.webContents.executeJavaScript(`
+        (async () => {
+          const sleep = ms => new Promise(r => setTimeout(r, ms));
+          const nav = document.querySelector('#nav button[data-view="reports"]');
+          if (nav) nav.click();
+          else if (typeof openView === 'function') openView('reports');
+          await sleep(250);
+
+          if (typeof reportLoad === 'function') reportLoad();
+          if (typeof reportRefreshMixOptions === 'function') reportRefreshMixOptions();
+          const mix = document.getElementById('repMix');
+          if (mix && [...mix.options].some(o => o.value === 'MX-DEMO-25-400::0')) {
+            mix.value = 'MX-DEMO-25-400::0';
+          }
+          document.querySelectorAll('[data-report-section]').forEach(x => { x.checked = true; });
+          if (typeof window.reportGenerate === 'function') window.reportGenerate();
+          await sleep(300);
+
+          const view = document.getElementById('view-reports');
+          const rect = view?.getBoundingClientRect();
+          const visible = !!view && view.classList.contains('active') && rect.width > 0 && rect.height > 0 &&
+            getComputedStyle(view).display !== 'none' && getComputedStyle(view).visibility !== 'hidden';
+          const preview = document.getElementById('repPreview');
+          const coverage = document.getElementById('repCoverage');
+          const text = preview?.innerText || '';
+          const headings = preview ? [...preview.querySelectorAll('.report-section > h3')].map(x => x.innerText) : [];
+          const sectionChecks = [...document.querySelectorAll('[data-report-section]')].map(x => ({
+            key:x.dataset.reportSection, checked:x.checked
+          }));
+
+          return {
+            visible,
+            currentValue: mix?.value || '',
+            options: mix ? [...mix.options].map(o => ({value:o.value,text:o.textContent})) : [],
+            coverage: coverage?.innerText || '',
+            text,
+            headings,
+            sectionChecks,
+            htmlLength: preview?.innerHTML?.length || 0
+          };
+        })()
+      `, true);
+
+      const checks = {
+        pageVisible: payload.visible === true,
+        mixRecognized:
+          payload.currentValue === 'MX-DEMO-25-400::0' &&
+          payload.options.some(o => o.value === 'MX-DEMO-25-400::0' && o.text.includes('QC010-001') && o.text.includes('R0')),
+        generated:
+          payload.htmlLength > 10000 &&
+          payload.headings.length >= 16 &&
+          payload.sectionChecks.every(x => x.checked),
+        projectRequirements:
+          payload.text.includes('TL-DEMO-25-400') &&
+          payload.text.includes('مجتمع اداری آفتاب شرق') &&
+          payload.text.includes('25 MPa') &&
+          payload.text.includes('100 mm') &&
+          payload.text.includes('0.5'),
+        designBasis:
+          payload.text.includes('32.53 MPa') &&
+          payload.text.includes('4.5 MPa') &&
+          payload.text.includes('0.475') &&
+          payload.text.includes('25 mm'),
+        proportions:
+          payload.text.includes('سیمان') &&
+          payload.text.includes('400') &&
+          payload.text.includes('آب مؤثر') &&
+          payload.text.includes('190') &&
+          payload.text.includes('آب قابل افزودن به بچ') &&
+          payload.text.includes('170.187') &&
+          payload.text.includes('774.510') &&
+          payload.text.includes('651.293') &&
+          payload.text.includes('334.448') &&
+          payload.text.includes('2350.251') &&
+          payload.text.includes('جرم حجمی نظری بتن تازه / وزن واحد حجم') &&
+          payload.text.includes('1.00000'),
+        aggregateIntelligence:
+          payload.text.includes('44% / 37% / 19%') &&
+          payload.text.includes('RMSE'),
+        trialApproval:
+          payload.text.includes('نتایج طرح اختلاط آزمایشی') &&
+          payload.text.includes('34.6') &&
+          payload.text.includes('31.7') &&
+          payload.text.includes('تأیید و سلامت بازنگری') &&
+          payload.text.includes('approved') &&
+          payload.text.includes('valid') &&
+          payload.text.includes('Design fingerprint') &&
+          payload.text.includes('Evidence fingerprint'),
+        productionBatching:
+          payload.text.includes('تولید و بچینگ') &&
+          payload.text.includes('B-260701-01') &&
+          payload.text.includes('B-260805-01') &&
+          payload.text.includes('کارت بچینگ') &&
+          payload.text.includes('Relative Yield'),
+        qcStatistics:
+          payload.text.includes('کنترل کیفیت و مقاومت') &&
+          payload.text.includes('میانگین مقاومت تولید') &&
+          payload.text.includes('33.183') &&
+          payload.text.includes('SD نمونه') &&
+          payload.text.includes('COV'),
+        durability:
+          payload.text.includes('دوام و انطباق') &&
+          payload.text.includes('acceptable-with-open-items') &&
+          payload.text.includes('F0 / S0 / W0 / C0') &&
+          payload.text.includes('chloride'),
+        economics:
+          payload.text.includes('هزینه و پایداری') &&
+          payload.text.includes('36800000') &&
+          payload.text.includes('6800000') &&
+          payload.text.includes('47960000') &&
+          payload.text.includes('2400000') &&
+          payload.text.includes('50360000') &&
+          payload.text.includes('illustrative-only'),
+        optimization:
+          payload.text.includes('OPT-DEMO-001') &&
+          payload.text.includes('بهینه‌سازی') &&
+          payload.text.includes('0.46') &&
+          payload.text.includes('0.49') &&
+          payload.text.includes('بدون انتخاب خودکار') &&
+          payload.text.includes('C-DEMO-'),
+        audit:
+          payload.text.includes('دفتر ردیابی تغییرات') &&
+          payload.text.includes('مطالعه چندهدفه')
+      };
+
+      const ok = Object.values(checks).every(Boolean);
+      results.push({ name:'06-reports', ok, checks, payload });
+      if (!ok) failures.push('06-reports: ' + Object.entries(checks).filter(([,v])=>!v).map(([k])=>k).join(', '));
+      await capture('06-reports');
+    } catch (error) {
+      results.push({ name:'06-reports', ok:false, error:error?.stack || error?.message || String(error) });
+      failures.push('06-reports: ' + (error?.message || String(error)));
+      await capture('06-reports-error').catch(()=>{});
+    }
+  }
+
   await new Promise(r => setTimeout(r, 1200));
   if (stage === 'projects') await stage1Projects();
   else if (stage === 'mix-library') await stage2MixLibrary();
   else if (stage === 'durability') await stage3Durability();
   else if (stage === 'economics') await stage4Economics();
   else if (stage === 'optimization') await stage5Optimization();
-  else if (stage === 'all') { await stage1Projects(); await stage2MixLibrary(); await stage3Durability(); await stage4Economics(); await stage5Optimization(); }
+  else if (stage === 'reports') await stage6Reports();
+  else if (stage === 'all') { await stage1Projects(); await stage2MixLibrary(); await stage3Durability(); await stage4Economics(); await stage5Optimization(); await stage6Reports(); }
 
   const report = { at:new Date().toISOString(), platform:process.platform, stage, failures, results };
   fs.writeFileSync(path.join(dir, 'ui-smoke-result.json'), JSON.stringify(report, null, 2), 'utf8');
