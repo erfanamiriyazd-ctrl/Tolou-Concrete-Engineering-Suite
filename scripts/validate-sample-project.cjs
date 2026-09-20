@@ -164,3 +164,10 @@ assert.ok(appSource.includes('trialRevision(s,t.revision)||latestRevision(s)'), 
 assert.ok(appSource.includes('این پرونده طرح متعلق به پروژه فعال نیست؛ ابتدا پروژه صحیح را فعال کنید.'), 'UX-07: active-project trial guard missing');
 assert.ok(appSource.includes('<th>بازنگری</th>'), 'UX-07: revision must be visible in trial history');
 assert.ok(appSource.includes('<b>زمینه آزمایش:</b>'), 'UX-07: Persian trial context banner missing');
+
+// UX-08 contract: revision approval is an explicit Persian decision workflow.
+assert.ok(appSource.includes('onclick="rejectCurrentRevision()">رد بازنگری جاری</button>'), 'UX-08: reject action missing');
+assert.ok(appSource.includes("decision:'rejected'"), 'UX-08: rejected decision record missing');
+assert.ok(appSource.includes("decision:override?'override-approved':'approved'"), 'UX-08: approval/override history missing');
+assert.ok(appSource.includes("s.status==='rejected'?'ردشده':'در انتظار بررسی'"), 'UX-08: Persian approval statuses missing');
+assert.ok(appSource.includes('برای ادامه، بازنگری جدید ثبت کنید.'), 'UX-08: rejected-to-new-revision guidance missing');
