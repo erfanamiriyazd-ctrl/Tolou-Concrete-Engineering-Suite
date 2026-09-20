@@ -106,18 +106,53 @@ async function runUiSmoke(win) {
       (async () => {
         const sleep = ms => new Promise(r => setTimeout(r, ms));
         const nav = document.querySelector('#nav button[data-view="projects"]');
-        if (nav) nav.click();
+        if (!nav) throw new Error('Projects navigation button not found');
+        nav.click();
         await sleep(250);
         if (typeof projectLoad === 'function') projectLoad();
         await sleep(200);
+
+        // Audit setup only: remove pre-seeded active context so activation must happen through the UI.
+        if (typeof projectHub !== 'undefined') {
+          projectHub.activeProjectId = null;
+          if (typeof projectPersist === 'function') projectPersist(false);
+          if (typeof projectRender === 'function') projectRender();
+        }
+        await sleep(120);
+
+        const beforeActive = document.getElementById('prActiveInfo')?.innerText || '';
+        const items = [...document.querySelectorAll('#prProjectList .pr-project-item')];
+        const target = items.find(x => x.innerText.includes('TL-DEMO-25-400'));
+        if (!target) throw new Error('Sample project card not found in Project Hub');
+        target.click();
+        await sleep(120);
+
+        const selectedCard = [...document.querySelectorAll('#prProjectList .pr-project-item')]
+          .find(x => x.innerText.includes('TL-DEMO-25-400'));
+        const activate = document.getElementById('prSetActive');
+        const activationEnabled = !!activate && !activate.disabled;
+        if (!activationEnabled) throw new Error('Activate selected project button is disabled');
+        activate.click();
+        await sleep(220);
+
         const view = document.getElementById('view-projects');
         const rect = view?.getBoundingClientRect();
         const visible = !!view && view.classList.contains('active') && rect.width > 0 && rect.height > 0 &&
           getComputedStyle(view).display !== 'none' && getComputedStyle(view).visibility !== 'hidden';
+
+        const activeHeader = document.getElementById('activeProjectBtn')?.innerText || '';
+        const activeInfo = document.getElementById('prActiveInfo')?.innerText || '';
+        const auditText = document.getElementById('prAuditTable')?.innerText || '';
+        const completeness = document.getElementById('prCompleteness')?.innerText || '';
+
         return {
           visible,
+          beforeActive,
+          activationEnabled,
+          selectedCardActive: !!selectedCard?.classList.contains('active'),
           list: document.getElementById('prProjectList')?.innerText || '',
-          active: document.getElementById('prActiveInfo')?.innerText || '',
+          activeHeader,
+          active: activeInfo,
           form: {
             code: document.getElementById('prCode')?.value || '',
             name: document.getElementById('prName')?.value || '',
@@ -126,30 +161,65 @@ async function runUiSmoke(win) {
             wcm: document.getElementById('prReqWcm')?.value || '',
             method: document.getElementById('prBaseMethod')?.value || '',
             grade: document.getElementById('prIranSiteGrade')?.value || '',
-            fcClass: document.getElementById('prIranFcClass')?.value || ''
+            fcClass: document.getElementById('prIranFcClass')?.value || '',
+            dmax: document.getElementById('prBaseMaxAggSize')?.value || '',
+            air: document.getElementById('prBaseAirSystem')?.value || '',
+            standard: document.getElementById('prReqStandard')?.value || '',
+            exposure: document.getElementById('prExposure')?.value || ''
           },
           kpis: document.getElementById('prKpis')?.innerText || '',
-          timeline: document.getElementById('prTimeline')?.innerText || ''
+          timeline: document.getElementById('prTimeline')?.innerText || '',
+          completeness,
+          auditText,
+          activeProjectId: typeof projectHub !== 'undefined' ? projectHub.activeProjectId : null
         };
       })()
     `, true);
+
     const checks = {
       pageVisible: payload.visible === true,
-      projectListed: payload.list.includes('TL-DEMO-25-400') && payload.list.includes('مجتمع اداری آفتاب شرق'),
-      activeProject: payload.active.includes('TL-DEMO-25-400') && payload.active.includes('مجتمع اداری آفتاب شرق'),
-      formIdentity: payload.form.code === 'TL-DEMO-25-400' && payload.form.name.includes('مجتمع اداری آفتاب شرق'),
+      initiallyInactive:
+        !payload.beforeActive.includes('TL-DEMO-25-400'),
+      projectListed:
+        payload.list.includes('TL-DEMO-25-400') &&
+        payload.list.includes('مجتمع اداری آفتاب شرق'),
+      selectedByUi:
+        payload.selectedCardActive === true &&
+        payload.activationEnabled === true,
+      activatedByUi:
+        payload.activeProjectId === 'PRJ-DEMO-25-400' &&
+        payload.activeHeader.includes('TL-DEMO-25-400') &&
+        payload.active.includes('TL-DEMO-25-400') &&
+        payload.active.includes('مجتمع اداری آفتاب شرق'),
+      formIdentity:
+        payload.form.code === 'TL-DEMO-25-400' &&
+        payload.form.name.includes('مجتمع اداری آفتاب شرق'),
       engineeringRequirements:
         Number(payload.form.fc) === 25 &&
         Number(payload.form.slump) === 100 &&
         Number(payload.form.wcm) === 0.5 &&
         payload.form.method === 'iran479' &&
         payload.form.grade === 'B' &&
-        payload.form.fcClass === '25'
+        payload.form.fcClass === '25' &&
+        Number(payload.form.dmax) === 25 &&
+        payload.form.air === 'non-air' &&
+        payload.form.standard.includes('479') &&
+        payload.form.exposure.includes('غیرمهاجم'),
+      dashboardVisible:
+        payload.kpis.includes('QC010-001') &&
+        (payload.completeness.includes('100') || payload.completeness.includes('۱۰۰')) &&
+        payload.timeline.length > 20,
+      activationAudited:
+        payload.auditText.includes('فعال‌سازی') &&
+        payload.auditText.includes('TL-DEMO-25-400')
     };
+
     const ok = Object.values(checks).every(Boolean);
-    results.push({ name:'01-projects', ok, checks, payload });
-    if (!ok) failures.push('01-projects: ' + Object.entries(checks).filter(([,v])=>!v).map(([k])=>k).join(', '));
-    await capture('01-projects');
+    results.push({ name:'A-project-hub-operator', ok, checks, payload });
+    if (!ok) failures.push('A-project-hub-operator: ' + Object.entries(checks).filter(([,v])=>!v).map(([k])=>k).join(', '));
+    document.getElementById('prActiveInfo')?.scrollIntoView({ block:'center', inline:'nearest' });
+    await new Promise(r => setTimeout(r, 150));
+    await capture('A-project-hub-operator');
   }
 
   async function stage2MixLibrary() {
