@@ -154,3 +154,17 @@ Mix Series ID: `MX-DEMO-25-400`
 - Outputs are valid for QA calculation-path testing only and must not be used for procurement, pricing, EPD/LCA declarations or environmental claims until the illustrative factors are replaced with approved sources.
 - Revalidation triggers include material revision/lot changes, mix revision changes, price/currency updates, GWP/EPD/LCA updates and production-QC performance changes.
 - Sample dataset version incremented to 8.
+
+
+### Stage 9 project price update
+Project-provided IRR prices have replaced the illustrative price factors for the current QA project:
+- Type II cement: 36,000,000 IRR/ton.
+- Fine aggregate (sand): 5,291,000 IRR/ton.
+- Coarse aggregate (pea gravel): 5,030,300 IRR/ton.
+- Coarse aggregate (almond gravel): 5,030,300 IRR/ton using the same coarse-aggregate price basis supplied for the project.
+- Water: 1,300,000 IRR/m³, converted to 1,300 IRR/kg for the 190 kg/m³ design-water basis.
+- Pumping: 2,400,000 IRR/m³.
+- Current R0 material cost is approximately 23.70 million IRR/m³; including pumping, current total is approximately 26.10 million IRR/m³.
+- Transport, overhead and other unprovided costs remain zero and are not implied to be included.
+- Commercial price coverage for the entered material factors is now project-priced; GWP factors remain illustrative-only and unverified for EPD/LCA use.
+- Sample dataset version = 9.
