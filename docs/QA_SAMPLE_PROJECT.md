@@ -83,3 +83,15 @@ Mix Series ID: `MX-DEMO-25-400`
 - All trial points remain above the specified strength f'c = 25 MPa, within max w/cm = 0.50, slump acceptance 80–120 mm and air acceptance 1–3%.
 - Calibration evidence now distinguishes specified-strength acceptance from the Stage-3 required design mean strength.
 - Sample dataset version incremented to 4 so previously seeded QA installations receive the corrected Stage-4 evidence.
+
+
+## Stage 5 — Approval / Revision Integrity — COMPLETE
+- Approval is now tied to the exact locked R0 design snapshot and the Stage-4 trial evidence fingerprint.
+- Stale calibration extrema were corrected; the 28-day trial range is 31.7–34.6 MPa.
+- Mandatory approval gates explicitly verify: locked design snapshot, minimum trial count, specified strength, required mean strength fcm, max w/cm, slump range, air range, and evidence fingerprint presence.
+- Required mean strength gate uses Stage-3 fcm = 32.53 MPa; Stage-4 mean = 33.18 MPa, therefore the design-mean gate passes.
+- All five 28-day trial results exceed f'c = 25 MPa.
+- All trial w/cm values remain <= 0.500.
+- All slump values remain within 80–120 mm and air contents within 1–3%.
+- Approval record stores reviewer role, design fingerprint, evidence fingerprint, calibration version, trial IDs, all gate results and the engineering disposition.
+- R0 is allowed to proceed to controlled production only while material revisions, aggregate blend, cement content, design w/cm and acceptance requirements remain unchanged; any such change requires a new revision and new evidence review.
