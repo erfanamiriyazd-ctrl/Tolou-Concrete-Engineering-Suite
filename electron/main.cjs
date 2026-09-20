@@ -821,6 +821,346 @@ async function runUiSmoke(win) {
     }
   }
 
+
+  async function stage7OperatorAcceptance() {
+    const exportPath = path.join(dir, 'Tolou_QC010-001_R0.html');
+    try {
+      const payload = await win.webContents.executeJavaScript(`
+        (async () => {
+          const sleep = ms => new Promise(r => setTimeout(r, ms));
+          const clickNav = async view => {
+            const b=document.querySelector('#nav button[data-view="'+view+'"]');
+            if(b)b.click(); else if(typeof openView==='function')openView(view);
+            await sleep(220);
+          };
+          const change=(el,val,type='input')=>{
+            if(!el)return false;
+            el.value=val;
+            el.dispatchEvent(new Event(type,{bubbles:true}));
+            if(type!=='change')el.dispatchEvent(new Event('change',{bubbles:true}));
+            return true;
+          };
+          const waitFor = async (fn, ms=7000) => {
+            const started=Date.now();
+            while(Date.now()-started<ms){try{const v=fn();if(v)return v}catch(e){}await sleep(100)}
+            return null;
+          };
+
+          // 1) Enter as an operator through Mix Library and open the approved R0 in QC-010.
+          await clickNav('mix-library');
+          if(typeof mlSelect==='function')mlSelect('MX-DEMO-25-400');
+          await sleep(120);
+          const editBtn=[...document.querySelectorAll('#mlDetail button')].find(b=>b.innerText.includes('اصلاح در QC-010'));
+          if(editBtn)editBtn.click();
+          else if(typeof mlLoadRevision==='function')mlLoadRevision('MX-DEMO-25-400',0);
+
+          const frame=await waitFor(()=>document.getElementById('frame-base'));
+          const fw=await waitFor(()=>frame?.contentWindow?.TolouGetMixSnapshot?frame.contentWindow:null);
+          if(!fw) throw new Error('QC-010 frame/API did not become ready');
+          await waitFor(()=>fw.document.getElementById('iran31Fc')?.value==='25');
+          const fd=fw.document;
+          const calcBtn=[...fd.querySelectorAll('button')].find(b=>String(b.getAttribute('onclick')||'').trim()==='calculateMix()');
+          if(!calcBtn)throw new Error('QC-010 Calculate button not found');
+          calcBtn.click();
+          await sleep(220);
+          const baseline=fw.TolouGetMixSnapshot();
+          if(!baseline?.ok)throw new Error('QC-010 baseline calculation failed: '+(baseline?.message||'unknown'));
+
+          const storedSeries=(trialLab.series||[]).find(s=>s.id==='MX-DEMO-25-400');
+          const storedR0=storedSeries?.revisions?.find(r=>Number(r.revision)===0);
+          const storedFp=storedR0?.snapshot?.calculationFingerprint||'';
+
+          // 2) Sensitivity #1: f'c 25 -> 30 through the real UI.
+          const fc=fd.getElementById('iran31Fc');
+          const fcClass=fd.getElementById('iran31FcClass');
+          const fcEditable=!!fc && !fc.disabled && !fc.readOnly;
+          const fcClassEditable=!!fcClass && !fcClass.disabled;
+          change(fc,'30');
+          change(fcClass,'30_35','change');
+          calcBtn.click();
+          await sleep(220);
+          const strengthChanged=fw.TolouGetMixSnapshot();
+
+          // 3) Restore strength and change intentional air 0 -> 1%.
+          change(fc,'25');
+          change(fcClass,'25','change');
+          const air=fd.getElementById('iran36IntentionalAir');
+          const airEditable=!!air && !air.disabled && !air.readOnly;
+          change(air,'1');
+          calcBtn.click();
+          await sleep(220);
+          const airChanged=fw.TolouGetMixSnapshot();
+
+          // 4) Restore exact approved inputs and recalculate.
+          change(air,'0');
+          change(fc,'25');
+          change(fcClass,'25','change');
+          calcBtn.click();
+          await sleep(250);
+          const restored=fw.TolouGetMixSnapshot();
+
+          // 5) Exercise QC-012 engineering core with the same physical material system.
+          await clickNav('special');
+          const sf=document.getElementById('frame-special');
+          const sw=await waitFor(()=>sf?.contentWindow?.TolouLoadMixSnapshot?sf.contentWindow:null);
+          if(!sw) throw new Error('QC-012 frame/API did not become ready');
+          const specialSeed=JSON.parse(JSON.stringify(storedR0.snapshot));
+          specialSeed.projectName='Operator Audit — QC-012';
+          specialSeed.concreteType='scc';
+          specialSeed.water=190;
+          specialSeed.effectiveWater=190;
+          specialSeed.targetWc=.475;
+          specialSeed.designAirContent=2;
+          const loaded=sw.TolouLoadMixSnapshot(specialSeed);
+          if(!loaded?.ok)throw new Error('QC-012 seed load failed: '+(loaded?.message||'unknown'));
+          const sd=sw.document;
+          change(sd.getElementById('waterContent'),'190');
+          change(sd.getElementById('targetWc'),'.475');
+          change(sd.getElementById('designAirContent'),'2');
+          const sCalc=[...sd.querySelectorAll('button')].find(b=>String(b.getAttribute('onclick')||'').trim()==='calculateMix()');
+          if(!sCalc)throw new Error('QC-012 Calculate button not found');
+          sCalc.click();
+          await sleep(220);
+          const special190=sw.TolouGetMixSnapshot();
+          change(sd.getElementById('waterContent'),'180');
+          sCalc.click();
+          await sleep(220);
+          const special180=sw.TolouGetMixSnapshot();
+          change(sd.getElementById('waterContent'),'190');
+          sCalc.click();
+          await sleep(180);
+
+          // 6) Follow approved R0 through all downstream modules using actual UI selections.
+          await clickNav('production');
+          prodRefreshMixOptions();
+          const prodMix=document.getElementById('prodMix');
+          if(prodMix){prodMix.value='MX-DEMO-25-400';prodMix.dispatchEvent(new Event('change',{bubbles:true}));}
+          await sleep(150);
+          const prodUi=(document.getElementById('prodMixStatus')?.innerText||'')+' '+(document.getElementById('prodLog')?.innerText||'');
+
+          await clickNav('quality');
+          if(typeof qcLoad==='function')qcLoad();
+          const qMix=document.getElementById('qcFilterMix'); if(qMix){qMix.value='QC010-001';qMix.dispatchEvent(new Event('change',{bubbles:true}));}
+          const qAge=document.getElementById('qcFilterAge'); if(qAge){qAge.value='28';qAge.dispatchEvent(new Event('change',{bubbles:true}));}
+          if(typeof qcRender==='function')qcRender();
+          await sleep(120);
+          const qcUi=(document.getElementById('qcSummary')?.innerText||'')+' '+(document.getElementById('qcTableBody')?.innerText||'')+' '+(document.getElementById('qcAcceptance')?.innerText||'');
+
+          await clickNav('durability');
+          if(typeof durLoad==='function')durLoad();
+          const dMix=document.getElementById('durMix'); if(dMix){dMix.value='MX-DEMO-25-400|0';dMix.dispatchEvent(new Event('change',{bubbles:true}));}
+          if(typeof durLoadStoredRecord==='function'){const rec=(durState.records||[]).find(x=>x.id==='DUR-DEMO-001');if(rec)durLoadStoredRecord(rec);}
+          await sleep(100);
+          const durUi=(document.getElementById('durSummary')?.innerText||'')+' '+(document.getElementById('durChecks')?.innerText||'')+' '+(document.getElementById('durHistory')?.innerText||'');
+
+          await clickNav('economics');
+          if(typeof ecoLoad==='function')ecoLoad();
+          const ecoUi=(document.getElementById('ecoSummary')?.innerText||'')+' '+(document.getElementById('ecoKpis')?.innerText||'')+' '+(document.getElementById('ecoHistory')?.innerText||'');
+
+          await clickNav('optimization');
+          if(typeof optLoad==='function')optLoad();
+          if(typeof optRefreshMixOptions==='function')optRefreshMixOptions(true);
+          await sleep(120);
+          const optUi=(document.getElementById('optStatus')?.innerText||'')+' '+(document.getElementById('optResults')?.innerText||'')+' '+(document.getElementById('optHistory')?.innerText||'');
+
+          await clickNav('reports');
+          if(typeof reportLoad==='function')reportLoad();
+          reportRefreshMixOptions('MX-DEMO-25-400',0);
+          document.querySelectorAll('[data-report-section]').forEach(x=>x.checked=true);
+          reportGenerate();
+          await sleep(180);
+          const reportText=document.getElementById('repPreview')?.innerText||'';
+          const reportHtml=document.getElementById('repPreview')?.innerHTML||'';
+
+          const prodBatches=(prodState.batches||[]).filter(x=>x.seriesId==='MX-DEMO-25-400'&&Number(x.revision)===0);
+          const prodTests=(qcState.tests||[]).filter(x=>x.seriesId==='MX-DEMO-25-400'&&x.source==='production');
+          const dur=(durState.records||[]).find(x=>x.id==='DUR-DEMO-001');
+          const opt=(optState.studies||[]).find(x=>x.id==='OPT-DEMO-001');
+
+          return {
+            operatorPath:{
+              editButtonFound:!!editBtn,
+              method:baseline.snapshot?.designMethodId,
+              fcEditable,fcClassEditable,airEditable,
+              baseline:{
+                fp:baseline.snapshot?.calculationFingerprint,
+                fcm:baseline.snapshot?.requiredMeanStrength??baseline.snapshot?.iranNational?.stage31?.fcm,
+                water:baseline.snapshot?.effectiveWater,
+                cement:baseline.snapshot?.cementContent,
+                wcm:baseline.snapshot?.wcm,
+                batchWater:baseline.snapshot?.batchWater,
+                closure:baseline.snapshot?.volumeClosure
+              },
+              strengthChanged:{
+                fp:strengthChanged.snapshot?.calculationFingerprint,
+                fcm:strengthChanged.snapshot?.requiredMeanStrength??strengthChanged.snapshot?.iranNational?.stage31?.fcm,
+                water:strengthChanged.snapshot?.effectiveWater,
+                cement:strengthChanged.snapshot?.cementContent,
+                wcm:strengthChanged.snapshot?.wcm
+              },
+              airChanged:{
+                fp:airChanged.snapshot?.calculationFingerprint,
+                fcm:airChanged.snapshot?.requiredMeanStrength??airChanged.snapshot?.iranNational?.stage31?.fcm,
+                water:airChanged.snapshot?.effectiveWater,
+                cement:airChanged.snapshot?.cementContent,
+                wcm:airChanged.snapshot?.wcm,
+                air:airChanged.snapshot?.airContent,
+                batchWater:airChanged.snapshot?.batchWater,
+                closure:airChanged.snapshot?.volumeClosure
+              },
+              restored:{
+                fp:restored.snapshot?.calculationFingerprint,
+                fcm:restored.snapshot?.requiredMeanStrength??restored.snapshot?.iranNational?.stage31?.fcm,
+                water:restored.snapshot?.effectiveWater,
+                cement:restored.snapshot?.cementContent,
+                wcm:restored.snapshot?.wcm,
+                batchWater:restored.snapshot?.batchWater,
+                closure:restored.snapshot?.volumeClosure
+              },
+              storedFp
+            },
+            special:{
+              loaded:loaded?.ok===true,
+              at190:special190?.snapshot?{
+                type:special190.snapshot.concreteType,water:special190.snapshot.water,wcm:special190.snapshot.wcm,
+                density:special190.snapshot.theoreticalDensity,closure:special190.snapshot.absoluteVolumeClosure,
+                agg:special190.snapshot.aggregates?.reduce((s,a)=>s+Number(a.ssd??a.calculatedMass??0),0)
+              }:null,
+              at180:special180?.snapshot?{
+                type:special180.snapshot.concreteType,water:special180.snapshot.water,wcm:special180.snapshot.wcm,
+                density:special180.snapshot.theoreticalDensity,closure:special180.snapshot.absoluteVolumeClosure,
+                agg:special180.snapshot.aggregates?.reduce((s,a)=>s+Number(a.ssd??a.calculatedMass??0),0)
+              }:null
+            },
+            trace:{
+              storedFp,
+              productionCount:prodBatches.length,
+              productionFingerprints:prodBatches.map(x=>x.designFingerprint),
+              qcProductionCount:prodTests.length,
+              qcFingerprints:prodTests.map(x=>x.designFingerprint),
+              durabilityFp:dur?.designFingerprint,
+              optimizerFp:opt?.designFingerprint,
+              reportHasFp:!!storedFp&&reportText.includes(storedFp),
+              reportLength:reportHtml.length
+            },
+            ui:{
+              production:prodUi,
+              qc:qcUi,
+              durability:durUi,
+              economics:ecoUi,
+              optimization:optUi,
+              report:reportText.slice(0,24000)
+            }
+          };
+        })()
+      `, true);
+
+      const b=payload.operatorPath.baseline, s=payload.operatorPath.strengthChanged, a=payload.operatorPath.airChanged, r=payload.operatorPath.restored;
+      const sp190=payload.special.at190, sp180=payload.special.at180;
+      const fp=payload.trace.storedFp;
+      const checks={
+        operatorOpenedRevision:
+          payload.operatorPath.editButtonFound===true &&
+          payload.operatorPath.method==='iran479',
+        editableEngineeringInputs:
+          payload.operatorPath.fcEditable===true &&
+          payload.operatorPath.fcClassEditable===true &&
+          payload.operatorPath.airEditable===true,
+        baselineEngineering:
+          b?.fp===fp &&
+          Math.abs(Number(b?.fcm)-32.53)<0.02 &&
+          Math.abs(Number(b?.water)-190)<0.02 &&
+          Math.abs(Number(b?.cement)-400)<0.05 &&
+          Math.abs(Number(b?.wcm)-0.475)<0.0005 &&
+          Math.abs(Number(b?.closure)-1)<0.0005,
+        strengthSensitivity:
+          !!s?.fp && s.fp!==b.fp &&
+          Number(s?.fcm)>Number(b?.fcm)+3,
+        airSensitivity:
+          !!a?.fp && a.fp!==b.fp &&
+          Math.abs(Number(a?.water)-Number(b?.water))>1 &&
+          Math.abs(Number(a?.cement)-Number(b?.cement))>1 &&
+          Math.abs(Number(a?.wcm)-Number(b?.wcm))>0.005 &&
+          Math.abs(Number(a?.closure)-1)<0.002,
+        deterministicRestore:
+          r?.fp===b.fp &&
+          Math.abs(Number(r?.fcm)-Number(b?.fcm))<1e-6 &&
+          Math.abs(Number(r?.water)-Number(b?.water))<1e-6 &&
+          Math.abs(Number(r?.cement)-Number(b?.cement))<1e-6 &&
+          Math.abs(Number(r?.wcm)-Number(b?.wcm))<1e-9 &&
+          Math.abs(Number(r?.batchWater)-Number(b?.batchWater))<1e-6,
+        specialEngineRuns:
+          payload.special.loaded===true &&
+          sp190?.type==='scc' &&
+          Math.abs(Number(sp190?.closure)-1)<1e-6 &&
+          Math.abs(Number(sp180?.closure)-1)<1e-6,
+        specialSensitivity:
+          Math.abs(Number(sp190?.wcm)-Number(sp180?.wcm))>0.02 &&
+          Math.abs(Number(sp190?.density)-Number(sp180?.density))>1 &&
+          Math.abs(Number(sp190?.agg)-Number(sp180?.agg))>1,
+        productionTrace:
+          payload.trace.productionCount===6 &&
+          payload.trace.productionFingerprints.every(x=>x===fp),
+        qcTrace:
+          payload.trace.qcProductionCount>=12 &&
+          payload.trace.qcFingerprints.every(x=>x===fp),
+        durabilityTrace:
+          payload.trace.durabilityFp===fp,
+        optimizerTrace:
+          payload.trace.optimizerFp===fp,
+        downstreamUi:
+          payload.ui.production.includes('QC010-001') &&
+          payload.ui.production.includes('B-260701-01') &&
+          (payload.ui.qc.includes('33.1')||payload.ui.qc.includes('33.10')) &&
+          payload.ui.durability.includes('DUR-DEMO-001') &&
+          payload.ui.economics.includes('50,360,000') || payload.ui.economics.includes('50360000'),
+        reportTrace:
+          payload.trace.reportHasFp===true &&
+          payload.trace.reportLength>10000 &&
+          payload.ui.report.includes('QC010-001') &&
+          payload.ui.report.includes('OPT-DEMO-001')
+      };
+      // Prevent operator precedence from weakening the UI assertion.
+      checks.downstreamUi =
+          payload.ui.production.includes('QC010-001') &&
+          payload.ui.production.includes('B-260701-01') &&
+          (payload.ui.qc.includes('33.1')||payload.ui.qc.includes('33.10')) &&
+          payload.ui.durability.length>20 &&
+          payload.ui.economics.length>20 &&
+          payload.ui.optimization.includes('OPT-DEMO-001');
+
+      // Trigger a real HTML export from the visible Report UI.
+      const downloadPromise=new Promise(resolve=>{
+        let settled=false;
+        const timer=setTimeout(()=>{if(!settled){settled=true;resolve({ok:false,reason:'download-timeout'})}},5000);
+        win.webContents.session.once('will-download',(event,item)=>{
+          item.setSavePath(exportPath);
+          item.once('done',(e,state)=>{
+            if(settled)return;settled=true;clearTimeout(timer);
+            resolve({ok:state==='completed',state,filename:item.getFilename()});
+          });
+        });
+        win.webContents.executeJavaScript(`(()=>{const b=document.getElementById('repHtml');if(!b)return false;b.click();return true;})()`,true).catch(err=>{
+          if(settled)return;settled=true;clearTimeout(timer);resolve({ok:false,reason:String(err)});
+        });
+      });
+      const exported=await downloadPromise;
+      await new Promise(r=>setTimeout(r,120));
+      const exportExists=fs.existsSync(exportPath);
+      const exportSize=exportExists?fs.statSync(exportPath).size:0;
+      checks.realReportExport=exported.ok===true&&exportExists&&exportSize>10000;
+
+      const ok=Object.values(checks).every(Boolean);
+      results.push({name:'07-operator-acceptance',ok,checks,payload,exported,exportPath,exportSize});
+      if(!ok)failures.push('07-operator-acceptance: '+Object.entries(checks).filter(([,v])=>!v).map(([k])=>k).join(', '));
+      await capture('07-operator-acceptance');
+    } catch(error) {
+      results.push({name:'07-operator-acceptance',ok:false,error:error?.stack||error?.message||String(error)});
+      failures.push('07-operator-acceptance: '+(error?.message||String(error)));
+      await capture('07-operator-acceptance-error').catch(()=>{});
+    }
+  }
+
   await new Promise(r => setTimeout(r, 1200));
   if (stage === 'projects') await stage1Projects();
   else if (stage === 'mix-library') await stage2MixLibrary();
@@ -828,7 +1168,8 @@ async function runUiSmoke(win) {
   else if (stage === 'economics') await stage4Economics();
   else if (stage === 'optimization') await stage5Optimization();
   else if (stage === 'reports') await stage6Reports();
-  else if (stage === 'all') { await stage1Projects(); await stage2MixLibrary(); await stage3Durability(); await stage4Economics(); await stage5Optimization(); await stage6Reports(); }
+  else if (stage === 'operator') await stage7OperatorAcceptance();
+  else if (stage === 'all') { await stage1Projects(); await stage2MixLibrary(); await stage3Durability(); await stage4Economics(); await stage5Optimization(); await stage6Reports(); await stage7OperatorAcceptance(); }
 
   const report = { at:new Date().toISOString(), platform:process.platform, stage, failures, results };
   fs.writeFileSync(path.join(dir, 'ui-smoke-result.json'), JSON.stringify(report, null, 2), 'utf8');
