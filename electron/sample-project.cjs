@@ -1,7 +1,7 @@
 'use strict';
 
 const SAMPLE_MARKER = 'Tolou_sample_project_v1';
-const SAMPLE_DATASET_VERSION = 10;
+const SAMPLE_DATASET_VERSION = 11;
 const PROJECT_ID = 'PRJ-DEMO-25-400';
 const SERIES_ID = 'MX-DEMO-25-400';
 const AGG_CASE_ID = 'AGC-DEMO-25-400';
@@ -782,6 +782,20 @@ const directLaborModel={
 const directLaborMonthlyIrr=(directLaborModel.driverMonthlyIrr+directLaborModel.qcMonthlyIrr+directLaborModel.technicalOperatorMonthlyIrr)*(1+directLaborModel.employerInsurancePct/100);
 const modeledMonthlyProductionM3=directLaborModel.capacityM3h*directLaborModel.hoursPerDay*directLaborModel.daysPerMonth*directLaborModel.utilization;
 const directLaborCostPerM3=round(directLaborMonthlyIrr/modeledMonthlyProductionM3,2);
+const actualExPlantConcretePricePerM3=36800000;
+const actualDeliveryFreightPerM3=6800000;
+const vatRatePct=10;
+const modeledExPlantKnownCostPerM3=round(totalCost+inboundMaterialTransportCostPerM3+electricityCostPerM3+loaderFuelCostPerM3+directLaborCostPerM3,2);
+const balancingGapPerM3=round(actualExPlantConcretePricePerM3-modeledExPlantKnownCostPerM3,2);
+const depreciationAllocationPerM3=round(balancingGapPerM3*.40,2);
+const adminPlantOverheadAllocationPerM3=round(balancingGapPerM3*.25,2);
+const maintenanceAllocationPerM3=round(balancingGapPerM3*.20,2);
+const financeWorkingCapitalAllocationPerM3=round(balancingGapPerM3*.15,2);
+const exPlantReconciledPerM3=round(modeledExPlantKnownCostPerM3+depreciationAllocationPerM3+adminPlantOverheadAllocationPerM3+maintenanceAllocationPerM3+financeWorkingCapitalAllocationPerM3,2);
+const deliveredBeforeVatPerM3=round(exPlantReconciledPerM3+actualDeliveryFreightPerM3,2);
+const vatAmountPerM3=round(deliveredBeforeVatPerM3*vatRatePct/100,2);
+const deliveredWithVatPerM3=round(deliveredBeforeVatPerM3+vatAmountPerM3,2);
+const deliveredWithVatAndPumpingPerM3=round(deliveredWithVatPerM3+pumpingCostPerM3,2);
 const massClosure=round(erows.reduce((s,r)=>s+r.mass,0),3);
 const allPriceFactorsPresent=erows.every(r=>Number.isFinite(r.factor.price));
 const allGwpFactorsPresent=erows.every(r=>Number.isFinite(r.factor.gwp));
@@ -812,11 +826,23 @@ const economicsRecord={
   materialCost:round(totalCost,2),
   pumpingCost:round(pumpingCostPerM3,2),
   inboundMaterialTransportCost:inboundMaterialTransportCostPerM3,
-  concreteDeliveryTransportCost:concreteDeliveryTransportCostPerM3,
+  concreteDeliveryTransportCost:actualDeliveryFreightPerM3,
   electricityCost:electricityCostPerM3,
   loaderFuelCost:loaderFuelCostPerM3,
   directLaborCost:directLaborCostPerM3,
-  totalCost:round(totalCost+pumpingCostPerM3+inboundMaterialTransportCostPerM3+concreteDeliveryTransportCostPerM3+electricityCostPerM3+loaderFuelCostPerM3+directLaborCostPerM3,2),
+  modeledKnownExPlantCost:modeledExPlantKnownCostPerM3,
+  balancingGap:balancingGapPerM3,
+  depreciationAllocation:depreciationAllocationPerM3,
+  adminPlantOverheadAllocation:adminPlantOverheadAllocationPerM3,
+  maintenanceAllocation:maintenanceAllocationPerM3,
+  financeWorkingCapitalAllocation:financeWorkingCapitalAllocationPerM3,
+  exPlantConcretePrice:exPlantReconciledPerM3,
+  deliveryFreight:actualDeliveryFreightPerM3,
+  deliveredBeforeVat:deliveredBeforeVatPerM3,
+  vatRatePct,
+  vatAmount:vatAmountPerM3,
+  deliveredWithVat:deliveredWithVatPerM3,
+  totalCost:deliveredWithVatAndPumpingPerM3,
   totalCarbon:round(totalCarbon,2),
   priceCoverage:allPriceFactorsPresent?100:round(erows.filter(r=>Number.isFinite(r.factor.price)).length/erows.length*100,1),
   gwpCoverage:allGwpFactorsPresent?100:round(erows.filter(r=>Number.isFinite(r.factor.gwp)).length/erows.length*100,1),
@@ -834,7 +860,7 @@ const economicsRecord={
   strength:productionFcStats.mean,
   normalized:{
     materialCostPerMPa:round(totalCost/productionFcStats.mean,3),
-    totalCostPerMPa:round((totalCost+pumpingCostPerM3+inboundMaterialTransportCostPerM3+concreteDeliveryTransportCostPerM3+electricityCostPerM3+loaderFuelCostPerM3+directLaborCostPerM3)/productionFcStats.mean,3),
+    totalCostPerMPa:round(deliveredWithVatAndPumpingPerM3/productionFcStats.mean,3),
     carbonPerMPa:round(totalCarbon/productionFcStats.mean,3),
     cementKgPerMPa:round(400/productionFcStats.mean,3)
   },
@@ -849,21 +875,26 @@ const economicsRecord={
     computationalCompleteness:(allPriceFactorsPresent&&allGwpFactorsPresent)?'complete':'incomplete',
     commercialValidity:allCommercialFactorsVerified?'project-priced-plus-sourced-estimates':'incomplete',
     environmentalClaimValidity:allGwpFactorsVerified?'verified':'illustrative-only',
-    warning:'Material and pumping prices are project-provided. Freight, electricity, loader fuel and labor are sourced engineering estimates and must be replaced by site invoices/payroll for audited cost accounting. GWP factors remain illustrative and are not EPD/LCA verified.'
+    warning:'Ex-plant concrete price, delivery freight, material prices and pumping are project-provided. Depreciation, plant overhead, maintenance and finance/working-capital values are balancing allocations, not independently audited cost-center measurements. GWP factors remain illustrative and are not EPD/LCA verified.'
   },
   input:{
     name:'تحلیل اقتصادی/کربن پروژه نمونه 25/400',
     date:'2026-08-11',
     currency:'IRR',
     scope:'1 m³ بتن — صرفاً QA',
-    overhead:0,
-    transportCost:round(inboundMaterialTransportCostPerM3+concreteDeliveryTransportCostPerM3,2),
+    overhead:adminPlantOverheadAllocationPerM3,
+    depreciation:depreciationAllocationPerM3,
+    maintenance:maintenanceAllocationPerM3,
+    financeWorkingCapital:financeWorkingCapitalAllocationPerM3,
+    vatRatePct:vatRatePct,
+    vatAmount:vatAmountPerM3,
+    transportCost:actualDeliveryFreightPerM3,
     pumpingCost:2400000,
     electricityCost:electricityCostPerM3,
     loaderFuelCost:loaderFuelCostPerM3,
     directLaborCost:directLaborCostPerM3,
     otherCost:0,otherCarbon:0,otherSource:'',
-    notes:'قیمت سیمان، ماسه، سنگدانه درشت، آب و پمپاژ از داده پروژه کاربر وارد شده‌اند. حمل، برق، سوخت لودر و نیروی انسانی با مدل مرجع ۱۴۰۵ ایران برآورد شده‌اند و به‌عنوان sourced-engineering-estimate ثبت می‌شوند. عوامل GWP همچنان نمایشی‌اند و برای EPD/LCA یا ادعای محیط‌زیستی معتبر نیستند.'
+    notes:'قیمت واقعی بتن زیر بچینگ = 36,800,000 IRR/m³ و کرایه واقعی حمل بتن = 6,800,000 IRR/m³ طبق داده کاربر ثبت شده‌اند. فاصله بین هزینه‌های جزء شناخته‌شده و قیمت زیر بچینگ به‌صورت balancing allocation بین استهلاک 40%، سربار کارخانه 25%، تعمیرات 20% و هزینه مالی/سرمایه در گردش 15% توزیع شده است. VAT = 10% جداگانه محاسبه می‌شود. این تخصیص‌ها اندازه‌گیری مستقل نیستند و برای بستن مدل هزینه استفاده می‌شوند.'
   },
   rows:erows,
   disposition:'Project cost calculation uses user-provided IRR prices and pumping cost. Environmental factors remain illustrative-only until replaced by verified EPD/LCA data.',
