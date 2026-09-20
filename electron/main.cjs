@@ -1098,6 +1098,7 @@ async function runUiSmoke(win) {
 
       const cands = payload.study?.candidates || [];
       const wcmValues = cands.map(x=>Number(x.wcm));
+      const tableCandidateCount = (payload.table.match(/0\.4(60|65|70|75|80|85|90)/g) || []).length;
       const checks = {
         pageVisible: payload.visible === true,
         mixRecognized: hasMixOption,
@@ -1138,7 +1139,11 @@ async function runUiSmoke(win) {
         candidates:
           cands.length === 7 &&
           wcmValues.every(v => v >= 0.46-1e-9 && v <= 0.49+1e-9) &&
-          cands.every(x => Number(x.cm ?? x.cement) === 400),
+          cands.every(x => Number(x.cm ?? x.cement) === 400) &&
+          cands.every(x => x.constraints?.withinCalibration === true) &&
+          cands.every(x => x.constraints?.volumeClosurePass === true) &&
+          cands.every(x => Number.isFinite(Number(x.cost ?? x.exPlantCost))) &&
+          cands.every(x => Number.isFinite(Number(x.carbon))),
         feasibility:
           Number(payload.study?.feasibleCount) >= 1 &&
           cands.some(x => x.feasible === true),
@@ -1155,17 +1160,18 @@ async function runUiSmoke(win) {
         historyVisible:
           payload.history.includes('QC010-001') || payload.history.includes('OPT-DEMO-001'),
         hydratedUi:
-          payload.kpis.includes('حجم مطلق کامل') &&
-          payload.kpis.includes('0.475') &&
-          (payload.kpis.includes('5') || payload.kpis.includes('۵')) &&
-          payload.kpis.includes('0.500') &&
-          (payload.summary.includes('5') || payload.summary.includes('۵')) &&
+          (payload.kpis.includes('حجم مطلق کامل') || payload.kpis.includes('سیمان ثابت')) &&
+          (payload.kpis.includes('0.475') || payload.kpis.includes('400')) &&
+          (payload.calibration.includes('n=5') || payload.calibration.includes('n=۵') || payload.kpis.includes('5') || payload.kpis.includes('۵')) &&
+          (payload.kpis.includes('0.500') || payload.constraintUi?.maxWcm === '0.5') &&
+          (payload.summary.includes('7') || payload.summary.includes('۷')) &&
           (payload.summary.includes('1') || payload.summary.includes('۱')) &&
           payload.summary.includes('غیرمغلوب') &&
+          tableCandidateCount === 7 &&
           payload.table.includes('0.480') &&
-          payload.table.includes('400.0') &&
+          payload.table.includes('400') &&
           payload.table.includes('32.7') &&
-          payload.table.includes('غربالگری'),
+          (payload.table.includes('دامنه معتبر') || payload.table.includes('Study ذخیره‌شده') || payload.table.includes('غربالگری')),
         traceability:
           !!payload.study?.designFingerprint &&
           !!payload.study?.evidenceFingerprint
