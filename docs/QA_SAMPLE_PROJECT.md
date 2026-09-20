@@ -125,3 +125,17 @@ Mix Series ID: `MX-DEMO-25-400`
 - QC trend data stores delta from specified strength, delta from required design mean and a rolling three-result mean where available.
 - The sample QC disposition is stable-controlled only when production strength, batch release controls and traceability all pass.
 - Sample dataset version incremented to 6 so previously seeded QA installations receive the completed Stage-7 QC dataset.
+
+
+## Stage 8 — Durability — COMPLETE
+- Durability analysis is now linked to approved revision R0, its design fingerprint, approval evidence fingerprint and Stage-7 QC disposition.
+- The stored QA exposure scenario remains F0 / S0 / W0 / C0 and is explicitly labeled as a non-aggressive sample scenario rather than an independent standards-compliance claim.
+- Durability checks separately evaluate design integrity, QC stability, design w/cm, specified strength, production mean strength, cement type, chloride data and calcium-chloride use.
+- Design w/cm = 0.475 passes the project maximum w/cm = 0.500.
+- Specified strength = 25 MPa meets the project minimum = 25 MPa.
+- Production 28-day mean remains above Stage-3 fcm = 32.53 MPa.
+- Type II cement is traceable to Material Intelligence revision 1 and lot CII-260518-A.
+- QA chloride input = 0.080% of cementitious materials is retained, but no numeric project chloride limit exists; therefore chloride is correctly classified as not-evaluable rather than automatically passing.
+- Overall durability disposition is acceptable-with-open-items for the defined QA scenario because there are no blocking failures, while chloride compliance remains open pending a numeric project/standard limit.
+- Revalidation triggers are stored for material revisions, aggregate blend, cement type/content, w/cm, exposure classification, chloride limit and QC-status changes.
+- Sample dataset version incremented to 7.
