@@ -768,8 +768,12 @@ async function runUiSmoke(win) {
     try{
       const saved=d2.payload?.match;
       if(!saved?.seriesId||!saved?.fingerprint) throw new Error('D2 saved identity unavailable');
-      await win.webContents.reload();
-      await new Promise(r=>win.webContents.once('did-finish-load',r));
+      await new Promise((resolve,reject)=>{
+        const timer=setTimeout(()=>{win.webContents.removeListener('did-finish-load',onLoad);reject(new Error('D3 Suite reload timed out after 15 seconds'))},15000);
+        const onLoad=()=>{clearTimeout(timer);resolve()};
+        win.webContents.once('did-finish-load',onLoad);
+        win.webContents.reload();
+      });
       await new Promise(r=>setTimeout(r,1200));
       const payload=await win.webContents.executeJavaScript(`
         (() => {
