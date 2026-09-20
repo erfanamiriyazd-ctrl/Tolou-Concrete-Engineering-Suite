@@ -18,7 +18,7 @@ const bin = process.platform === 'win32'
 const result = spawnSync(bin, [source, target], {
   cwd: root,
   stdio: 'inherit',
-  shell: false
+  shell: process.platform === 'win32'
 });
 
 if (result.error) throw result.error;
