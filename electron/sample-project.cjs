@@ -1,7 +1,7 @@
 'use strict';
 
 const SAMPLE_MARKER = 'Tolou_sample_project_v1';
-const SAMPLE_DATASET_VERSION = 3;
+const SAMPLE_DATASET_VERSION = 4;
 const PROJECT_ID = 'PRJ-DEMO-25-400';
 const SERIES_ID = 'MX-DEMO-25-400';
 const AGG_CASE_ID = 'AGC-DEMO-25-400';
@@ -282,26 +282,110 @@ const mixSnapshot={
   materialBindings:clone(materialBindings),aggregateBlendBinding:clone(aggregateBlendBinding),projectName:projectContext.name,projectLinkMode:'library',projectContext:clone(projectContext),standard:'iran479',cementType:'II',cementTypeLabel:'Type II',slump:100,dmax:25,targetStrength:25,targetWc:.475,cementDensity:3150,silicaDensity:2200,flyAshDensity:2300,slagDensity:2900,cementContent:400,silica:0,flyAsh:0,slag:0,totalCementitious:400,effectiveWater:190,batchWater:round(batchWater,6),freeWaterTotal:round(freeWaterTotal,6),finalWc:.475,wcm:.475,airContent:2,airSystem:'nonair',airExposure:'iran479',fineFM:round(fineFM(),3),knownVolume:round(1-aggVol,8),aggregateVolume:round(aggVol,8),volumeClosure:1,aggregateSSDTotal:round(totalAgg,6),aggregateBatchTotal:round(aggCalc.reduce((s,x)=>s+x.batch,0),6),totalWeight:round(totalWeight,6),iranNational:{stage31,stage32,stage33,stage34,stage35,stage36,stage37},integrationAudit:stage37,validationStatus:'locked-for-trial',calculationFingerprint:stage37.fingerprint,ruleTrace:[{id:'IR479_3_1_FCM',reference:'نشریه ض-479 Stage 3.1'},{id:'IR479_4_2_GRADING',reference:'نشریه ض-479 شکل 4-4'},{id:'IR479_3_4_FREE_WATER',reference:'نشریه ض-479 Stage 3.4'},{id:'IR479_3_5_WC',reference:'نشریه ض-479 Stage 3.5'},{id:'IR479_3_6_VOLUME',reference:'نشریه ض-479 Stage 3.6'},{id:'IR479_3_7_LOCK',reference:'Tolou Stage 3.7'}],aggregates:clone(snapshotAggregates),admixtures:[],fibers:[],timestamp:'2026-05-24T11:00:00+03:30'
 };
 
-function makeTrial(i,date,water,fc28,slump,air,density){
+function makeTrial(i,date,water,fc28,slump,air,density,moistures){
   const wcm=water/400, id=`TR-DEMO-${String(i).padStart(2,'0')}`;
-  const strengths={'1':null,'3':round(fc28*.52,1),'7':round(fc28*.73,1),'28':fc28,'56':round(fc28*1.08,1),'90':null};
-  return {id,projectId:PROJECT_ID,revision:0,batchNo:`T-${String(i).padStart(2,'0')}`,date,batchVolume:45,operator:'م. کریمی — کارشناس آزمایشگاه (فرضی)',actual:{water,cementitious:400},fresh:{slump,slumpFlow:null,t500:null,air,density,temperature:24+i*.3,segregation:'مشاهده نشد',workability:'یکنواخت و مناسب'},strengths,hardened:{flexural:null,splitting:null,rcpt:null,absorption:null},notes:'Trial نمونه برای کنترل اتصال کامل جریان مهندسی Tolou.',batchChanges:i===3?'نقطه مبنا — بدون تغییر نسبت‌های طراحی':'تغییر کنترل‌شده آب مؤثر برای مطالعه حساسیت و کالیبراسیون.',calculated:{actualWcm:round(wcm,4)},evaluation:{status:'ثبت‌شده',level:'pass',reasons:['اسلامپ و هوا در بازه ثبت‌شده هستند.','مقاومت 28روزه بالاتر از هدف 25 MPa است.',`w/cm واقعی ${wcm.toFixed(3)} از حد پروژه 0.500 عبور نکرده است.`]},updatedAt:`${date}T16:00:00+03:30`,createdAt:`${date}T08:00:00+03:30`};
+  const batchVolumeL=45, batchVolumeM3=batchVolumeL/1000;
+  const cementBatch=cement*batchVolumeM3;
+  const aggBatch=snapshotAggregates.map((a,j)=>{
+    const M=moistures[j]/100, A=a.absorption/100;
+    const ssdPerM3=a.ssd, odPerM3=ssdPerM3/(1+A), wetPerM3=odPerM3*(1+M);
+    const freeWaterPerM3=wetPerM3-ssdPerM3;
+    return {
+      aggregateId:a.id,
+      materialId:a.materialId,
+      name:a.name,
+      absorptionPct:a.absorption,
+      moisturePct:moistures[j],
+      ssdTargetKg:round(ssdPerM3*batchVolumeM3,3),
+      wetBatchKg:round(wetPerM3*batchVolumeM3,3),
+      freeWaterKg:round(freeWaterPerM3*batchVolumeM3,3)
+    };
+  });
+  const aggregateFreeWaterKg=aggBatch.reduce((s,a)=>s+a.freeWaterKg,0);
+  const effectiveWaterBatchKg=water*batchVolumeM3;
+  const waterToAddKg=effectiveWaterBatchKg-aggregateFreeWaterKg;
+  const totalBatchMassKg=cementBatch+waterToAddKg+aggBatch.reduce((s,a)=>s+a.wetBatchKg,0);
+  const measuredYieldM3=totalBatchMassKg/density;
+  const relativeYield=measuredYieldM3/batchVolumeM3;
+  const strengths={'1':null,'3':round(fc28*.50,1),'7':round(fc28*.72,1),'28':fc28,'56':round(fc28*1.07,1),'90':null};
+  const specimenSets={
+    '3':[round(strengths['3']-.3,1),strengths['3'],round(strengths['3']+.3,1)],
+    '7':[round(strengths['7']-.3,1),strengths['7'],round(strengths['7']+.3,1)],
+    '28':[round(fc28-.4,1),fc28,round(fc28+.4,1)],
+    '56':[round(strengths['56']-.4,1),strengths['56'],round(strengths['56']+.4,1)]
+  };
+  const meetsSpecified=fc28>=25;
+  const meetsDesignMean=fc28>=stage31.fcm;
+  const withinWcm=wcm<=.50;
+  const withinSlump=Math.abs(slump-100)<=20;
+  const withinAir=Math.abs(air-2)<=1;
+  return {
+    id,projectId:PROJECT_ID,revision:0,batchNo:`T-${String(i).padStart(2,'0')}`,date,
+    batchVolume:batchVolumeL,batchVolumeM3,
+    operator:'م. کریمی — کارشناس آزمایشگاه (فرضی)',
+    technician:'س. نادری — تکنسین بتن (فرضی)',
+    laboratory:'آزمایشگاه کنترل کیفیت بتن طلوع — نمونه QA',
+    materialLots:{cement:'CII-260518-A',fine:'FA-260520',pea:'CA7-260520',almond:'CA5-260520',water:'W-2605'},
+    actual:{
+      water,cementitious:400,
+      waterAddedKg:round(waterToAddKg,3),
+      effectiveWaterBatchKg:round(effectiveWaterBatchKg,3),
+      cementBatchKg:round(cementBatch,3),
+      aggregateFreeWaterKg:round(aggregateFreeWaterKg,3),
+      totalBatchMassKg:round(totalBatchMassKg,3)
+    },
+    preparation:{
+      basis:'SSD masses from locked R0 + measured trial-day moisture correction',
+      moistureReadingsPct:moistures,
+      aggregates:aggBatch,
+      waterToAddKg:round(waterToAddKg,3),
+      effectiveWaterBatchKg:round(effectiveWaterBatchKg,3),
+      mixingSequence:'سنگدانه + حدود 70% آب؛ افزودن سیمان؛ تکمیل آب؛ اختلاط نهایی و کنترل یکنواختی.',
+      mixingTimeSec:180,
+      restTimeSec:60
+    },
+    fresh:{
+      slump,slumpFlow:null,t500:null,air,density,temperature:round(24+i*.3,1),
+      segregation:'مشاهده نشد',bleeding:'ناچیز / غیرمعنادار',workability:'یکنواخت و مناسب',
+      visualCohesion:'خوب',finishability:'مناسب',
+      measuredYieldM3:round(measuredYieldM3,5),relativeYield:round(relativeYield,4)
+    },
+    strengths,specimenSets,
+    hardened:{flexural:null,splitting:null,rcpt:null,absorption:null},
+    notes:'Trial نمونه QA بر پایه R0 قفل‌شده؛ جرم‌های بچ از مقادیر SSD Stage 3 با رطوبت روز آزمایش اصلاح شده‌اند.',
+    batchChanges:i===3?'نقطه مبنا R0 — فقط اجرای آزمایشگاهی و تصحیح رطوبت؛ نسبت‌های طراحی تغییر نکرده‌اند.':'فقط آب مؤثر برای مطالعه حساسیت w/cm تغییر داده شده؛ سیمان 400 kg/m³ و Blend سنگدانه 44/37/19 ثابت مانده است.',
+    calculated:{actualWcm:round(wcm,4),designWcm:.475,designFcm:stage31.fcm,yieldRatio:round(relativeYield,4)},
+    evaluation:{
+      status:'بررسی‌شده',
+      level:(meetsSpecified&&withinWcm&&withinSlump&&withinAir)?'pass':'review',
+      specifiedStrengthPass:meetsSpecified,
+      designMeanPointPass:meetsDesignMean,
+      reasons:[
+        `f'c مشخصه 25 MPa: ${meetsSpecified?'قبول':'نیازمند بررسی'}؛ نتیجه 28روزه = ${fc28.toFixed(1)} MPa.`,
+        `مبنای طراحی fcm = ${stage31.fcm.toFixed(2)} MPa؛ این نقطه ${meetsDesignMean?'در/بالای مبنا':'زیر مبنا'} است.`,
+        `اسلامپ ${slump} mm ${withinSlump?'داخل':'خارج'} بازه 80–120 mm است.`,
+        `هوا ${air.toFixed(1)}% ${withinAir?'داخل':'خارج'} بازه 1–3% است.`,
+        `w/cm واقعی ${wcm.toFixed(3)} ${withinWcm?'از حد 0.500 عبور نکرده':'از حد 0.500 عبور کرده'} است.`
+      ]
+    },
+    updatedAt:`${date}T16:00:00+03:30`,createdAt:`${date}T08:00:00+03:30`
+  };
 }
 const trials=[
-  makeTrial(1,'2026-06-01',184,32.0,90,1.8,2357),
-  makeTrial(2,'2026-06-03',188,31.2,95,1.9,2354),
-  makeTrial(3,'2026-06-05',190,30.7,100,2.0,2351),
-  makeTrial(4,'2026-06-07',192,30.2,105,2.1,2348),
-  makeTrial(5,'2026-06-09',196,29.4,110,2.2,2345)
+  makeTrial(1,'2026-06-01',184,34.6,90,1.8,2358,[3.4,1.4,1.1]),
+  makeTrial(2,'2026-06-03',188,33.8,95,1.9,2355,[3.5,1.5,1.1]),
+  makeTrial(3,'2026-06-05',190,33.2,100,2.0,2352,[3.5,1.5,1.2]),
+  makeTrial(4,'2026-06-07',192,32.6,105,2.1,2349,[3.6,1.6,1.2]),
+  makeTrial(5,'2026-06-09',196,31.7,110,2.2,2346,[3.7,1.6,1.3])
 ];
 
 function trialEvidencePayload(series,rv){ const rev=series.revisions.find(r=>Number(r.revision)===Number(rv)); const ts=series.trials.filter(t=>Number(t.revision)===Number(rv)); return {seriesId:series.id,revision:Number(rv),designFingerprint:rev?.snapshot?.calculationFingerprint||rev?.snapshot?.canonicalContract?.identity?.calculationFingerprint||null,acceptance:series.acceptance||{},trials:ts.map(t=>({id:t.id,batchNo:t.batchNo,date:t.date,actual:t.actual,fresh:t.fresh,strengths:t.strengths,hardened:t.hardened,batchChanges:t.batchChanges,updatedAt:t.updatedAt}))}; }
 function evidenceFingerprint(series,rv){ return 'TE-'+fnv1a(JSON.stringify(stableObj(trialEvidencePayload(series,rv)))); }
 function calcTrialStats(ts){ const vals=ts.map(t=>t.strengths['28']);const mean=vals.reduce((a,b)=>a+b,0)/vals.length;const sd=Math.sqrt(vals.reduce((s,v)=>s+(v-mean)**2,0)/(vals.length-1));const w=ts.map(t=>t.calculated.actualWcm),sl=ts.map(t=>t.fresh.slump),air=ts.map(t=>t.fresh.air),dens=ts.map(t=>t.fresh.density); return {mean,sd,cov:sd/mean*100,wMean:w.reduce((a,b)=>a+b,0)/w.length,wMax:Math.max(...w),slMean:sl.reduce((a,b)=>a+b,0)/sl.length,airMean:air.reduce((a,b)=>a+b,0)/air.length,densityMean:dens.reduce((a,b)=>a+b,0)/dens.length}; }
 const trialStats=calcTrialStats(trials);
-let mixSeries={id:SERIES_ID,projectId:PROJECT_ID,code:'QC010-001',name:'بتن معمولی C25 — سیمان تیپ II — عیار 400',engine:'QC-010',engineType:'بتن معمولی',status:'approved',createdAt:'2026-05-24T11:05:00+03:30',updatedAt:'2026-07-08T12:00:00+03:30',acceptance:{targetStrength:25,targetSlump:100,slumpTolerance:20,targetAir:2,airTolerance:1,maxWcm:.50,governingStandard:'نشریه ض-479 + الزامات پروژه نمونه'},approvedRevision:0,approvedAt:'2026-07-08T12:00:00+03:30',revisions:[{revision:0,createdAt:'2026-05-24T11:05:00+03:30',reason:'ثبت طرح اولیه روش ملی پس از عبور Gate 3.7',snapshot:clone(mixSnapshot)}],trials:clone(trials)};
+let mixSeries={id:SERIES_ID,projectId:PROJECT_ID,code:'QC010-001',name:'بتن معمولی C25 — سیمان تیپ II — عیار 400',engine:'QC-010',engineType:'بتن معمولی',status:'approved',createdAt:'2026-05-24T11:05:00+03:30',updatedAt:'2026-07-08T12:00:00+03:30',acceptance:{targetStrength:25,designMeanStrength:stage31.fcm,targetSlump:100,slumpTolerance:20,targetAir:2,airTolerance:1,maxWcm:.50,governingStandard:'نشریه ض-479 + الزامات پروژه نمونه'},approvedRevision:0,approvedAt:'2026-07-08T12:00:00+03:30',revisions:[{revision:0,createdAt:'2026-05-24T11:05:00+03:30',reason:'ثبت طرح اولیه روش ملی پس از عبور Gate 3.7',snapshot:clone(mixSnapshot)}],trials:clone(trials)};
 const evfp=evidenceFingerprint(mixSeries,0);
-mixSeries.revisions[0].calibration={version:'TolouTrialCalibration/1.0',generatedAt:'2026-07-08T11:50:00+03:30',revision:0,evidenceFingerprint:evfp,status:'ready',stats:{revision:0,trialIds:trials.map(t=>t.id),n:5,fc28:{n:5,mean:round(trialStats.mean,3),sd:round(trialStats.sd,3),covPct:round(trialStats.cov,2),min:29.4,max:32},slump:{n:5,mean:trialStats.slMean,min:90,max:110},air:{n:5,mean:trialStats.airMean,min:1.8,max:2.2},actualWcm:{n:5,mean:round(trialStats.wMean,4),max:round(trialStats.wMax,4)},density:{n:5,mean:trialStats.densityMean,design:round(totalWeight,3),meanDeviationPct:round((trialStats.densityMean-totalWeight)/totalWeight*100,3)},completeness:{trials:5,withFc28:5,withSlump:5,withAir:5,withWcm:5,withDensity:5},acceptance:clone(mixSeries.acceptance)},findings:[{level:'pass',code:'FC28_TARGET',text:`میانگین مقاومت 28روزه ${trialStats.mean.toFixed(2)} MPa به هدف 25.00 MPa می‌رسد.`},{level:'pass',code:'SLUMP_RANGE',text:'تمام نتایج اسلامپ داخل بازه 80 تا 120 mm هستند.'},{level:'pass',code:'AIR_RANGE',text:'تمام نتایج هوا داخل بازه تعریف‌شده هستند.'},{level:'pass',code:'WCM_LIMIT',text:'تمام w/cmهای واقعی ثبت‌شده از حد 0.500 عبور نکرده‌اند.'},{level:'info',code:'STAT_READY',text:`بر اساس 5 نتیجه 28روزه: SD = ${trialStats.sd.toFixed(2)} MPa و COV = ${trialStats.cov.toFixed(1)}%.`}],principle:'No automatic mix correction is applied. Engineer review is required before creating the next revision.'};
+mixSeries.revisions[0].calibration={version:'TolouTrialCalibration/1.0',generatedAt:'2026-07-08T11:50:00+03:30',revision:0,evidenceFingerprint:evfp,status:'ready',stats:{revision:0,trialIds:trials.map(t=>t.id),n:5,fc28:{n:5,mean:round(trialStats.mean,3),sd:round(trialStats.sd,3),covPct:round(trialStats.cov,2),min:29.4,max:32},slump:{n:5,mean:trialStats.slMean,min:90,max:110},air:{n:5,mean:trialStats.airMean,min:1.8,max:2.2},actualWcm:{n:5,mean:round(trialStats.wMean,4),max:round(trialStats.wMax,4)},density:{n:5,mean:trialStats.densityMean,design:round(totalWeight,3),meanDeviationPct:round((trialStats.densityMean-totalWeight)/totalWeight*100,3)},completeness:{trials:5,withFc28:5,withSlump:5,withAir:5,withWcm:5,withDensity:5},acceptance:clone(mixSeries.acceptance)},findings:[{level:trialStats.mean>=stage31.fcm?'pass':'review',code:'FC28_DESIGN_MEAN',text:`میانگین مقاومت 28روزه ${trialStats.mean.toFixed(2)} MPa در برابر fcm طراحی ${stage31.fcm.toFixed(2)} MPa کنترل شد.`},{level:'pass',code:'FC28_SPECIFIED',text:'تمام نتایج 28روزه از مقاومت مشخصه 25.00 MPa بیشتر هستند.'},{level:'pass',code:'SLUMP_RANGE',text:'تمام نتایج اسلامپ داخل بازه 80 تا 120 mm هستند.'},{level:'pass',code:'AIR_RANGE',text:'تمام نتایج هوا داخل بازه تعریف‌شده هستند.'},{level:'pass',code:'WCM_LIMIT',text:'تمام w/cmهای واقعی ثبت‌شده از حد 0.500 عبور نکرده‌اند.'},{level:'info',code:'STAT_READY',text:`بر اساس 5 نتیجه 28روزه: SD = ${trialStats.sd.toFixed(2)} MPa و COV = ${trialStats.cov.toFixed(1)}%.`}],principle:'No automatic mix correction is applied. Engineer review is required before creating the next revision.'};
 mixSeries.approvalRecord={revision:0,at:mixSeries.approvedAt,trialIds:trials.map(t=>t.id),overrideReason:null,evidenceFingerprint:evfp,calibrationStatus:'ready',calibrationVersion:'TolouTrialCalibration/1.0',integrityStatus:'valid',integrityReason:'Evidence fingerprint captured at approval.'};
 
 function makeProductionBatch(i,date,ticket,moistures,deviations,waterDev,slump,air,temp,strength28){
