@@ -150,3 +150,10 @@ assert.ok(projectLoaderIndex > bootstrapIndex, 'startup wiring: project loader e
 assert.ok(trialLoaderIndex > bootstrapIndex, 'startup wiring: trial loader executes before QA bootstrap');
 assert.ok(preloadBridgeSource.includes("sample: {"), 'startup wiring: sample bridge namespace missing');
 assert.ok(preloadBridgeSource.includes("ipcRenderer.sendSync('tolou:sample:seed'"), 'startup wiring: synchronous seed IPC missing');
+
+// UX-06 contract: analysis/optimization records must retain explicit project + mix + revision identity.
+assert.ok(appSource.includes("r.seriesId=x.series.id;r.revision=x.revision.revision;r.mix=x.series.id+'|'+x.revision.revision"), 'UX-06: durability revision identity missing');
+assert.ok(appSource.includes('r.seriesId=x.series.id;r.revision=x.revision.revision;'), 'UX-06: economics revision identity missing');
+assert.ok(appSource.includes('seriesId:sel.series.id,revision:sel.revision.revision'), 'UX-06: optimizer source revision identity missing');
+assert.ok(appSource.includes("این طرح متعلق به پروژه فعال نیست؛ ابتدا پروژه صحیح را فعال کنید."), 'UX-06: active-project guard missing');
+assert.ok(appSource.includes("reason:'پیشنهاد موتور بهینه‌سازی چندهدفه — نیازمند آزمایش و تأیید مهندس'"), 'UX-06: optimizer candidate-to-revision path missing');
