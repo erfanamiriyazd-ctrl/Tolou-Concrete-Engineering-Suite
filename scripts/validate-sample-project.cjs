@@ -223,4 +223,17 @@ assert.ok(appSource.includes("['مطالعه','تاریخ','گزینه‌های 
 assert.ok(appSource.includes("x.source==='production'?'تولید':x.source==='trial'?'آزمایش طرح'"), 'UX-14: QC source labels not localized');
 assert.ok(appSource.includes('function reportDoc(){const b=reportPagedBuild()'), 'UX-14: export must use the same paged A4 model as preview');
 
+// UX-14 documentation + engineering-engine transparency contracts.
+assert.ok(appSource.includes('راهنمای جامع نرم‌افزار'), 'UX-14: general software guide navigation missing');
+assert.ok(appSource.includes('function buildGuideDoc(type)'), 'UX-14: refreshed QC-010/QC-012 live guides missing');
+assert.ok(appSource.includes('function renderGeneralGuide()'), 'UX-14: step-by-step general guide renderer missing');
+assert.ok(appSource.includes('function renderEngineeringEngine()'), 'UX-14: engineering engine transparency page missing');
+assert.ok(appSource.includes('موتور مهندسی و معماری نرم‌افزار'), 'UX-14: engineering engine page heading missing');
+assert.ok(appSource.includes('درصدها نمای معماری تقریبی'), 'UX-14: language chart measurement disclaimer missing');
+assert.ok(appSource.includes('صحه‌گذاری</th>'), 'UX-14: standards validation column missing');
+assert.ok(appSource.includes('function standardValidation(x)'), 'UX-14: evidence-based standards validation mapping missing');
+assert.ok(appSource.includes('ممیزی کد و طراحی آزمون‌ها با کمک هوش مصنوعی'), 'UX-14: AI-assisted validation disclosure missing');
+assert.ok(appSource.includes('جایگزین Validation آزمایشگاهی، بازبینی مهندس یا گواهی شخص ثالث نیست'), 'UX-14: validation limitation disclosure missing');
+
+
 
