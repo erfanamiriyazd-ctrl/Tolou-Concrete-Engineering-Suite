@@ -214,3 +214,13 @@ assert.ok(appSource.includes('فعالیت اخیر پروژه'), 'UX-13: recent
 assert.ok(appSource.includes('اقدام بعدی:'), 'UX-13: next-action guidance missing');
 assert.ok(appSource.includes('uxRenderFlow‌کار();uxRenderCommandCenter();'), 'UX-13: command center is not wired into home render');
 
+// UX-14 final report contract: Persian presentation + multi-table A4 pagination.
+assert.ok(appSource.includes('function reportFaStatus(v)'), 'UX-14: report status localization helper missing');
+assert.ok(appSource.includes("querySelectorAll(':scope > table.report-table')"), 'UX-14: paginator must process every direct report table');
+assert.ok(appSource.includes('splitTable=(heading,table)=>'), 'UX-14: multi-table row pagination missing');
+assert.ok(appSource.includes('وضعیت آزادسازی'), 'UX-14: production release label not Persianized');
+assert.ok(appSource.includes("['مطالعه','تاریخ','گزینه‌های شدنی'"), 'UX-14: optimizer report headings not Persianized');
+assert.ok(appSource.includes("x.source==='production'?'تولید':x.source==='trial'?'آزمایش طرح'"), 'UX-14: QC source labels not localized');
+assert.ok(appSource.includes('function reportDoc(){const b=reportPagedBuild()'), 'UX-14: export must use the same paged A4 model as preview');
+
+
