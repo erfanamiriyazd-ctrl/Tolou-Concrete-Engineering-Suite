@@ -1,7 +1,7 @@
 'use strict';
 
 const SAMPLE_MARKER = 'Tolou_sample_project_v1';
-const SAMPLE_DATASET_VERSION = 8;
+const SAMPLE_DATASET_VERSION = 9;
 const PROJECT_ID = 'PRJ-DEMO-25-400';
 const SERIES_ID = 'MX-DEMO-25-400';
 const AGG_CASE_ID = 'AGC-DEMO-25-400';
@@ -705,30 +705,34 @@ const durabilityRecord={
 
 const ecoFactors={
   [`MAT:${materialIds.cement}`]:{
-    price:3600,basis:'ton',gwp:.72,
-    priceSource:'QA SAMPLE — illustrative unit price; replace with approved commercial source.',
+    price:36000000,basis:'ton',gwp:.72,
+    priceSource:'USER PROJECT PRICE — Cement Type II = 36,000,000 IRR/ton.',
     gwpSource:'QA SAMPLE — illustrative GWP factor; replace with verified EPD/LCA source.',
-    priceQuality:'illustrative',gwpQuality:'illustrative',currency:'واحد نمونه',validForCommercialUse:false,validForEnvironmentalClaim:false
+    priceQuality:'project-provided',gwpQuality:'illustrative',currency:'IRR',validForCommercialUse:true,validForEnvironmentalClaim:false
   },
   [`MAT:${materialIds.fine}`]:{
-    price:480,basis:'ton',gwp:.005,
-    priceSource:'QA SAMPLE — illustrative',gwpSource:'QA SAMPLE — illustrative',
-    priceQuality:'illustrative',gwpQuality:'illustrative',currency:'واحد نمونه',validForCommercialUse:false,validForEnvironmentalClaim:false
+    price:5291000,basis:'ton',gwp:.005,
+    priceSource:'USER PROJECT PRICE — Fine aggregate = 5,291,000 IRR/ton.',
+    gwpSource:'QA SAMPLE — illustrative',
+    priceQuality:'project-provided',gwpQuality:'illustrative',currency:'IRR',validForCommercialUse:true,validForEnvironmentalClaim:false
   },
   [`MAT:${materialIds.pea}`]:{
-    price:520,basis:'ton',gwp:.006,
-    priceSource:'QA SAMPLE — illustrative',gwpSource:'QA SAMPLE — illustrative',
-    priceQuality:'illustrative',gwpQuality:'illustrative',currency:'واحد نمونه',validForCommercialUse:false,validForEnvironmentalClaim:false
+    price:5030300,basis:'ton',gwp:.006,
+    priceSource:'USER PROJECT PRICE — Pea gravel = 5,030,300 IRR/ton.',
+    gwpSource:'QA SAMPLE — illustrative',
+    priceQuality:'project-provided',gwpQuality:'illustrative',currency:'IRR',validForCommercialUse:true,validForEnvironmentalClaim:false
   },
   [`MAT:${materialIds.almond}`]:{
-    price:560,basis:'ton',gwp:.0065,
-    priceSource:'QA SAMPLE — illustrative',gwpSource:'QA SAMPLE — illustrative',
-    priceQuality:'illustrative',gwpQuality:'illustrative',currency:'واحد نمونه',validForCommercialUse:false,validForEnvironmentalClaim:false
+    price:5030300,basis:'ton',gwp:.0065,
+    priceSource:'USER PROJECT PRICE — Almond gravel = 5,030,300 IRR/ton (same coarse-aggregate price basis supplied for project).',
+    gwpSource:'QA SAMPLE — illustrative',
+    priceQuality:'project-provided',gwpQuality:'illustrative',currency:'IRR',validForCommercialUse:true,validForEnvironmentalClaim:false
   },
   'water:mix':{
-    price:.02,basis:'kg',gwp:.0003,
-    priceSource:'QA SAMPLE — illustrative',gwpSource:'QA SAMPLE — illustrative',
-    priceQuality:'illustrative',gwpQuality:'illustrative',currency:'واحد نمونه',validForCommercialUse:false,validForEnvironmentalClaim:false
+    price:1300,basis:'kg',gwp:.0003,
+    priceSource:'USER PROJECT PRICE — Water = 1,300,000 IRR/m³, converted using 1000 kg/m³ => 1,300 IRR/kg.',
+    gwpSource:'QA SAMPLE — illustrative',
+    priceQuality:'project-provided',gwpQuality:'illustrative',currency:'IRR',validForCommercialUse:true,validForEnvironmentalClaim:false
   }
 };
 function ecoRows(){return [
@@ -753,6 +757,7 @@ erows.forEach(r=>{
     validForCommercialUse:f.validForCommercialUse,validForEnvironmentalClaim:f.validForEnvironmentalClaim
   };
 });
+const pumpingCostPerM3=2400000;
 const massClosure=round(erows.reduce((s,r)=>s+r.mass,0),3);
 const allPriceFactorsPresent=erows.every(r=>Number.isFinite(r.factor.price));
 const allGwpFactorsPresent=erows.every(r=>Number.isFinite(r.factor.gwp));
@@ -780,7 +785,9 @@ const economicsRecord={
     aggregateBlend:[44,37,19],
     materialRevisionPolicy:'All material rows are tied to Material Intelligence revision 1 and QA lot identifiers.'
   },
-  totalCost:round(totalCost,2),
+  materialCost:round(totalCost,2),
+  pumpingCost:round(pumpingCostPerM3,2),
+  totalCost:round(totalCost+pumpingCostPerM3,2),
   totalCarbon:round(totalCarbon,2),
   priceCoverage:allPriceFactorsPresent?100:round(erows.filter(r=>Number.isFinite(r.factor.price)).length/erows.length*100,1),
   gwpCoverage:allGwpFactorsPresent?100:round(erows.filter(r=>Number.isFinite(r.factor.gwp)).length/erows.length*100,1),
@@ -797,26 +804,27 @@ const economicsRecord={
   },
   strength:productionFcStats.mean,
   normalized:{
-    costPerMPa:round(totalCost/productionFcStats.mean,3),
+    materialCostPerMPa:round(totalCost/productionFcStats.mean,3),
+    totalCostPerMPa:round((totalCost+pumpingCostPerM3)/productionFcStats.mean,3),
     carbonPerMPa:round(totalCarbon/productionFcStats.mean,3),
     cementKgPerMPa:round(400/productionFcStats.mean,3)
   },
   dataQuality:{
     computationalCompleteness:(allPriceFactorsPresent&&allGwpFactorsPresent)?'complete':'incomplete',
-    commercialValidity:allCommercialFactorsVerified?'verified':'illustrative-only',
+    commercialValidity:allCommercialFactorsVerified?'project-priced':'incomplete',
     environmentalClaimValidity:allGwpFactorsVerified?'verified':'illustrative-only',
-    warning:'100% factor coverage means every row has a numeric factor; it does not mean the factors are commercially verified or EPD/LCA-verified.'
+    warning:'Price factors are project-provided and usable for current project costing; GWP factors remain illustrative and are not EPD/LCA verified.'
   },
   input:{
     name:'تحلیل اقتصادی/کربن پروژه نمونه 25/400',
     date:'2026-08-11',
-    currency:'واحد نمونه',
+    currency:'IRR',
     scope:'1 m³ بتن — صرفاً QA',
-    overhead:0,transportCost:0,otherCost:0,otherCarbon:0,otherSource:'',
-    notes:'تمام قیمت‌ها و عوامل GWP نمایشی هستند. خروجی برای آزمون اتصال و محاسبه معتبر است، اما برای خرید، قیمت‌گذاری، EPD، LCA یا ادعای محیط‌زیستی معتبر نیست.'
+    overhead:0,transportCost:0,pumpingCost:2400000,otherCost:0,otherCarbon:0,otherSource:'',
+    notes:'قیمت سیمان، ماسه، سنگدانه درشت، آب و پمپاژ از داده پروژه کاربر وارد شده‌اند. عوامل GWP همچنان نمایشی‌اند و برای EPD/LCA یا ادعای محیط‌زیستی معتبر نیستند.'
   },
   rows:erows,
-  disposition:'Calculation path complete; commercial and environmental factors are illustrative-only until replaced by approved price sources and verified EPD/LCA data.',
+  disposition:'Project cost calculation uses user-provided IRR prices and pumping cost. Environmental factors remain illustrative-only until replaced by verified EPD/LCA data.',
   revalidationTriggers:[
     'Material revision or lot change',
     'Approved mix revision change',
