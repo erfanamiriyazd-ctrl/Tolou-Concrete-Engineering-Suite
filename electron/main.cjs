@@ -231,6 +231,163 @@ async function runUiSmoke(win) {
     await capture('A-project-hub-operator');
   }
 
+  async function stageBProjectToQc010() {
+    try {
+      const payload = await win.webContents.executeJavaScript(`
+        (async () => {
+          const sleep = ms => new Promise(r => setTimeout(r, ms));
+
+          const nav = document.querySelector('#nav button[data-view="projects"]');
+          if (!nav) throw new Error('Projects navigation button not found');
+          nav.click();
+          await sleep(200);
+          if (typeof projectLoad === 'function') projectLoad();
+          await sleep(150);
+
+          const items = [...document.querySelectorAll('#prProjectList .pr-project-item')];
+          const target = items.find(x => x.innerText.includes('TL-DEMO-25-400'));
+          if (!target) throw new Error('Sample project card not found');
+          target.click();
+          await sleep(100);
+
+          const activate = document.getElementById('prSetActive');
+          if (!activate || activate.disabled) throw new Error('Activate project button unavailable');
+          activate.click();
+          await sleep(150);
+
+          const openBase = document.getElementById('prOpenBase');
+          if (!openBase || openBase.disabled) throw new Error('Open QC-010 button unavailable');
+          openBase.click();
+
+          const frame = document.getElementById('frame-base');
+          let ready = false;
+          for (let i=0;i<30;i++) {
+            await sleep(100);
+            try {
+              const d = frame?.contentDocument;
+              if (d && d.getElementById('tolouProjectSelect') && d.getElementById('projectName')) {
+                ready = true;
+                break;
+              }
+            } catch(e) {}
+          }
+          if (!ready) throw new Error('QC-010 iframe did not become ready');
+
+          const d = frame.contentDocument;
+          const w = frame.contentWindow;
+          if (typeof w.TolouRefreshProjectLibrary === 'function') {
+            w.TolouRefreshProjectLibrary('init');
+            await sleep(180);
+          }
+
+          const value = id => d.getElementById(id)?.value ?? '';
+          const elementState = id => {
+            const el=d.getElementById(id);
+            return el ? { value:el.value, disabled:!!el.disabled, readOnly:!!el.readOnly, controlled:el.classList.contains('project-controlled') } : null;
+          };
+          const baseView=document.getElementById('view-base');
+          const rect=baseView?.getBoundingClientRect();
+          const visible=!!baseView&&baseView.classList.contains('active')&&rect.width>0&&rect.height>0&&getComputedStyle(baseView).display!=='none';
+
+          const projectSelect=d.getElementById('tolouProjectSelect');
+          const status=d.getElementById('tolouProjectLinkStatus')?.innerText||'';
+
+          return {
+            visible,
+            activeProjectId: typeof projectHub!=='undefined' ? projectHub.activeProjectId : null,
+            projectSelect: projectSelect?.value || '',
+            projectOptions: projectSelect ? [...projectSelect.options].map(o=>({value:o.value,text:o.textContent})) : [],
+            status,
+            linkedProjectId: typeof w.tolouLinkedProjectId!=='undefined' ? w.tolouLinkedProjectId : null,
+            fields:{
+              projectName:elementState('projectName'),
+              structureType:elementState('structureType'),
+              method:elementState('tolouBaseMethod'),
+              standardType:elementState('standardType'),
+              ambientTemp:elementState('ambientTemp'),
+              humidity:elementState('humidity'),
+              transportDist:elementState('transportDist'),
+              transportTime:elementState('transportTime'),
+              targetStrength:elementState('targetStrength'),
+              iranFc:elementState('iran31Fc'),
+              iranSiteGrade:elementState('iran31SiteGrade'),
+              iranFcClass:elementState('iran31FcClass'),
+              slump:elementState('slumpTarget'),
+              maxAggSize:elementState('maxAggSize'),
+              environment:elementState('environment'),
+              airSystem:elementState('airSystem'),
+              targetWc:elementState('targetWc')
+            },
+            methodState:{
+              iran31Status:d.getElementById('iran31Status')?.innerText||'',
+              fcm:d.getElementById('iran31Fcm')?.innerText||'',
+              sd:d.getElementById('iran31SdUsed')?.innerText||''
+            }
+          };
+        })()
+      `, true);
+
+      const f = payload.fields || {};
+      const controlled = ['projectName','structureType','method','standardType','ambientTemp','humidity','transportDist','transportTime','slump','maxAggSize','environment','airSystem']
+        .every(k => f[k] && (f[k].controlled === true) && (f[k].disabled === true || f[k].readOnly === true));
+
+      const checks = {
+        qc010Visible: payload.visible === true,
+        projectStillActive:
+          payload.activeProjectId === 'PRJ-DEMO-25-400',
+        projectRecognizedInsideEngine:
+          payload.projectSelect === 'PRJ-DEMO-25-400' &&
+          payload.projectOptions.some(o=>o.value==='PRJ-DEMO-25-400'&&o.text.includes('TL-DEMO-25-400')) &&
+          payload.status.includes('TL-DEMO-25-400') &&
+          payload.status.includes('منبع واحد پروژه'),
+        linkedIdentity:
+          f.projectName?.value?.includes('مجتمع اداری آفتاب شرق') &&
+          f.structureType?.value === 'building',
+        methodTransferred:
+          f.method?.value === 'iran479' &&
+          f.standardType?.value === 'isiri',
+        requirementsTransferred:
+          Number(f.targetStrength?.value) === 25 &&
+          Number(f.iranFc?.value) === 25 &&
+          Number(f.slump?.value) === 100 &&
+          Number(f.targetWc?.value) === 0.5 &&
+          Number(f.maxAggSize?.value) === 25 &&
+          f.airSystem?.value === 'non-air' &&
+          f.environment?.value === 'normal',
+        iran479ProfileTransferred:
+          f.iranSiteGrade?.value === 'B' &&
+          f.iranFcClass?.value === '25',
+        commonSettingsTransferred:
+          Number(f.ambientTemp?.value) === 25 &&
+          Number(f.humidity?.value) === 55 &&
+          Number(f.transportDist?.value) === 15 &&
+          Number(f.transportTime?.value) === 30,
+        projectControlledFieldsLocked: controlled,
+        stage31RespondedToProject:
+          payload.methodState.fcm.includes('32.53') &&
+          payload.methodState.sd.includes('4.500')
+      };
+
+      const ok = Object.values(checks).every(Boolean);
+      results.push({name:'B-project-to-qc010',ok,checks,payload});
+      if(!ok) failures.push('B-project-to-qc010: '+Object.entries(checks).filter(([,v])=>!v).map(([k])=>k).join(', '));
+
+      await win.webContents.executeJavaScript(`
+        (() => {
+          const frame=document.getElementById('frame-base');
+          frame?.scrollIntoView({block:'start',inline:'nearest'});
+          return true;
+        })()
+      `,true);
+      await new Promise(r=>setTimeout(r,150));
+      await capture('B-project-to-qc010');
+    } catch(error) {
+      results.push({name:'B-project-to-qc010',ok:false,error:error?.stack||error?.message||String(error)});
+      failures.push('B-project-to-qc010: '+(error?.message||String(error)));
+      await capture('B-project-to-qc010-error').catch(()=>{});
+    }
+  }
+
   async function stage2MixLibrary() {
     try {
       const payload = await win.webContents.executeJavaScript(`
@@ -1242,6 +1399,7 @@ async function runUiSmoke(win) {
 
   await new Promise(r => setTimeout(r, 1200));
   if (stage === 'projects') await stage1Projects();
+  else if (stage === 'project-to-qc010') await stageBProjectToQc010();
   else if (stage === 'mix-library') await stage2MixLibrary();
   else if (stage === 'durability') await stage3Durability();
   else if (stage === 'economics') await stage4Economics();
