@@ -180,7 +180,7 @@ async function runUiSmoke(win) {
       }
     `,
     '#repPreview',
-    ['مجتمع اداری آفتاب شرق','2350.251','QC010-001']
+    ['مجتمع اداری آفتاب شرق','2350.251','QC010-001','Stage 6 Final Validation: PASS']
   );
 
   const report = {
