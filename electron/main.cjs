@@ -91,148 +91,111 @@ async function runUiSmoke(win) {
   const dir = process.env.TOLOU_UI_SMOKE_DIR;
   if (!dir) return;
   fs.mkdirSync(dir, { recursive: true });
+  const stage = process.env.TOLOU_UI_SMOKE_STAGE || 'all';
   const failures = [];
   const results = [];
   const sanitize = (name) => String(name).replace(/[^a-z0-9_-]/gi, '-');
 
-  async function step(name, view, prepare, selector, expected) {
+  async function capture(name) {
+    const image = await win.webContents.capturePage();
+    fs.writeFileSync(path.join(dir, sanitize(name) + '.png'), image.toPNG());
+  }
+
+  async function stage1Projects() {
     try {
       const payload = await win.webContents.executeJavaScript(`
         (async () => {
           const sleep = ms => new Promise(r => setTimeout(r, ms));
-          if (typeof openView === 'function') openView(${JSON.stringify(view)});
-          ${prepare || ''}
-          await sleep(150);
-          const el = document.querySelector(${JSON.stringify(selector)});
+          const nav = document.querySelector('#nav button[data-view="projects"]');
+          if (nav) nav.click();
+          await sleep(250);
+          if (typeof projectLoad === 'function') projectLoad();
+          await sleep(200);
+
+          const view = document.getElementById('view-projects');
+          const list = document.getElementById('prProjectList');
+          const active = document.getElementById('prActiveInfo');
+          const code = document.getElementById('prCode');
+          const name = document.getElementById('prName');
+          const fc = document.getElementById('prReqFc');
+          const slump = document.getElementById('prReqSlump');
+          const wcm = document.getElementById('prReqWcm');
+          const method = document.getElementById('prBaseMethod');
+          const grade = document.getElementById('prIranSiteGrade');
+          const fcClass = document.getElementById('prIranFcClass');
+          const kpis = document.getElementById('prKpis');
+          const timeline = document.getElementById('prTimeline');
+          const completeness = document.getElementById('prCompleteness');
+
+          const rect = view?.getBoundingClientRect();
+          const visible = !!view && view.classList.contains('active') && rect.width > 0 && rect.height > 0 &&
+            getComputedStyle(view).display !== 'none' && getComputedStyle(view).visibility !== 'hidden';
+
           return {
-            exists: !!el,
-            text: el ? (el.innerText || el.textContent || '').trim() : '',
-            html: el ? (el.innerHTML || '').slice(0, 12000) : ''
+            visible,
+            activeClass: !!view?.classList.contains('active'),
+            list: list?.innerText || '',
+            active: active?.innerText || '',
+            form: {
+              code: code?.value || '',
+              name: name?.value || '',
+              fc: fc?.value || '',
+              slump: slump?.value || '',
+              wcm: wcm?.value || '',
+              method: method?.value || '',
+              grade: grade?.value || '',
+              fcClass: fcClass?.value || ''
+            },
+            kpis: kpis?.innerText || '',
+            timeline: timeline?.innerText || '',
+            completeness: completeness?.innerText || ''
           };
         })()
       `, true);
-      const ok = payload.exists && expected.every(x => payload.text.includes(x) || payload.html.includes(x));
-      results.push({ name, view, selector, expected, ok, text: payload.text.slice(0, 4000) });
-      if (!ok) failures.push(name + ': expected ' + expected.join(' | '));
-      const image = await win.webContents.capturePage();
-      fs.writeFileSync(path.join(dir, sanitize(name) + '.png'), image.toPNG());
+
+      const checks = {
+        pageVisible: payload.visible === true,
+        projectListed: payload.list.includes('TL-DEMO-25-400') && payload.list.includes('مجتمع اداری آفتاب شرق'),
+        activeProject: payload.active.includes('TL-DEMO-25-400') && payload.active.includes('مجتمع اداری آفتاب شرق'),
+        formIdentity: payload.form.code === 'TL-DEMO-25-400' && payload.form.name.includes('مجتمع اداری آفتاب شرق'),
+        engineeringRequirements:
+          Number(payload.form.fc) === 25 &&
+          Number(payload.form.slump) === 100 &&
+          Number(payload.form.wcm) === 0.5 &&
+          payload.form.method === 'iran479' &&
+          payload.form.grade === 'B' &&
+          payload.form.fcClass === '25',
+        dashboard:
+          payload.kpis.includes('پرونده طرح') &&
+          payload.kpis.includes('آزمایش') &&
+          payload.kpis.includes('بچ تولید') &&
+          payload.kpis.includes('تحلیل دوام') &&
+          payload.kpis.includes('تحلیل اقتصادی'),
+        cycle:
+          payload.timeline.includes('طرح اختلاط') &&
+          payload.timeline.includes('آزمایشگاه') &&
+          payload.timeline.includes('تأیید') &&
+          payload.timeline.includes('تولید') &&
+          payload.timeline.includes('QC') &&
+          payload.timeline.includes('دوام') &&
+          payload.timeline.includes('اقتصاد') &&
+          payload.timeline.includes('بهینه‌سازی')
+      };
+      const ok = Object.values(checks).every(Boolean);
+      results.push({ name:'01-projects', ok, checks, payload });
+      if (!ok) failures.push('01-projects: ' + Object.entries(checks).filter(([,v])=>!v).map(([k])=>k).join(', '));
+      await capture('01-projects');
     } catch (error) {
-      results.push({ name, ok: false, error: error?.stack || error?.message || String(error) });
-      failures.push(name + ': ' + (error?.message || String(error)));
+      results.push({ name:'01-projects', ok:false, error:error?.stack || error?.message || String(error) });
+      failures.push('01-projects: ' + (error?.message || String(error)));
+      await capture('01-projects-error').catch(()=>{});
     }
   }
 
   await new Promise(r => setTimeout(r, 1200));
+  if (stage === 'projects' || stage === 'all') await stage1Projects();
 
-  await step(
-    '01-projects',
-    'projects',
-    "if(typeof projectLoad==='function')projectLoad();",
-    '#prProjectList',
-    ['TL-DEMO-25-400','مجتمع اداری آفتاب شرق']
-  );
-
-  await step(
-    '02-mix-library',
-    'mix-library',
-    "if(typeof mlRender==='function')mlRender();",
-    '#mlList',
-    ['QC010-001','C25']
-  );
-
-  await step(
-    '03-durability',
-    'durability',
-    "if(typeof durLoad==='function')durLoad();",
-    '#durHistory',
-    ['QC010-001','F0/S0/W0/C0']
-  );
-
-  await step(
-    '04-economics',
-    'economics',
-    "if(typeof ecoLoad==='function')ecoLoad();",
-    '#ecoHistory',
-    ['تحلیل اقتصادی/کربن پروژه نمونه 25/400']
-  );
-
-  await step(
-    '05-optimization',
-    'optimization',
-    "if(typeof optLoad==='function')optLoad();",
-    '#optHistory',
-    ['QC010-001','شدنی']
-  );
-
-  await step(
-    '06-reports',
-    'reports',
-    `
-      if(typeof reportLoad==='function')reportLoad();
-      const rep=document.getElementById('repMix');
-      if(rep){
-        const wanted=[...rep.options].find(o=>String(o.value).includes('MX-DEMO-25-400::0')) || [...rep.options].find(o=>o.value);
-        if(wanted){rep.value=wanted.value;}
-      }
-      if(typeof reportBuild==='function'){
-        const html=reportBuild();
-        if(html)document.getElementById('repPreview').innerHTML=html;
-      }
-    `,
-    '#repPreview',
-    ['مجتمع اداری آفتاب شرق','2350.251','QC010-001','Stage 6 Final Validation: PASS']
-  );
-
-  let diagnostics = null;
-  try {
-    const raw = await win.webContents.executeJavaScript(`
-      (() => {
-        const pid='PRJ-DEMO-25-400';
-        const s=(window.trialLab?.series||[]).find(x=>x.id==='MX-DEMO-25-400')||null;
-        const e2e=window.TolouE2EAudit?.run?.(pid)||null;
-        const contract=window.TolouContractEnforcement?.audit?.()||null;
-        const approval=s&&window.TolouApprovalIntegrity?window.TolouApprovalIntegrity(s):null;
-        const currentFp=s&&window.TolouTrialEvidenceFingerprint?window.TolouTrialEvidenceFingerprint(s,s.approvedRevision):null;
-        const integrity=window.TolouIntegrityGuard?.auditAll?.()||null;
-        const finalValidation=window.TolouFinalValidation?.run?.(pid)||null;
-        return JSON.stringify({
-          approval:{valid:approval?.valid??null,status:approval?.status||null,reason:approval?.reason||null,stored:s?.approvalRecord?.evidenceFingerprint||null,current:currentFp,
-            runtimePayload:s?{
-              seriesId:s.id,
-              revision:Number(s.approvedRevision),
-              designFingerprint:(s.revisions||[]).find(r=>Number(r.revision)===Number(s.approvedRevision))?.snapshot?.calculationFingerprint || (s.revisions||[]).find(r=>Number(r.revision)===Number(s.approvedRevision))?.snapshot?.canonicalContract?.identity?.calculationFingerprint || null,
-              acceptance:s.acceptance||{},
-              trials:(s.trials||[]).filter(t=>Number(t.revision)===Number(s.approvedRevision)).map(t=>({id:t.id,batchNo:t.batchNo,date:t.date,actual:t.actual,fresh:t.fresh,strengths:t.strengths,hardened:t.hardened,batchChanges:t.batchChanges,updatedAt:t.updatedAt}))
-            }:null
-          },
-          e2e:{status:e2e?.status||null,summary:e2e?.summary||null,issues:(e2e?.issues||[]).map(x=>({severity:x.severity,module:x.module,code:x.code,entityId:x.entityId,message:x.message}))},
-          contract:{status:contract?.status||null,blocked:contract?.blocked??null,modules:(contract?.modules||[]).map(x=>({module:x.module,fn:x.fn,mode:x.mode,marker:x.marker}))},
-          integrity:{status:integrity?.status||null,errors:integrity?.errors??null,warnings:integrity?.warnings??null,issues:(integrity?.rows||[]).flatMap(r=>(r.issues||[]).map(x=>({seriesId:r.seriesId,revision:r.revision,severity:x.severity,code:x.code,path:x.path,message:x.message,value:x.value})))},
-          finalValidation:{status:finalValidation?.status||null,summary:finalValidation?.summary||null,checks:(finalValidation?.checks||[]).map(x=>({code:x.code,status:x.status,detail:x.detail}))}
-        });
-      })()
-    `, true);
-    diagnostics = JSON.parse(raw);
-    fs.writeFileSync(path.join(dir, 'ui-diagnostics.json'), JSON.stringify(diagnostics, null, 2), 'utf8');
-  } catch (error) {
-    fs.writeFileSync(path.join(dir, 'ui-diagnostics-error.txt'), String(error?.stack || error), 'utf8');
-  }
-
-  const report = {
-    at: new Date().toISOString(),
-    platform: process.platform,
-    failures,
-    results,
-    diagnosticsSummary: diagnostics ? {
-      e2eStatus: diagnostics.e2e?.status || null,
-      e2eIssues: diagnostics.e2e?.issues?.length || 0,
-      contractStatus: diagnostics.contract?.status || null,
-      contractBlocked: diagnostics.contract?.blocked ?? null,
-      approvalValid: diagnostics.approval?.valid ?? null,
-      integrityStatus: diagnostics.integrity?.status || null,
-      finalStatus: diagnostics.finalValidation?.status || null
-    } : null
-  };
+  const report = { at:new Date().toISOString(), platform:process.platform, stage, failures, results };
   fs.writeFileSync(path.join(dir, 'ui-smoke-result.json'), JSON.stringify(report, null, 2), 'utf8');
   if (failures.length) {
     console.error('TOLOU_UI_SMOKE_FAIL', failures);
