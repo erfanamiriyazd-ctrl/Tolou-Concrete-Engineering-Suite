@@ -139,3 +139,18 @@ Mix Series ID: `MX-DEMO-25-400`
 - Overall durability disposition is acceptable-with-open-items for the defined QA scenario because there are no blocking failures, while chloride compliance remains open pending a numeric project/standard limit.
 - Revalidation triggers are stored for material revisions, aggregate blend, cement type/content, w/cm, exposure classification, chloride limit and QC-status changes.
 - Sample dataset version incremented to 7.
+
+
+## Stage 9 — Cost & Sustainability — COMPLETE
+- Cost and carbon calculations are tied to the exact approved R0 design, its design/evidence fingerprints, Stage-7 production QC disposition and Stage-8 durability disposition.
+- The 1 m³ basis uses the approved R0 constituent masses: Type II cement 400 kg/m³, effective water 190 kg/m³ and the Stage-3 SSD aggregate masses/blend 44/37/19.
+- Every cost/carbon row is linked to its Material Intelligence ID, code, revision and QA lot identifier.
+- Performance normalization now uses Stage-7 production 28-day mean strength = 33.18 MPa rather than the laboratory Trial mean.
+- The module stores cost/MPa, carbon/MPa and cement kg/MPa as engineering comparison indicators.
+- Numeric price and GWP factors have 100% computational coverage, but all factors are explicitly marked illustrative-only.
+- Verified commercial coverage = 0% because no approved quotation/price source is attached.
+- Verified environmental-claim coverage = 0% because no verified EPD/LCA source is attached.
+- The record explicitly warns that factor completeness is not equivalent to commercial or environmental verification.
+- Outputs are valid for QA calculation-path testing only and must not be used for procurement, pricing, EPD/LCA declarations or environmental claims until the illustrative factors are replaced with approved sources.
+- Revalidation triggers include material revision/lot changes, mix revision changes, price/currency updates, GWP/EPD/LCA updates and production-QC performance changes.
+- Sample dataset version incremented to 8.
