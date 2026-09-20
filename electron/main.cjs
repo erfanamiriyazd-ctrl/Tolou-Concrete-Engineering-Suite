@@ -508,12 +508,136 @@ async function runUiSmoke(win) {
     }
   }
 
+
+  async function stage5Optimization() {
+    try {
+      const payload = await win.webContents.executeJavaScript(`
+        (async () => {
+          const sleep = ms => new Promise(r => setTimeout(r, ms));
+          const nav = document.querySelector('#nav button[data-view="optimization"]');
+          if (nav) nav.click();
+          await sleep(250);
+          if (typeof optLoad === 'function') optLoad();
+          if (typeof optRefreshMixOptions === 'function') optRefreshMixOptions(true);
+          await sleep(200);
+
+          const view = document.getElementById('view-optimization');
+          const rect = view?.getBoundingClientRect();
+          const visible = !!view && view.classList.contains('active') && rect.width > 0 && rect.height > 0 &&
+            getComputedStyle(view).display !== 'none' && getComputedStyle(view).visibility !== 'hidden';
+
+          const mix = document.getElementById('optMix');
+          const history = document.getElementById('optHistory');
+          const summary = document.getElementById('optSummary');
+          const table = document.getElementById('optTable');
+          const kpis = document.getElementById('optKpis');
+          const calibration = document.getElementById('optCalibration');
+          const options = mix ? [...mix.options].map(o => ({value:o.value,text:o.textContent})) : [];
+
+          const study = typeof optState !== 'undefined'
+            ? (optState.studies || []).find(r => r.id === 'OPT-DEMO-001')
+            : null;
+
+          return {
+            visible,
+            options,
+            currentValue: mix?.value || '',
+            history: history?.innerText || '',
+            summary: summary?.innerText || '',
+            table: table?.innerText || '',
+            kpis: kpis?.innerText || '',
+            calibration: calibration?.innerText || '',
+            study: study ? {
+              id: study.id,
+              projectId: study.projectId,
+              seriesId: study.seriesId,
+              revision: study.revision,
+              sourceMixKey: study.sourceMixKey,
+              constraints: study.constraints,
+              calibration: study.calibration,
+              objectives: study.objectives,
+              candidates: study.candidates,
+              feasibleCount: study.feasibleCount,
+              paretoCount: study.paretoCount,
+              selectedCandidateId: study.selectedCandidateId,
+              designFingerprint: study.designFingerprint,
+              evidenceFingerprint: study.evidenceFingerprint,
+              dataQuality: study.dataQuality
+            } : null
+          };
+        })()
+      `, true);
+
+      const hasMixOption = payload.options.some(o =>
+        o.value.includes('MX-DEMO-25-400') &&
+        o.text.includes('QC010-001') &&
+        o.text.includes('R0')
+      );
+
+      const cands = payload.study?.candidates || [];
+      const wcmValues = cands.map(x=>Number(x.wcm));
+      const checks = {
+        pageVisible: payload.visible === true,
+        mixRecognized: hasMixOption,
+        studyIdentity:
+          payload.study?.id === 'OPT-DEMO-001' &&
+          payload.study?.projectId === 'PRJ-DEMO-25-400' &&
+          payload.study?.seriesId === 'MX-DEMO-25-400' &&
+          Number(payload.study?.revision) === 0,
+        constraints:
+          Number(payload.study?.constraints?.cementFixed) === 400 &&
+          payload.study?.constraints?.cementVariationAllowed === false &&
+          Number(payload.study?.constraints?.maxWcm) === 0.5 &&
+          Number(payload.study?.constraints?.waterMin) === 175 &&
+          Number(payload.study?.constraints?.waterMax) === 205,
+        calibration:
+          payload.study?.calibration?.valid === true &&
+          Number(payload.study?.calibration?.n) === 5 &&
+          Math.abs(Number(payload.study?.calibration?.wMin)-0.46) < 1e-9 &&
+          Math.abs(Number(payload.study?.calibration?.wMax)-0.49) < 1e-9 &&
+          Number(payload.study?.calibration?.r2) >= 0.8,
+        candidates:
+          cands.length === 7 &&
+          wcmValues.every(v => v >= 0.46-1e-9 && v <= 0.49+1e-9) &&
+          cands.every(x => Number(x.cement) === 400),
+        feasibility:
+          Number(payload.study?.feasibleCount) >= 1 &&
+          cands.some(x => x.feasible === true),
+        pareto:
+          Number(payload.study?.paretoCount) >= 1 &&
+          cands.some(x => x.pareto === true),
+        noAutoSelection:
+          payload.study?.selectedCandidateId == null ||
+          payload.study?.selectedCandidateId === '',
+        objectives:
+          Array.isArray(payload.study?.objectives) &&
+          payload.study.objectives.some(o=>o.id==='cost') &&
+          payload.study.objectives.some(o=>o.id==='carbon'),
+        historyVisible:
+          payload.history.includes('QC010-001') || payload.history.includes('OPT-DEMO-001'),
+        traceability:
+          !!payload.study?.designFingerprint &&
+          !!payload.study?.evidenceFingerprint
+      };
+
+      const ok = Object.values(checks).every(Boolean);
+      results.push({ name:'05-optimization', ok, checks, payload });
+      if (!ok) failures.push('05-optimization: ' + Object.entries(checks).filter(([,v])=>!v).map(([k])=>k).join(', '));
+      await capture('05-optimization');
+    } catch (error) {
+      results.push({ name:'05-optimization', ok:false, error:error?.stack || error?.message || String(error) });
+      failures.push('05-optimization: ' + (error?.message || String(error)));
+      await capture('05-optimization-error').catch(()=>{});
+    }
+  }
+
   await new Promise(r => setTimeout(r, 1200));
   if (stage === 'projects') await stage1Projects();
   else if (stage === 'mix-library') await stage2MixLibrary();
   else if (stage === 'durability') await stage3Durability();
   else if (stage === 'economics') await stage4Economics();
-  else if (stage === 'all') { await stage1Projects(); await stage2MixLibrary(); await stage3Durability(); await stage4Economics(); }
+  else if (stage === 'optimization') await stage5Optimization();
+  else if (stage === 'all') { await stage1Projects(); await stage2MixLibrary(); await stage3Durability(); await stage4Economics(); await stage5Optimization(); }
 
   const report = { at:new Date().toISOString(), platform:process.platform, stage, failures, results };
   fs.writeFileSync(path.join(dir, 'ui-smoke-result.json'), JSON.stringify(report, null, 2), 'utf8');
