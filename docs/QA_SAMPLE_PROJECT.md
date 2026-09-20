@@ -210,3 +210,20 @@ Commercial totals:
 - Delivered incl. VAT + pumping: 50,360,000 IRR/m³.
 - Pumping remains a separate project-provided 2,400,000 IRR/m³ line item; no pumping VAT is assumed because none was provided.
 - Sample dataset version = 11.
+
+
+## Stage 10 — Optimization — COMPLETE
+- The optimizer was rebuilt because the previous implementation used stale illustrative prices and held aggregate masses fixed while varying cement/water.
+- Optimization is now restricted to the validated calibration domain supported by Stage-4 trials: cement fixed at 400 kg/m³ and w/cm from 0.460 to 0.490.
+- Independent cement-content optimization is explicitly disabled because the trial evidence does not validate cement-content variation.
+- Candidate w/cm values = 0.460 / 0.465 / 0.470 / 0.475 / 0.480 / 0.485 / 0.490.
+- For every candidate, aggregate SSD masses are recalculated from the absolute-volume remainder while preserving the 44/37/19 mass split and the same aggregate specific gravities.
+- Strength prediction uses the calibrated relationship fc28 = a + b*(1/w/cm), based on the five Stage-4 trial points.
+- Feasibility gates include calibration-domain membership, required mean strength fcm = 32.53 MPa, max w/cm = 0.500, water range 175–205 kg/m³ and positive absolute-volume closure.
+- Cost calculations now use the project-provided IRR prices plus the current reconciled operating-cost model.
+- Optimization cost objective is ex-plant cost and is project-grounded.
+- Carbon remains an exploratory objective only because GWP factors are not EPD/LCA verified.
+- The optimizer stores the R0 baseline candidate at w/cm = 0.475 for direct comparison.
+- No candidate is auto-selected; engineering review is mandatory.
+- Revalidation triggers cover trial calibration, mix revision, QC, durability, prices/operating cost and GWP/EPD changes.
+- Sample dataset version incremented to 12.
