@@ -1,7 +1,7 @@
 'use strict';
 
 const SAMPLE_MARKER = 'Tolou_sample_project_v1';
-const SAMPLE_DATASET_VERSION = 4;
+const SAMPLE_DATASET_VERSION = 5;
 const PROJECT_ID = 'PRJ-DEMO-25-400';
 const SERIES_ID = 'MX-DEMO-25-400';
 const AGG_CASE_ID = 'AGC-DEMO-25-400';
@@ -420,19 +420,77 @@ mixSeries.approvalRecord={
 function makeProductionBatch(i,date,ticket,moistures,deviations,waterDev,slump,air,temp,strength28){
   const volume=7, ingredients=[]; let freeTarget=0,freeActual=0,totalActual=0,cemActual=0;
   const cementTarget=400*volume, cementActual=cementTarget*(1+deviations[0]/100); cemActual=cementActual; totalActual+=cementActual;
-  ingredients.push({key:'cement',name:'سیمان',group:'مواد سیمانی',perM3:400,moisture:0,absorption:0,targetAdjusted:cementTarget,actual:round(cementActual,2),deviation:deviations[0],tolerance:1});
-  snapshotAggregates.forEach((a,j)=>{const M=moistures[j]/100,A=a.absorption/100,od=a.ssd/(1+A),wet=od*(1+M),target=wet*volume,actual=target*(1+deviations[j+1]/100),odAct=actual/(1+M),ssdAct=odAct*(1+A);freeTarget+=(wet-a.ssd)*volume;freeActual+=actual-ssdAct;totalActual+=actual;ingredients.push({key:'agg'+j,name:a.name,group:'سنگدانه',perM3:a.ssd,moisture:moistures[j],absorption:a.absorption,targetAdjusted:round(target,2),actual:round(actual,2),deviation:deviations[j+1],tolerance:2});});
-  const waterTarget=effectiveWater*volume-freeTarget, waterActual=waterTarget*(1+waterDev/100);totalActual+=waterActual;const effectiveActual=waterActual+freeActual, actualWcm=effectiveActual/cemActual;const desiredYield=[1.001,0.999,1.002,1.000,1.003,0.998][i-1]||1;const density=totalActual/(volume*desiredYield),yieldVolume=totalActual/density,relativeYield=yieldVolume/volume;
-  return {id:`PB-DEMO-${String(i).padStart(2,'0')}`,createdAt:`${date}T14:00:00+03:30`,projectId:PROJECT_ID,seriesId:SERIES_ID,seriesCode:'QC010-001',mixName:mixSeries.name,engine:'QC-010',revision:0,snapshotVersion:mixSnapshot.engineVersion,date,time:`0${7+i}:30`.slice(-5),ticket,volume,plant:'بچینگ مرکزی طلوع — کارخانه نمونه (فرضی)',line:'خط ۱',truck:`TM-${String(20+i).padStart(2,'0')}`,driver:`راننده ${i} (فرضی)`,operator:'اپراتور بچینگ — ع. مرادی (فرضی)',project:'TL-DEMO-25-400 — مجتمع اداری آفتاب شرق',notes:'بچ نمونه QA؛ مقادیر واقعی توزین با انحراف کوچک و در محدوده کنترل داخلی ثبت شده‌اند.',density:round(density,1),slump,air,temperature:temp,returned:0,returnedAction:'none',tolerances:{cementitious:1,aggregate:2,water:1,admixture:2},ingredients,water:{target:round(waterTarget,2),actual:round(waterActual,2),deviation:waterDev,tolerance:1,freeTarget:round(freeTarget,2),freeActual:round(freeActual,2),effectiveActual:round(effectiveActual,2)},actualCementitious:round(cemActual,2),actualWcm:round(actualWcm,4),totalActualMass:round(totalActual,2),yieldVolume:round(yieldVolume,4),relativeYield:round(relativeYield,4),status:'ok',violations:[],qaStrength28:strength28};
+  const approvalRef={seriesId:SERIES_ID,revision:0,decision:mixSeries.approvalRecord.decision,designFingerprint:mixSeries.approvalRecord.designFingerprint,evidenceFingerprint:mixSeries.approvalRecord.evidenceFingerprint};
+  ingredients.push({key:'cement',materialId:materialIds.cement,materialRevision:1,lot:'CII-260518-A',name:'سیمان پرتلند تیپ II',group:'مواد سیمانی',perM3:400,moisture:0,absorption:0,targetAdjusted:round(cementTarget,2),actual:round(cementActual,2),deviation:deviations[0],tolerance:1,withinTolerance:Math.abs(deviations[0])<=1});
+  snapshotAggregates.forEach((a,j)=>{
+    const M=moistures[j]/100,A=a.absorption/100,od=a.ssd/(1+A),wet=od*(1+M),target=wet*volume,actual=target*(1+deviations[j+1]/100),odAct=actual/(1+M),ssdAct=odAct*(1+A);
+    const freeT=(wet-a.ssd)*volume, freeA=actual-ssdAct; freeTarget+=freeT;freeActual+=freeA;totalActual+=actual;
+    ingredients.push({
+      key:'agg'+j,materialId:a.materialId,materialRevision:1,lot:['FA-260520','CA7-260520','CA5-260520'][j],
+      name:a.name,group:'سنگدانه',perM3:a.ssd,ssdPerM3:round(a.ssd,3),moisture:moistures[j],absorption:a.absorption,
+      targetAdjusted:round(target,2),actual:round(actual,2),deviation:deviations[j+1],tolerance:2,withinTolerance:Math.abs(deviations[j+1])<=2,
+      targetFreeWater:round(freeT,2),actualFreeWater:round(freeA,2)
+    });
+  });
+  const waterTarget=effectiveWater*volume-freeTarget;
+  const waterActual=waterTarget*(1+waterDev/100);
+  totalActual+=waterActual;
+  const effectiveActual=waterActual+freeActual;
+  const actualWcm=effectiveActual/cemActual;
+  const desiredYield=[1.001,0.999,1.002,1.000,1.003,0.998][i-1]||1;
+  const density=totalActual/(volume*desiredYield),yieldVolume=totalActual/density,relativeYield=yieldVolume/volume;
+  const weighingPass=ingredients.every(x=>x.withinTolerance)&&Math.abs(waterDev)<=1;
+  const wcmPass=actualWcm<=.50;
+  const slumpPass=Math.abs(slump-100)<=20;
+  const airPass=Math.abs(air-2)<=1;
+  const yieldPass=relativeYield>=.98&&relativeYield<=1.02;
+  const approvalPass=approvalRef.decision==='approved'&&approvalRef.designFingerprint===mixSnapshot.calculationFingerprint;
+  const productionReady=weighingPass&&wcmPass&&slumpPass&&airPass&&yieldPass&&approvalPass;
+  const violations=[];
+  if(!weighingPass)violations.push('WEIGHING_TOLERANCE');
+  if(!wcmPass)violations.push('WCM_LIMIT');
+  if(!slumpPass)violations.push('SLUMP_RANGE');
+  if(!airPass)violations.push('AIR_RANGE');
+  if(!yieldPass)violations.push('YIELD_RANGE');
+  if(!approvalPass)violations.push('APPROVAL_INTEGRITY');
+  return {
+    id:`PB-DEMO-${String(i).padStart(2,'0')}`,createdAt:`${date}T14:00:00+03:30`,projectId:PROJECT_ID,seriesId:SERIES_ID,seriesCode:'QC010-001',mixName:mixSeries.name,engine:'QC-010',revision:0,
+    approvalRef,snapshotVersion:mixSnapshot.engineVersion,designFingerprint:mixSnapshot.calculationFingerprint,
+    date,time:`0${7+i}:30`.slice(-5),ticket,volume,plant:'بچینگ مرکزی طلوع — کارخانه نمونه (فرضی)',line:'خط ۱',truck:`TM-${String(20+i).padStart(2,'0')}`,
+    driver:`راننده ${i} (فرضی)`,operator:'اپراتور بچینگ — ع. مرادی (فرضی)',qcInspector:'کارشناس QC — م. کریمی (فرضی)',
+    project:'TL-DEMO-25-400 — مجتمع اداری آفتاب شرق',
+    materialLots:{cement:'CII-260518-A',fine:'FA-260520',pea:'CA7-260520',almond:'CA5-260520',water:'W-2605'},
+    notes:'بچ تولید نمونه QA بر پایه R0 تأییدشده؛ رطوبت روز تولید اندازه‌گیری و آب بچ بر مبنای آب آزاد سنگدانه اصلاح شده است.',
+    density:round(density,1),slump,air,temperature:temp,returned:0,returnedAction:'none',
+    tolerances:{cementitious:1,aggregate:2,water:1,admixture:2,yield:{min:.98,max:1.02},maxWcm:.50},
+    moistureControl:{readingsPct:moistures,aggregateFreeWaterTargetKg:round(freeTarget,2),aggregateFreeWaterActualKg:round(freeActual,2)},
+    ingredients,
+    water:{target:round(waterTarget,2),actual:round(waterActual,2),deviation:waterDev,tolerance:1,withinTolerance:Math.abs(waterDev)<=1,freeTarget:round(freeTarget,2),freeActual:round(freeActual,2),effectiveActual:round(effectiveActual,2)},
+    actualCementitious:round(cemActual,2),actualWcm:round(actualWcm,4),totalActualMass:round(totalActual,2),yieldVolume:round(yieldVolume,4),relativeYield:round(relativeYield,4),
+    control:{approvalPass,weighingPass,wcmPass,slumpPass,airPass,yieldPass,productionReady},
+    status:productionReady?'ok':'review',violations,qaStrength28:strength28,
+    disposition:productionReady?'Released as controlled production batch under approved R0.':'Hold for QC review before release.'
+  };
 }
 const productionBatches=[
-  makeProductionBatch(1,'2026-07-01','B-260701-01',[3.4,1.5,1.1],[.10,.20,-.15,.10],.20,95,2.0,27,30.4),
-  makeProductionBatch(2,'2026-07-08','B-260708-01',[3.6,1.4,1.2],[-.05,.10,.25,-.20],-.10,100,1.9,28,31.1),
-  makeProductionBatch(3,'2026-07-15','B-260715-01',[3.5,1.6,1.3],[.20,-.10,.15,.05],.15,105,2.1,29,30.8),
-  makeProductionBatch(4,'2026-07-22','B-260722-01',[3.7,1.5,1.2],[.00,.30,-.20,.10],-.20,100,2.0,30,31.5),
-  makeProductionBatch(5,'2026-07-29','B-260729-01',[3.8,1.7,1.1],[-.10,-.15,.20,-.05],.05,110,2.2,31,29.9),
-  makeProductionBatch(6,'2026-08-05','B-260805-01',[3.4,1.6,1.2],[.15,.05,-.10,.20],.10,95,1.8,30,30.6)
+  makeProductionBatch(1,'2026-07-01','B-260701-01',[3.4,1.5,1.1],[.10,.20,-.15,.10],.20,95,2.0,27,33.1),
+  makeProductionBatch(2,'2026-07-08','B-260708-01',[3.6,1.4,1.2],[-.05,.10,.25,-.20],-.10,100,1.9,28,33.6),
+  makeProductionBatch(3,'2026-07-15','B-260715-01',[3.5,1.6,1.3],[.20,-.10,.15,.05],.15,105,2.1,29,32.9),
+  makeProductionBatch(4,'2026-07-22','B-260722-01',[3.7,1.5,1.2],[.00,.30,-.20,.10],-.20,100,2.0,30,33.8),
+  makeProductionBatch(5,'2026-07-29','B-260729-01',[3.8,1.7,1.1],[-.10,-.15,.20,-.05],.05,110,2.2,31,32.4),
+  makeProductionBatch(6,'2026-08-05','B-260805-01',[3.4,1.6,1.2],[.15,.05,-.10,.20],.10,95,1.8,30,33.3)
 ];
+const productionStats={
+  count:productionBatches.length,
+  totalVolumeM3:productionBatches.reduce((s,b)=>s+b.volume,0),
+  meanWcm:round(productionBatches.reduce((s,b)=>s+b.actualWcm,0)/productionBatches.length,4),
+  maxWcm:round(Math.max(...productionBatches.map(b=>b.actualWcm)),4),
+  meanRelativeYield:round(productionBatches.reduce((s,b)=>s+b.relativeYield,0)/productionBatches.length,4),
+  meanSlump:round(productionBatches.reduce((s,b)=>s+b.slump,0)/productionBatches.length,1),
+  meanAir:round(productionBatches.reduce((s,b)=>s+b.air,0)/productionBatches.length,2),
+  meanFc28:round(productionBatches.reduce((s,b)=>s+b.qaStrength28,0)/productionBatches.length,2),
+  allReleased:productionBatches.every(b=>b.control.productionReady)
+};
 
 function addDays(iso,n){ const d=new Date(iso+'T12:00:00Z');d.setUTCDate(d.getUTCDate()+n);return d.toISOString().slice(0,10); }
 const qcTests=[];
