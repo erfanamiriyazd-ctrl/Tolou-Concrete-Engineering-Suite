@@ -1,0 +1,2 @@
+QA Actions trigger for E/F Trial Lab + Approval audit.
+No product logic or acceptance criteria are changed by this file.
