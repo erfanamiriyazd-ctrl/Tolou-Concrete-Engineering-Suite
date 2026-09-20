@@ -1,6 +1,7 @@
 'use strict';
 
 const SAMPLE_MARKER = 'Tolou_sample_project_v1';
+const SAMPLE_DATASET_VERSION = 3;
 const PROJECT_ID = 'PRJ-DEMO-25-400';
 const SERIES_ID = 'MX-DEMO-25-400';
 const AGG_CASE_ID = 'AGC-DEMO-25-400';
@@ -115,13 +116,165 @@ const snapshotAggregates=aggregateSources.map((s,i)=>({
 
 const projectContext={id:PROJECT_ID,code:'TL-DEMO-25-400',name:'مجتمع اداری آفتاب شرق — فاز ۱ (پروژه نمونه)',designScope:'base',structureType:'building',commonSettings:{ambientTemp:25,humidity:55,transportDist:15,transportTime:30},requirements:{fc:25,slump:100,maxWcm:.50,standard:'نشریه ض-479، چاپ دوم 1388 + INSO 302:1399 (سنگدانه)',exposure:'شرایط معمول داخلی / غیرمهاجم — سناریوی QA'},baseSettings:{methodId:'iran479',standardType:'isiri',slump:100,maxAggSize:25,environment:'normal',airSystem:'non-air',iranSiteGrade:'B',iranFcClass:'25'},specialSettings:{concreteType:'scc',standardType:'aci',targetWc:null},capturedAt:'2026-05-24T11:00:00+03:30'};
 
-const stage31={profileId:'IR_NMD_479_1388',ruleId:'IR479_3_1_STRENGTH',fc:25,sdUsed:4.5,fcm1:32.53,fcm2:31.485,fcm:32.53,workshopRank:'B',warnings:[],completeness:{complete:true,issues:[]},ruleTrace:[{id:'IR479_3_1_FCM',reference:'نشریه ض-479 — Stage 3.1'}]};
-const stage32={profileId:'IR_NMD_479_1388',ruleId:'IR479_3_2_WORKABILITY',slump:{value:100,class:'متوسط'},particleShape:'mixed-average',surfaceTexture:'mixed-average',warnings:[],completeness:{complete:true,issues:[]},ruleTrace:[{id:'IR479_3_2_SLUMP',reference:'نشریه ض-479 — Stage 3.2'}]};
-const stage33={profileId:'IR_NMD_479_1388',ruleId:'IR479_4_2_GRADING',dmax:25,curve:'B',fm:aggregateResult.metrics.nationalFm,blendBasis:'volume',massFractions:massWeights,volumeFractions:volumeFractions.map(v=>round(v,8)),aggregateBlendId:AGG_CASE_ID,warnings:[],completeness:{complete:true,issues:[]},ruleTrace:[{id:'IR479_4_2_GRADING',reference:'نشریه ض-479 — شکل 4-4'}]};
-const stage34={profileId:'IR_NMD_479_1388',ruleId:'IR479_3_4_WATER',final:{freeWaterKgM3:190},slump:100,dmax:25,shapeTexture:'average',warnings:[],completeness:{complete:true,issues:[]},ruleTrace:[{id:'IR479_3_4_FREE_WATER',reference:'نشریه ض-479 — Stage 3.4'}]};
-const stage35={profileId:'IR_NMD_479_1388',ruleId:'IR479_3_5_WC_BINDER',wcBase:.475,fc:25,fcm:32.53,final:{freeWaterKgM3:190},scm:{type:'none',kgM3:0,k:null},warnings:[],completeness:{complete:true,issues:[]},ruleTrace:[{id:'IR479_3_5_WC',reference:'نشریه ض-479 — Stage 3.5'}]};
-const stage36={profileId:'IR_NMD_479_1388',ruleId:'IR479_3_6_ABSOLUTE_VOLUME',air:{totalPct:2,intentionalPct:0,unintentionalPct:2},airCorrections:{waterAdjustedKgM3:190,wcAdjusted:.475},binder:{cementKgM3:400,totalCementitiousKgM3:400,scmType:'none',scmKgM3:0},absoluteVolume:{knownM3:round(1-aggVol,8),aggregateM3:round(aggVol,8),closureM3:1},moistureCorrection:{batchWaterKgM3:round(batchWater,6),aggregateFreeWaterKgM3:round(freeWaterTotal,6),aggregateSSDTotalKgM3:round(totalAgg,6),aggregateBatchTotalKgM3:round(aggCalc.reduce((s,x)=>s+x.batch,0),6)},aggregates:snapshotAggregates.map(a=>({id:a.id,name:a.name,ssd:a.ssd,od:a.od,batch:a.batch,freeWater:a.freeWater})),warnings:[],completeness:{complete:true,issues:[]},ruleTrace:[{id:'IR479_3_6_VOLUME',reference:'نشریه ض-479 — Stage 3.6'}]};
-const stage37={version:'stage3.7-integration-lock-1.0',status:'locked-for-trial',requiredPassed:8,requiredTotal:8,fingerprint:'IR479-DEMO-25-400-R0',gates:[{id:'strength',label:'Strength basis',severity:'required',ok:true},{id:'workability',label:'Workability',severity:'required',ok:true},{id:'grading',label:'Aggregate grading',severity:'required',ok:true},{id:'water',label:'Free water',severity:'required',ok:true},{id:'wc',label:'w/c',severity:'required',ok:true},{id:'air',label:'Air',severity:'required',ok:true},{id:'volume',label:'Absolute volume closure',severity:'required',ok:true},{id:'moisture',label:'SSD/moisture correction',severity:'required',ok:true}],ruleTrace:[{id:'IR479_3_7_LOCK',reference:'Tolou Stage 3.7 integration gate'}]};
+const stage31={
+  profileId:'IR_NMD_479_1388',
+  ruleId:'IR479_3_1_STRENGTH',
+  fc:25,
+  n:null,
+  mean:null,
+  rawSd:null,
+  correctionFactor:null,
+  sdUsed:4.5,
+  fcmEq31:32.53,
+  fcmEq32:31.485,
+  fcm:32.53,
+  governingEquation:'3-1',
+  source:'رتبه کارگاه B / جدول 3-1 — داده پروژه نمونه',
+  workshopRank:'B',
+  notes:[],
+  warnings:[],
+  completeness:{complete:true,issues:[]},
+  ruleTrace:[{id:'IR479_3_1_FCM',reference:'نشریه ض-479 — Stage 3.1'}]
+};
+const stage32={
+  profileId:'IR_NMD_479_1388',
+  ruleId:'IR479_3_2_WORKABILITY',
+  slump:{value:100,class:'متوسط',label:'اسلامپ هدف پروژه نمونه'},
+  particleShape:'mixed-average',
+  surfaceTexture:'mixed-average',
+  aggregates:aggregateSources.map(s=>({
+    id:s.id,
+    name:s.name,
+    type:s.kind,
+    particleShape:s.particleShape,
+    shapeLabel:s.particleShape==='rounded'?'گردگوشه':s.particleShape==='angular'?'گوشه‌دار / تیزگوشه':'—',
+    surfaceTexture:s.surfaceTexture,
+    textureLabel:s.surfaceTexture==='smooth'?'صاف / صیقلی':s.surfaceTexture==='rough'?'زبر':'—',
+    dmax:s.dmax,
+    materialRevision:s.materialRevision
+  })),
+  warnings:[],
+  completeness:{complete:3,total:3,issues:[]},
+  ruleTrace:[{id:'IR479_3_2_SLUMP',reference:'نشریه ض-479 — Stage 3.2'}]
+};
+const stage33={
+  profileId:'IR_NMD_479_1388',
+  ruleId:'IR479_4_2_GRADING',
+  dmax:25,
+  curve:'B',
+  sourceFigure:'4-4',
+  fm:aggregateResult.metrics.nationalFm,
+  rmse:aggregateResult.metrics.rmse,
+  blendBasis:'volume',
+  massFractions:massWeights,
+  volumeFractions:aggregateSources.map((s,i)=>({
+    aggregateId:s.id,
+    name:s.name,
+    sg:sgs[i],
+    massFraction:massWeights[i],
+    volumeFraction:round(volumeFractions[i],8)
+  })),
+  aggregateBlendId:AGG_CASE_ID,
+  aggregateCase:{id:AGG_CASE_ID,name:aggregateCurrent.name},
+  warnings:[],
+  completeness:{complete:true,issues:[]},
+  ruleTrace:[{id:'IR479_4_2_GRADING',reference:'نشریه ض-479 — شکل 4-4'}]
+};
+const stage34={
+  profileId:'IR_NMD_479_1388',
+  ruleId:'IR479_3_4_WATER',
+  slump:{value:100,class:'متوسط'},
+  slumpClass:'متوسط',
+  fm:aggregateResult.metrics.nationalFm,
+  demandMode:'auto',
+  sourceFigure:null,
+  sourceType:'QA locked sample result',
+  baseFreeWaterKgM3:190,
+  waterReducerPct:0,
+  freeWaterAfterReducerKgM3:190,
+  digitizationUncertaintyKgM3:null,
+  final:{freeWaterKgM3:190},
+  dmax:25,
+  shapeTexture:'average',
+  warnings:[],
+  completeness:{complete:true,issues:[]},
+  ruleTrace:[{id:'IR479_3_4_FREE_WATER',reference:'نشریه ض-479 — Stage 3.4'}]
+};
+const stage35={
+  profileId:'IR_NMD_479_1388',
+  ruleId:'IR479_3_5_WC_BINDER',
+  fc:25,
+  fcm:32.53,
+  wcMode:'manual',
+  wcBase:.475,
+  cementStrengthClass:'42.5',
+  coarseShape:'mixed-average',
+  sourceType:'QA locked sample result',
+  sourceFigure:null,
+  waterCorrection:{required:false,rateKgPer10KgCement:null},
+  scm:{type:'none',kgM3:0,k:null,ratioToCementPct:0},
+  final:{
+    freeWaterKgM3:190,
+    cementKgM3:400,
+    scmKgM3:0,
+    totalCementitiousKgM3:400,
+    effectiveRatio:.475
+  },
+  warnings:[],
+  completeness:{complete:true,issues:[]},
+  ruleTrace:[{id:'IR479_3_5_WC',reference:'نشریه ض-479 — Stage 3.5'}]
+};
+const stage36={
+  profileId:'IR_NMD_479_1388',
+  ruleId:'IR479_3_6_ABSOLUTE_VOLUME',
+  air:{entrappedPct:2,intentionalPct:0,totalPct:2},
+  airCorrections:{waterAdjustedKgM3:190,wcAdjusted:.475},
+  binder:{cementKgM3:400,totalCementitiousKgM3:400,scmType:'none',scmKgM3:0,effectiveRatio:.475},
+  absoluteVolume:{knownM3:round(1-aggVol,8),aggregateM3:round(aggVol,8),closureM3:1},
+  moistureCorrection:{
+    batchWaterKgM3:round(batchWater,6),
+    aggregateFreeWaterKgM3:round(freeWaterTotal,6),
+    aggregateSSDTotalKgM3:round(totalAgg,6),
+    aggregateBatchTotalKgM3:round(aggCalc.reduce((s,x)=>s+x.batch,0),6)
+  },
+  aggregates:snapshotAggregates.map((a,i)=>({
+    id:a.id,
+    aggregateId:a.id,
+    name:a.name,
+    volumeFraction:round(volumeFractions[i],8),
+    ssdKgM3:a.ssd,
+    ssdMassKgM3:a.ssd,
+    moisturePct:a.moisture,
+    moisture:a.moisture,
+    absorptionPct:a.absorption,
+    absorption:a.absorption,
+    batchKgM3:a.batch,
+    batchMassKgM3:a.batch,
+    freeWaterKgM3:a.freeWater
+  })),
+  warnings:[],
+  completeness:{complete:true,issues:[]},
+  ruleTrace:[{id:'IR479_3_6_VOLUME',reference:'نشریه ض-479 — Stage 3.6'}]
+};
+const stage37={
+  version:'stage3.7-integration-lock-1.0',
+  engineVersion:'QC010-iran479-engine-3.7-locked',
+  status:'locked-for-trial',
+  requiredPassed:8,
+  requiredTotal:8,
+  fingerprint:'IR479-DEMO-25-400-R0',
+  gates:[
+    {id:'strength',label:'Strength basis',severity:'required',ok:true,detail:'f\'c=25 MPa; fcm=32.53 MPa; SD=4.5 MPa.'},
+    {id:'workability',label:'Workability',severity:'required',ok:true,detail:'Slump target=100 mm.'},
+    {id:'grading',label:'Aggregate grading',severity:'required',ok:true,detail:'Iran 479 Curve B, Dmax 25 mm, volume-basis blend.'},
+    {id:'water',label:'Free water',severity:'required',ok:true,detail:'Effective water=190 kg/m³.'},
+    {id:'wc',label:'w/c',severity:'required',ok:true,detail:'w/cm=0.475 with 400 kg/m³ cement.'},
+    {id:'air',label:'Air',severity:'required',ok:true,detail:'Entrapped air=2%; intentional air=0%.'},
+    {id:'volume',label:'Absolute volume closure',severity:'required',ok:true,detail:'Absolute-volume closure=1.00000 m³.'},
+    {id:'moisture',label:'SSD/moisture correction',severity:'required',ok:true,detail:'Aggregate moisture correction and batch water are populated.'}
+  ],
+  ruleTrace:[{id:'IR479_3_7_LOCK',reference:'Tolou Stage 3.7 integration gate'}]
+};
 
 const mixSnapshot={
   engineVersion:'QC010-iran479-engine-3.7-locked',designMethodId:'iran479',designMethodLabel:'روش ملی ایران — نشریه ض-479',methodProfileId:'IR_NMD_479_1388',methodRuleSetId:'RULESET_IR_479',reference:'نشریه ض-479، چاپ دوم 1388',
@@ -227,7 +380,7 @@ function seedSampleProject(storage){
   if(!storage||typeof storage.getItem!=='function'||typeof storage.setItem!=='function') return {ok:false,reason:'storage-unavailable'};
   try{
     const existingMarker=readJson(storage,SAMPLE_MARKER,{});
-    if(existingMarker?.version===1&&existingMarker?.projectId===PROJECT_ID) return {ok:true,alreadySeeded:true,projectId:PROJECT_ID,seriesId:SERIES_ID};
+    if(existingMarker?.version===SAMPLE_DATASET_VERSION&&existingMarker?.projectId===PROJECT_ID) return {ok:true,alreadySeeded:true,projectId:PROJECT_ID,seriesId:SERIES_ID};
     const hub=readJson(storage,'Tolou_project_hub_v1',{schemaVersion:1,projects:[],activeProjectId:null,audit:[]});hub.schemaVersion=1;hub.projects=Array.isArray(hub.projects)?hub.projects:[];hub.audit=Array.isArray(hub.audit)?hub.audit:[];upsert(hub.projects,clone(sampleProject));const sampleAudit=makeAudit();hub.audit=hub.audit.filter(x=>x.projectId!==PROJECT_ID).concat(sampleAudit);if(!hub.activeProjectId)hub.activeProjectId=PROJECT_ID;storage.setItem('Tolou_project_hub_v1',JSON.stringify(hub));
 
     const ml=readJson(storage,'Tolou_material_library_v1',{schemaVersion:1,materials:[]});ml.schemaVersion=1;ml.materials=Array.isArray(ml.materials)?ml.materials:[];materials.forEach(m=>upsert(ml.materials,clone(m)));storage.setItem('Tolou_material_library_v1',JSON.stringify(ml));
@@ -248,7 +401,7 @@ function seedSampleProject(storage){
 
     const q10=readJson(storage,'QC010_full_data',{});if(!Array.isArray(q10.aggregates)||!q10.aggregates.length){storage.setItem('QC010_full_data',JSON.stringify(clone(engineState)));}
 
-    storage.setItem(SAMPLE_MARKER,JSON.stringify({version:1,projectId:PROJECT_ID,seriesId:SERIES_ID,aggregateCaseId:AGG_CASE_ID,seededAt:new Date().toISOString(),dataset:'Tolou QA Sample C25/Cement400/TypeII',baselineChanged:false}));
+    storage.setItem(SAMPLE_MARKER,JSON.stringify({version:SAMPLE_DATASET_VERSION,projectId:PROJECT_ID,seriesId:SERIES_ID,aggregateCaseId:AGG_CASE_ID,seededAt:new Date().toISOString(),dataset:'Tolou QA Sample C25/Cement400/TypeII',baselineChanged:false}));
     return {ok:true,projectId:PROJECT_ID,seriesId:SERIES_ID};
   } catch(error){ return {ok:false,reason:error?.message||String(error)}; }
 }
