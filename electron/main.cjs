@@ -206,9 +206,13 @@ async function runUiSmoke(win) {
         payload.form.standard.includes('479') &&
         payload.form.exposure.includes('غیرمهاجم'),
       dashboardVisible:
-        payload.kpis.includes('QC010-001') &&
+        payload.kpis.includes('پرونده طرح') &&
+        payload.kpis.includes('بازنگری') &&
+        payload.kpis.includes('آزمایش') &&
+        payload.kpis.includes('بچ تولید') &&
         (payload.completeness.includes('100') || payload.completeness.includes('۱۰۰')) &&
-        payload.timeline.length > 20,
+        payload.timeline.includes('طرح اختلاط') &&
+        payload.timeline.includes('بهینه‌سازی'),
       activationAudited:
         payload.auditText.includes('فعال‌سازی') &&
         payload.auditText.includes('TL-DEMO-25-400')
