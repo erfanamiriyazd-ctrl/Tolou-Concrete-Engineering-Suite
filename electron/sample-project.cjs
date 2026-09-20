@@ -1,7 +1,7 @@
 'use strict';
 
 const SAMPLE_MARKER = 'Tolou_sample_project_v1';
-const SAMPLE_DATASET_VERSION = 11;
+const SAMPLE_DATASET_VERSION = 12;
 const PROJECT_ID = 'PRJ-DEMO-25-400';
 const SERIES_ID = 'MX-DEMO-25-400';
 const AGG_CASE_ID = 'AGC-DEMO-25-400';
@@ -911,10 +911,131 @@ const calX=trials.map(t=>1/t.calculated.actualWcm),calY=trials.map(t=>t.strength
 const mx=calX.reduce((a,b)=>a+b,0)/calX.length,my=calY.reduce((a,b)=>a+b,0)/calY.length;
 const bReg=calX.reduce((s,x,i)=>s+(x-mx)*(calY[i]-my),0)/calX.reduce((s,x)=>s+(x-mx)**2,0),aReg=my-bReg*mx;
 const pred=calX.map(x=>aReg+bReg*x),ssRes=calY.reduce((s,y,i)=>s+(y-pred[i])**2,0),ssTot=calY.reduce((s,y)=>s+(y-my)**2,0),r2=1-ssRes/ssTot;
-function econFor(cm,w){ const fine=ssdMasses[0],pea=ssdMasses[1],almond=ssdMasses[2]; return {cost:(cm/1000*3600)+(w*.02)+(fine/1000*480)+(pea/1000*520)+(almond/1000*560),carbon:(cm*.72)+(w*.0003)+(fine*.005)+(pea*.006)+(almond*.0065)}; }
-const pareto=[[.46,390],[.465,395],[.47,400],[.475,400],[.48,405],[.485,410],[.49,415]].map((x,i)=>{const [wcm,cm]=x,water=wcm*cm,e=econFor(cm,water);return{id:`C-DEMO-${i+1}`,wcm,cm,scmPct:0,water:round(water,2),cement:cm,strength:round(aReg+bReg*(1/wcm),2),cost:round(e.cost,2),carbon:round(e.carbon,2),mode:'full'};});
-const optimizerStudy={id:'OPT-DEMO-001',projectId:PROJECT_ID,at:'2026-08-12T10:00:00+03:30',source:`${SERIES_ID}::0`,sourceLabel:'QC010-001 — بتن معمولی C25 — سیمان تیپ II — عیار 400 — R0',engine:'QC-010',fullMode:true,objectives:['cost','carbon'],constraints:{wmin:.46,wmax:.50,wstep:.005,cmmin:380,cmmax:430,cmstep:5,smin:0,smax:0,sstep:1,dur:.50,cementMin:360,waterMin:175,waterMax:205,strengthMin:25,enforce:true},calibration:{valid:true,n:5,r2:round(r2,6),a:round(aReg,6),b:round(bReg,6),wMin:.46,wMax:.49},feasibleCount:pareto.length,pareto};
 
+function candidateAggregateMasses(cementKg,waterKg){
+  const remVol=1-cementKg/3150-waterKg/1000-airPct/100;
+  const totalSsd=remVol/massWeights.reduce((s,w,i)=>s+w/(sgs[i]*1000),0);
+  return massWeights.map(w=>totalSsd*w);
+}
+function candidateEconomics(wcm){
+  const cm=400, water=wcm*cm, agg=candidateAggregateMasses(cm,water);
+  const rows=[
+    {key:`MAT:${materialIds.cement}`,mass:cm},
+    {key:'water:mix',mass:water},
+    {key:`MAT:${materialIds.fine}`,mass:agg[0]},
+    {key:`MAT:${materialIds.pea}`,mass:agg[1]},
+    {key:`MAT:${materialIds.almond}`,mass:agg[2]}
+  ];
+  let material=0,carbon=0;
+  rows.forEach(r=>{
+    const f=ecoFactors[r.key];
+    material += f.basis==='ton' ? r.mass/1000*f.price : r.mass*f.price;
+    carbon += r.mass*f.gwp;
+  });
+  const inbound=round((cm+agg.reduce((a,b)=>a+b,0))/1000*inboundFreightRateIrrPerTonKm*assumedMaterialHaulKm,2);
+  const exPlant=material+inbound+electricityCostPerM3+loaderFuelCostPerM3+directLaborCostPerM3+
+    depreciationAllocationPerM3+adminPlantOverheadAllocationPerM3+maintenanceAllocationPerM3+financeWorkingCapitalAllocationPerM3;
+  return {
+    cement:cm,water:round(water,3),aggregates:agg.map(v=>round(v,3)),
+    aggregateTotal:round(agg.reduce((a,b)=>a+b,0),3),
+    materialCost:round(material,2),inboundFreight:inbound,
+    exPlantCost:round(exPlant,2),
+    deliveredBeforeVat:round(exPlant+actualDeliveryFreightPerM3,2),
+    deliveredWithVat:round((exPlant+actualDeliveryFreightPerM3)*(1+vatRatePct/100),2),
+    carbon:round(carbon,2)
+  };
+}
+function strengthFromWcm(wcm){ return aReg+bReg*(1/wcm); }
+
+const optimizerCandidates=[.46,.465,.47,.475,.48,.485,.49].map((wcm,i)=>{
+  const e=candidateEconomics(wcm);
+  const strength=round(strengthFromWcm(wcm),2);
+  const withinCalibration=wcm>=.46&&wcm<=.49;
+  const strengthPass=strength>=stage31.fcm;
+  const durabilityWcmPass=wcm<=.50;
+  const waterPass=e.water>=175&&e.water<=205;
+  const volumeClosurePass=e.aggregateTotal>0;
+  const feasible=withinCalibration&&strengthPass&&durabilityWcmPass&&waterPass&&volumeClosurePass;
+  return {
+    id:`C-DEMO-${i+1}`,wcm,cm:400,scmPct:0,water:e.water,
+    aggregates:e.aggregates,aggregateTotal:e.aggregateTotal,
+    strength,cost:e.exPlantCost,deliveredCost:e.deliveredWithVat,carbon:e.carbon,
+    materialCost:e.materialCost,inboundFreight:e.inboundFreight,
+    constraints:{withinCalibration,strengthPass,durabilityWcmPass,waterPass,volumeClosurePass},
+    feasible,
+    mode:'validated-wcm-domain',
+    carbonQuality:'illustrative-only'
+  };
+});
+const feasibleCandidates=optimizerCandidates.filter(c=>c.feasible);
+const pareto=feasibleCandidates.filter((c,idx,arr)=>!arr.some(o=>
+  o.id!==c.id &&
+  o.cost<=c.cost &&
+  o.carbon<=c.carbon &&
+  (o.cost<c.cost||o.carbon<c.carbon)
+));
+const baselineCandidate=optimizerCandidates.find(c=>Math.abs(c.wcm-.475)<1e-9);
+const optimizerStudy={
+  id:'OPT-DEMO-001',
+  projectId:PROJECT_ID,
+  at:'2026-08-12T10:00:00+03:30',
+  source:`${SERIES_ID}::0`,
+  sourceLabel:'QC010-001 — بتن معمولی C25 — سیمان تیپ II — عیار 400 — R0',
+  engine:'QC-010',
+  fullMode:false,
+  status:'decision-support',
+  designFingerprint:mixSnapshot.calculationFingerprint,
+  evidenceFingerprint:evfp,
+  qcDisposition:qcSummary.disposition,
+  durabilityDisposition:durabilityRecord.overall,
+  economicsRecordId:economicsRecord.id,
+  objectives:[
+    {id:'exPlantCost',direction:'minimize',quality:'project-priced-plus-sourced-estimates'},
+    {id:'carbon',direction:'minimize',quality:'illustrative-only',warning:'GWP objective is exploratory until verified EPD/LCA factors are available.'}
+  ],
+  constraints:{
+    wmin:.46,wmax:.49,wstep:.005,
+    cementFixed:400,
+    cementVariationAllowed:false,
+    scmFixed:0,
+    maxWcm:.50,
+    waterMin:175,waterMax:205,
+    strengthMin:stage31.fcm,
+    specifiedStrength:25,
+    enforce:true
+  },
+  calibration:{
+    valid:r2>=.95,
+    n:5,
+    model:'fc28 = a + b*(1/wcm)',
+    r2:round(r2,6),
+    a:round(aReg,6),
+    b:round(bReg,6),
+    wMin:.46,wMax:.49,
+    cementKgM3:400,
+    limitation:'Calibration evidence varies w/cm at fixed cement 400 kg/m³; independent cement-content optimization is therefore not validated.'
+  },
+  baseline:{
+    wcm:.475,
+    cement:400,
+    strength:baselineCandidate?.strength||null,
+    exPlantCost:baselineCandidate?.cost||null,
+    deliveredCost:baselineCandidate?.deliveredCost||null,
+    carbon:baselineCandidate?.carbon||null
+  },
+  candidates:optimizerCandidates,
+  feasibleCount:feasibleCandidates.length,
+  pareto,
+  recommendationPolicy:'No candidate is auto-selected. Engineer review is required. Cost is project-grounded; carbon is exploratory until verified GWP data is supplied.',
+  revalidationTriggers:[
+    'Trial calibration or evidence change',
+    'Approved mix revision change',
+    'Production QC disposition change',
+    'Durability requirement change',
+    'Material price or operating-cost update',
+    'Verified GWP/EPD/LCA factor update'
+  ]
+};
 function makeAudit(){
   const events=[
     ['پروژه','ایجاد پروژه','Project',PROJECT_ID,'پروژه نمونه TL-DEMO-25-400 ایجاد شد.',{fc:25,cement:400}],
