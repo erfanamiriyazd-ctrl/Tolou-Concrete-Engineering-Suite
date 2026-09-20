@@ -1,7 +1,7 @@
 'use strict';
 
 const SAMPLE_MARKER = 'Tolou_sample_project_v1';
-const SAMPLE_DATASET_VERSION = 7;
+const SAMPLE_DATASET_VERSION = 8;
 const PROJECT_ID = 'PRJ-DEMO-25-400';
 const SERIES_ID = 'MX-DEMO-25-400';
 const AGG_CASE_ID = 'AGC-DEMO-25-400';
@@ -704,22 +704,127 @@ const durabilityRecord={
 };
 
 const ecoFactors={
-  [`MAT:${materialIds.cement}`]:{price:3600,basis:'ton',gwp:.72,source:'QA SAMPLE — قیمت و GWP نمایشی؛ جایگزین داده واقعی/EPD شود.'},
-  [`MAT:${materialIds.fine}`]:{price:480,basis:'ton',gwp:.005,source:'QA SAMPLE — illustrative'},
-  [`MAT:${materialIds.pea}`]:{price:520,basis:'ton',gwp:.006,source:'QA SAMPLE — illustrative'},
-  [`MAT:${materialIds.almond}`]:{price:560,basis:'ton',gwp:.0065,source:'QA SAMPLE — illustrative'},
-  'water:mix':{price:.02,basis:'kg',gwp:.0003,source:'QA SAMPLE — illustrative'}
+  [`MAT:${materialIds.cement}`]:{
+    price:3600,basis:'ton',gwp:.72,
+    priceSource:'QA SAMPLE — illustrative unit price; replace with approved commercial source.',
+    gwpSource:'QA SAMPLE — illustrative GWP factor; replace with verified EPD/LCA source.',
+    priceQuality:'illustrative',gwpQuality:'illustrative',currency:'واحد نمونه',validForCommercialUse:false,validForEnvironmentalClaim:false
+  },
+  [`MAT:${materialIds.fine}`]:{
+    price:480,basis:'ton',gwp:.005,
+    priceSource:'QA SAMPLE — illustrative',gwpSource:'QA SAMPLE — illustrative',
+    priceQuality:'illustrative',gwpQuality:'illustrative',currency:'واحد نمونه',validForCommercialUse:false,validForEnvironmentalClaim:false
+  },
+  [`MAT:${materialIds.pea}`]:{
+    price:520,basis:'ton',gwp:.006,
+    priceSource:'QA SAMPLE — illustrative',gwpSource:'QA SAMPLE — illustrative',
+    priceQuality:'illustrative',gwpQuality:'illustrative',currency:'واحد نمونه',validForCommercialUse:false,validForEnvironmentalClaim:false
+  },
+  [`MAT:${materialIds.almond}`]:{
+    price:560,basis:'ton',gwp:.0065,
+    priceSource:'QA SAMPLE — illustrative',gwpSource:'QA SAMPLE — illustrative',
+    priceQuality:'illustrative',gwpQuality:'illustrative',currency:'واحد نمونه',validForCommercialUse:false,validForEnvironmentalClaim:false
+  },
+  'water:mix':{
+    price:.02,basis:'kg',gwp:.0003,
+    priceSource:'QA SAMPLE — illustrative',gwpSource:'QA SAMPLE — illustrative',
+    priceQuality:'illustrative',gwpQuality:'illustrative',currency:'واحد نمونه',validForCommercialUse:false,validForEnvironmentalClaim:false
+  }
 };
 function ecoRows(){return [
-  {key:`MAT:${materialIds.cement}`,name:materials[0].revisions[0].name,group:'مواد سیمانی',mass:400,meta:{materialId:materialIds.cement,code:materialCodes.cement,revision:1}},
-  {key:'water:mix',name:'آب اختلاط',group:'آب',mass:190,meta:{}},
-  {key:`MAT:${materialIds.fine}`,name:aggregateSources[0].name,group:'سنگدانه ریز',mass:round(ssdMasses[0],3),meta:{materialId:materialIds.fine,code:materialCodes.fine}},
-  {key:`MAT:${materialIds.pea}`,name:aggregateSources[1].name,group:'سنگدانه',mass:round(ssdMasses[1],3),meta:{materialId:materialIds.pea,code:materialCodes.pea}},
-  {key:`MAT:${materialIds.almond}`,name:aggregateSources[2].name,group:'سنگدانه',mass:round(ssdMasses[2],3),meta:{materialId:materialIds.almond,code:materialCodes.almond}}
+  {key:`MAT:${materialIds.cement}`,name:materials[0].revisions[0].name,group:'مواد سیمانی',mass:400,meta:{materialId:materialIds.cement,code:materialCodes.cement,revision:1,lot:'CII-260518-A'}},
+  {key:'water:mix',name:'آب اختلاط',group:'آب',mass:190,meta:{materialId:materialIds.water,code:materialCodes.water,revision:1,lot:'W-2605'}},
+  {key:`MAT:${materialIds.fine}`,name:aggregateSources[0].name,group:'سنگدانه ریز',mass:round(ssdMasses[0],3),meta:{materialId:materialIds.fine,code:materialCodes.fine,revision:1,lot:'FA-260520'}},
+  {key:`MAT:${materialIds.pea}`,name:aggregateSources[1].name,group:'سنگدانه',mass:round(ssdMasses[1],3),meta:{materialId:materialIds.pea,code:materialCodes.pea,revision:1,lot:'CA7-260520'}},
+  {key:`MAT:${materialIds.almond}`,name:aggregateSources[2].name,group:'سنگدانه',mass:round(ssdMasses[2],3),meta:{materialId:materialIds.almond,code:materialCodes.almond,revision:1,lot:'CA5-260520'}}
 ];}
 const erows=ecoRows();
-let totalCost=0,totalCarbon=0;erows.forEach(r=>{const f=ecoFactors[r.key];const cost=f.basis==='ton'?r.mass/1000*f.price:r.mass*f.price;totalCost+=cost;totalCarbon+=r.mass*f.gwp;r.cost=round(cost,3);r.carbon=round(r.mass*f.gwp,3);});
-const economicsRecord={id:'ECO-DEMO-001',projectId:PROJECT_ID,savedAt:'2026-08-11T09:00:00+03:30',at:'2026-08-11T09:00:00+03:30',name:'تحلیل اقتصادی/کربن پروژه نمونه 25/400',mixKey:`${SERIES_ID}::0`,mixLabel:'QC010-001 — بتن معمولی C25 — سیمان تیپ II — عیار 400 — R0',totalCost:round(totalCost,2),totalCarbon:round(totalCarbon,2),priceCoverage:100,gwpCoverage:100,costCoverage:100,carbonCoverage:100,performance:{value:round(trialStats.mean,2),basis:'میانگین مقاومت 28روزه 5 Trial'},strength:round(trialStats.mean,2),input:{name:'تحلیل اقتصادی/کربن پروژه نمونه 25/400',date:'2026-08-11',currency:'واحد نمونه',scope:'1 m³ بتن — صرفاً QA',overhead:0,transportCost:0,otherCost:0,otherCarbon:0,otherSource:'',notes:'تمام قیمت‌ها و عوامل کربن نمایشی هستند و برای برآورد تجاری معتبر نیستند.'},rows:erows};
+let totalCost=0,totalCarbon=0;
+erows.forEach(r=>{
+  const f=ecoFactors[r.key];
+  const cost=f.basis==='ton'?r.mass/1000*f.price:r.mass*f.price;
+  const carbon=r.mass*f.gwp;
+  totalCost+=cost;totalCarbon+=carbon;
+  r.cost=round(cost,3);
+  r.carbon=round(carbon,3);
+  r.factor={
+    price:f.price,basis:f.basis,currency:f.currency,priceSource:f.priceSource,priceQuality:f.priceQuality,
+    gwp:f.gwp,gwpSource:f.gwpSource,gwpQuality:f.gwpQuality,
+    validForCommercialUse:f.validForCommercialUse,validForEnvironmentalClaim:f.validForEnvironmentalClaim
+  };
+});
+const massClosure=round(erows.reduce((s,r)=>s+r.mass,0),3);
+const allPriceFactorsPresent=erows.every(r=>Number.isFinite(r.factor.price));
+const allGwpFactorsPresent=erows.every(r=>Number.isFinite(r.factor.gwp));
+const allCommercialFactorsVerified=erows.every(r=>r.factor.validForCommercialUse===true);
+const allGwpFactorsVerified=erows.every(r=>r.factor.validForEnvironmentalClaim===true);
+const economicsRecord={
+  id:'ECO-DEMO-001',
+  projectId:PROJECT_ID,
+  seriesId:SERIES_ID,
+  revision:0,
+  designFingerprint:mixSnapshot.calculationFingerprint,
+  evidenceFingerprint:evfp,
+  approvalDecision:mixSeries.approvalRecord.decision,
+  qcDisposition:qcSummary.disposition,
+  durabilityDisposition:durabilityRecord.overall,
+  savedAt:'2026-08-11T09:00:00+03:30',
+  at:'2026-08-11T09:00:00+03:30',
+  name:'تحلیل اقتصادی/کربن پروژه نمونه 25/400',
+  mixKey:`${SERIES_ID}::0`,
+  mixLabel:'QC010-001 — بتن معمولی C25 — سیمان تیپ II — عیار 400 — R0',
+  basis:{
+    scope:'1 m³ concrete',
+    massBasis:'Approved R0 SSD design masses',
+    cementKgM3:400,effectiveWaterKgM3:190,aggregateSSDTotalKgM3:round(totalAgg,3),totalConstituentMassKgM3:massClosure,
+    aggregateBlend:[44,37,19],
+    materialRevisionPolicy:'All material rows are tied to Material Intelligence revision 1 and QA lot identifiers.'
+  },
+  totalCost:round(totalCost,2),
+  totalCarbon:round(totalCarbon,2),
+  priceCoverage:allPriceFactorsPresent?100:round(erows.filter(r=>Number.isFinite(r.factor.price)).length/erows.length*100,1),
+  gwpCoverage:allGwpFactorsPresent?100:round(erows.filter(r=>Number.isFinite(r.factor.gwp)).length/erows.length*100,1),
+  verifiedCommercialCoverage:allCommercialFactorsVerified?100:0,
+  verifiedEnvironmentalCoverage:allGwpFactorsVerified?100:0,
+  costCoverage:allPriceFactorsPresent?100:0,
+  carbonCoverage:allGwpFactorsPresent?100:0,
+  performance:{
+    value:productionFcStats.mean,
+    basis:'میانگین مقاومت 28روزه تولید Stage 7',
+    specifiedStrength:25,
+    requiredMeanStrength:stage31.fcm,
+    qcDisposition:qcSummary.disposition
+  },
+  strength:productionFcStats.mean,
+  normalized:{
+    costPerMPa:round(totalCost/productionFcStats.mean,3),
+    carbonPerMPa:round(totalCarbon/productionFcStats.mean,3),
+    cementKgPerMPa:round(400/productionFcStats.mean,3)
+  },
+  dataQuality:{
+    computationalCompleteness:(allPriceFactorsPresent&&allGwpFactorsPresent)?'complete':'incomplete',
+    commercialValidity:allCommercialFactorsVerified?'verified':'illustrative-only',
+    environmentalClaimValidity:allGwpFactorsVerified?'verified':'illustrative-only',
+    warning:'100% factor coverage means every row has a numeric factor; it does not mean the factors are commercially verified or EPD/LCA-verified.'
+  },
+  input:{
+    name:'تحلیل اقتصادی/کربن پروژه نمونه 25/400',
+    date:'2026-08-11',
+    currency:'واحد نمونه',
+    scope:'1 m³ بتن — صرفاً QA',
+    overhead:0,transportCost:0,otherCost:0,otherCarbon:0,otherSource:'',
+    notes:'تمام قیمت‌ها و عوامل GWP نمایشی هستند. خروجی برای آزمون اتصال و محاسبه معتبر است، اما برای خرید، قیمت‌گذاری، EPD، LCA یا ادعای محیط‌زیستی معتبر نیست.'
+  },
+  rows:erows,
+  disposition:'Calculation path complete; commercial and environmental factors are illustrative-only until replaced by approved price sources and verified EPD/LCA data.',
+  revalidationTriggers:[
+    'Material revision or lot change',
+    'Approved mix revision change',
+    'Unit price or currency/source update',
+    'GWP/EPD/LCA factor update',
+    'Production QC performance basis change'
+  ]
+};
 
 const calX=trials.map(t=>1/t.calculated.actualWcm),calY=trials.map(t=>t.strengths['28']);
 const mx=calX.reduce((a,b)=>a+b,0)/calX.length,my=calY.reduce((a,b)=>a+b,0)/calY.length;
@@ -739,7 +844,7 @@ function makeAudit(){
     ['طرح اختلاط','تأیید بازنگری','MixRevision',`${SERIES_ID}:R0`,'R0 پس از عبور شواهد Trial به‌عنوان طرح تأییدشده ثبت شد.',{evidenceFingerprint:evfp}],
     ['تولید','ثبت تولید','ProductionBatch','DEMO-PRODUCTION','شش بچ تولید نمونه با کنترل توزین، رطوبت، w/cm و Yield ثبت شد.',{batches:6}],
     ['کنترل کیفیت','پایش مقاومت','StrengthTest','DEMO-QC','نتایج Trial و تولید در کنترل کیفیت و آمار مقاومت ثبت شدند.',{tests:qcTests.length}],
-    ['دوام','تحلیل دوام','DurabilityAnalysis',durabilityRecord.id,'سناریوی دوام F0/S0/W0/C0 بررسی و ذخیره شد.',{overall:'good'}],
+    ['دوام','تحلیل دوام','DurabilityAnalysis',durabilityRecord.id,'سناریوی دوام F0/S0/W0/C0 بررسی و ذخیره شد.',{overall:durabilityRecord.overall}],
     ['هزینه و پایداری','تحلیل نمونه','EconomicAnalysis',economicsRecord.id,'تحلیل نمونه هزینه و کربن با پوشش 100% داده ذخیره شد.',{demoFactors:true}],
     ['بهینه‌سازی','مطالعه چندهدفه','OptimizationStudy',optimizerStudy.id,'مطالعه بهینه‌سازی با مدل مقاومت کالیبره‌شده و دامنه مجاز Trial ذخیره شد.',{r2:optimizerStudy.calibration.r2}]
   ];
