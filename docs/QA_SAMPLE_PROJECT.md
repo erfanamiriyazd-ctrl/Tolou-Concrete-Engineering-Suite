@@ -252,3 +252,13 @@ Report audit found and corrected schema drift in the existing report UI:
 - Detailed batching cards are now rendered from each batch ingredient Target/Actual values, water correction, actual w/cm, total actual mass, yield and design fingerprint.
 
 Stage 11 remains open until the complete report is rendered and the Windows build is tested end-to-end.
+
+
+### Stage 11 automated QA validator
+- Added scripts/validate-sample-project.cjs and npm script qa:sample.
+- Validator seeds the complete sample project into isolated in-memory storage and verifies Project, Materials, Aggregate Intelligence, R0 Mix Design, Trial, Approval, Production, QC, Durability, Cost, Optimization and storage contracts.
+- Engineering assertions include cement 400 kg/m³, effective water 190 kg/m³, w/cm 0.475, SSD aggregate masses, theoretical fresh unit mass 2350.251 kg/m³, absolute-volume closure 1.00000 m³, free aggregate water, batch water, trial mean, production mean, yield, approval fingerprints and commercial cost anchors.
+- GitHub Actions workflow QA Sample End-to-End runs the validator on push and pull request.
+- Latest QA validator result: PASS.
+- Draft PR #1 targets feature/windows-shell; it is intentionally unmerged pending final Windows/report acceptance.
+- Windows-installer workflow is gated by qa:sample before packaging.
