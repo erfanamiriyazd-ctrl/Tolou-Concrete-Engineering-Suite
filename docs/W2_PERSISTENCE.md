@@ -13,6 +13,7 @@ This milestone adds a desktop-side persistence adapter without rewriting the Sta
 - Backup restore with schema validation.
 - Main-process IPC handlers for load, save, backup and restore.
 - Preload bridge methods exposed through `window.tolouDesktop`.
+- Renderer localStorage sync loaded from preload without modifying the Stage 6.5 baseline HTML.
 
 ## Data Protection Rule
 
@@ -20,6 +21,6 @@ The desktop store writes only inside Electron's `app.getPath('userData')`. Insta
 
 ## Not Yet Final
 
-- The Stage 6.5 HTML baseline still needs explicit UI wiring to call the preload bridge.
+- The Stage 6.5 HTML baseline currently syncs through localStorage. Direct in-UI backup/restore buttons can be added later.
 - A migration runner will be needed when the schema version changes.
 - Clean Windows validation is still required before Release Candidate.
