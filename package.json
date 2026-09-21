@@ -7,7 +7,7 @@
   "main": "src/main.cjs",
   "scripts": {
     "start": "electron .",
-    "test": "node test/windows-shell.test.cjs",
+    "test": "node test/windows-shell.test.cjs && node test/desktop-store.test.cjs",
     "dist:win": "electron-builder --win"
   },
   "author": "Tolou Concrete Engineering",
