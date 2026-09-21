@@ -44,6 +44,7 @@ assert.match(main, /nodeIntegration:\s*false/);
 
 const preload = fs.readFileSync(path.join(root, 'src/preload.cjs'), 'utf8');
 assert.match(preload, /contextBridge\.exposeInMainWorld\('tolouDesktop'/);
+assert.match(preload, /installLocalStorageSync\(window, desktopApi\)/);
 assert.match(preload, /getAppInfo/);
 assert.match(preload, /loadWorkspace/);
 assert.match(preload, /saveWorkspace/);
