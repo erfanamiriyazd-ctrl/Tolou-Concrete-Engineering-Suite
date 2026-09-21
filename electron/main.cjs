@@ -2655,6 +2655,38 @@ function createMainWindow() {
   mainWindow = win;
   installApplicationMenu(win);
 
+  // R2 diagnostics only: observe the real Electron navigation/runtime lifecycle without changing it.
+  let runtimeLoadSeq = 0;
+  const runtimeDiag = (event, details = {}) => {
+    const payload = {
+      at: new Date().toISOString(),
+      event,
+      seq: runtimeLoadSeq,
+      url: !win.isDestroyed() ? win.webContents.getURL() : null,
+      ...details
+    };
+    console.log('TOLOU_RUNTIME_DIAG', JSON.stringify(payload));
+  };
+
+  win.webContents.on('did-start-loading', () => {
+    runtimeLoadSeq += 1;
+    runtimeDiag('did-start-loading');
+  });
+  win.webContents.on('dom-ready', () => runtimeDiag('dom-ready'));
+  win.webContents.on('did-stop-loading', () => runtimeDiag('did-stop-loading'));
+  win.webContents.on('did-fail-load', (_event, errorCode, errorDescription, validatedURL, isMainFrame) => {
+    runtimeDiag('did-fail-load', { errorCode, errorDescription, validatedURL, isMainFrame });
+  });
+  win.webContents.on('render-process-gone', (_event, details) => {
+    runtimeDiag('render-process-gone', details || {});
+  });
+  win.webContents.on('preload-error', (_event, preloadPath, error) => {
+    runtimeDiag('preload-error', { preloadPath, error: error?.stack || error?.message || String(error) });
+  });
+  win.webContents.on('console-message', (_event, level, message, line, sourceId) => {
+    runtimeDiag('console-message', { level, message, line, sourceId });
+  });
+
   if (savedWindow.maximized) {
     win.maximize();
   }
@@ -2667,8 +2699,11 @@ function createMainWindow() {
   });
 
   win.webContents.on('did-finish-load', async () => {
+    runtimeDiag('did-finish-load');
     try {
+      runtimeDiag('sample-seed-start');
       const seedResult = await seedQaSampleIntoRenderer(win);
+      runtimeDiag('sample-seed-result', { seedResult });
       if (seedResult?.ok && seedResult.changed) {
         // Reload exactly once so every renderer module rehydrates from the now-populated localStorage.
         const shouldReload = await win.webContents.executeJavaScript(
@@ -2680,6 +2715,7 @@ function createMainWindow() {
             `(() => { sessionStorage.removeItem('__tolou_sample_seed_reload__'); return true; })()`,
             true
           );
+          runtimeDiag('sample-seed-reload-requested');
           win.webContents.reload();
           return;
         }
@@ -2688,7 +2724,14 @@ function createMainWindow() {
       console.error('Tolou QA sample bootstrap failed:', error);
     }
 
-    win.webContents.executeJavaScript(persistenceBootstrapScript(), true).catch(() => {});
+    win.webContents.executeJavaScript(persistenceBootstrapScript(), true)
+      .then(installed => runtimeDiag('persistence-bootstrap-result', { installed }))
+      .catch(error => runtimeDiag('persistence-bootstrap-error', { error: error?.stack || error?.message || String(error) }));
+    win.webContents.executeJavaScript(
+      `(() => ({ readyState: document.readyState, bridge: !!window.tolouDesktop, persistence: !!window.tolouDesktop?.persistence, sample: !!window.tolouDesktop?.sample }))()`,
+      true
+    ).then(renderer => runtimeDiag('renderer-probe', renderer))
+      .catch(error => runtimeDiag('renderer-probe-error', { error: error?.stack || error?.message || String(error) }));
     if (process.env.TOLOU_UI_SMOKE_DIR) {
       runUiSmoke(win).catch(error => {
         console.error('Tolou UI smoke failed:', error);
@@ -2743,9 +2786,13 @@ function createMainWindow() {
     if (mainWindow === win) mainWindow = null;
   });
 
-  win.loadFile(BASELINE_FILE).catch((error) => {
-    console.error('Failed to load Tolou baseline:', error);
-  });
+  runtimeDiag('loadFile-requested', { baselineFile: BASELINE_FILE });
+  win.loadFile(BASELINE_FILE)
+    .then(() => runtimeDiag('loadFile-resolved', { baselineFile: BASELINE_FILE }))
+    .catch((error) => {
+      runtimeDiag('loadFile-rejected', { baselineFile: BASELINE_FILE, error: error?.stack || error?.message || String(error) });
+      console.error('Failed to load Tolou baseline:', error);
+    });
 
   return win;
 }
