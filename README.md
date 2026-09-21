@@ -7,13 +7,20 @@ Engineering development is complete through **Stage 6.5**. The Golden Baseline i
 
 - `baseline/Tolou_MASTER_Stage6.5.html`
 
-Windows productization has started with **W1 - Windows Application Shell**:
+Windows productization has started:
+
+- **W1 - Windows Application Shell**: Electron desktop shell, installer configuration and baseline loader.
+- **W2 - Persistent Data & Backup Foundation**: desktop user-data store, backup/restore adapter and IPC bridge.
+
+Current implementation files:
 
 - Electron shell entrypoint: `src/main.cjs`
 - Preload bridge: `src/preload.cjs`
+- Desktop persistence store: `src/desktop-store.cjs`
 - Windows packaging config: `package.json`
-- W1 contract test: `test/windows-shell.test.cjs`
+- W1/W2 tests: `test/windows-shell.test.cjs`, `test/desktop-store.test.cjs`
 - W1 notes: `docs/W1_WINDOWS_SHELL.md`
+- W2 notes: `docs/W2_PERSISTENCE.md`
 
 ## Windows release direction
 - Preserve the current engineering capabilities.
@@ -35,8 +42,10 @@ npm run dist:win
 ## Notes
 
 The final official `build/icon.ico` is still required before the icon chain can be completed in W3.
+The Stage 6.5 HTML baseline still needs explicit UI wiring to call the W2 preload persistence bridge.
 
 See:
 - [ROADMAP.md](ROADMAP.md)
 - [WINDOWS_RELEASE_REQUIREMENTS.md](WINDOWS_RELEASE_REQUIREMENTS.md)
 - [docs/W1_WINDOWS_SHELL.md](docs/W1_WINDOWS_SHELL.md)
+- [docs/W2_PERSISTENCE.md](docs/W2_PERSISTENCE.md)
