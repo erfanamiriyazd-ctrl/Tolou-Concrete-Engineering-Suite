@@ -17,5 +17,5 @@ This milestone wraps the accepted Stage 6.5 Golden Baseline HTML application in 
 ## Not Yet Final
 
 - The final official `build/icon.ico` must be supplied before release packaging.
-- W2 persistence adapter and migration/backup flow are not implemented in this milestone.
+- W2 persistence adapter has started in `docs/W2_PERSISTENCE.md`.
 - Final installer validation must be performed on a clean Windows environment.
