@@ -4,15 +4,12 @@ on:
   workflow_dispatch:
   push:
     branches:
-      - feature/qa-sample-stage4-trial-lab
-  pull_request:
-    branches:
-      - feature/windows-shell
+      - fix/runtime-load-v1.0.1
 
 jobs:
-  build-windows:
+  runtime-gate-and-build:
     runs-on: windows-latest
-    timeout-minutes: 25
+    timeout-minutes: 35
 
     steps:
       - name: Checkout
@@ -27,13 +24,48 @@ jobs:
         shell: pwsh
         run: npm install --no-audit --no-fund
 
+      - name: Engineering QA gate
+        shell: pwsh
+        run: npm run qa:sample
+
+      - name: Electron runtime UI smoke gate
+        shell: pwsh
+        env:
+          TOLOU_UI_SMOKE_DIR: ${{ github.workspace }}\artifacts\ui-smoke
+          TOLOU_UI_SMOKE_STAGE: all
+        run: |
+          New-Item -ItemType Directory -Force -Path $env:TOLOU_UI_SMOKE_DIR | Out-Null
+          & ".\node_modules\.bin\electron.cmd" "."
+          $exitCode = $LASTEXITCODE
+          if ($exitCode -ne 0) {
+            Write-Error "Tolou Electron runtime UI smoke failed with exit code $exitCode"
+            exit $exitCode
+          }
+
+      - name: Upload runtime smoke evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: Tolou-Runtime-Smoke
+          path: artifacts/ui-smoke/**
+          if-no-files-found: warn
+          retention-days: 14
+
       - name: Build Windows installer
         shell: pwsh
         run: npm run dist:win
 
-      - name: Show release files
+      - name: Verify installer output
         shell: pwsh
-        run: Get-ChildItem -Path dist -Recurse | Select-Object FullName, Length
+        run: |
+          $installer = Get-ChildItem -Path dist -Filter "Tolou-Concrete-Engineering-Suite-Setup-*.exe" | Select-Object -First 1
+          if (-not $installer) {
+            throw "Windows installer was not produced."
+          }
+          if ($installer.Length -lt 50MB) {
+            throw "Installer output is unexpectedly small: $($installer.Length) bytes"
+          }
+          Write-Host "INSTALLER_READY $($installer.FullName) $($installer.Length)"
 
       - name: Upload Windows installer
         uses: actions/upload-artifact@v4
