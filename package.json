@@ -1,0 +1,58 @@
+{
+  "name": "tolou-concrete-engineering-suite",
+  "version": "0.7.0-w1",
+  "private": true,
+  "description": "Tolou Concrete Engineering Suite - Windows desktop engineering platform",
+  "productName": "Tolou Concrete Engineering Suite",
+  "main": "src/main.cjs",
+  "scripts": {
+    "start": "electron .",
+    "test": "node test/windows-shell.test.cjs",
+    "dist:win": "electron-builder --win"
+  },
+  "author": "Tolou Concrete Engineering",
+  "license": "UNLICENSED",
+  "devDependencies": {
+    "electron": "^32.3.3",
+    "electron-builder": "^25.1.8"
+  },
+  "build": {
+    "appId": "ir.tolou.concrete.engineering.suite",
+    "productName": "Tolou Concrete Engineering Suite",
+    "copyright": "Copyright © Tolou Concrete Engineering",
+    "directories": {
+      "output": "release",
+      "buildResources": "build"
+    },
+    "files": [
+      "src/**/*",
+      "package.json"
+    ],
+    "extraResources": [
+      {
+        "from": "baseline/Tolou_MASTER_Stage6.5.html",
+        "to": "baseline/Tolou_MASTER_Stage6.5.html"
+      }
+    ],
+    "win": {
+      "target": [
+        {
+          "target": "nsis",
+          "arch": [
+            "x64"
+          ]
+        }
+      ],
+      "publisherName": "Tolou Concrete Engineering"
+    },
+    "nsis": {
+      "oneClick": false,
+      "perMachine": false,
+      "allowToChangeInstallationDirectory": true,
+      "createDesktopShortcut": true,
+      "createStartMenuShortcut": true,
+      "shortcutName": "Tolou Concrete Engineering Suite",
+      "artifactName": "Tolou-Concrete-Engineering-Suite-Setup-${version}.${ext}"
+    }
+  }
+}
