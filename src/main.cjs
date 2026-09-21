@@ -1,5 +1,6 @@
 const path = require('node:path');
 const { app, BrowserWindow, ipcMain, shell } = require('electron');
+const { createDesktopStore } = require('./desktop-store.cjs');
 
 const APP_TITLE = 'Tolou Concrete Engineering Suite';
 const BASELINE_FILE = 'Tolou_MASTER_Stage6.5.html';
@@ -41,12 +42,21 @@ function createMainWindow() {
 }
 
 function registerIpc() {
+  const desktopStore = createDesktopStore({
+    userDataPath: app.getPath('userData')
+  });
+
   ipcMain.handle('tolou:getAppInfo', () => ({
     title: APP_TITLE,
     version: app.getVersion(),
     userDataPath: app.getPath('userData'),
     baselineFile: BASELINE_FILE
   }));
+
+  ipcMain.handle('tolou:workspace:load', () => desktopStore.loadWorkspace());
+  ipcMain.handle('tolou:workspace:save', (_event, data) => desktopStore.saveWorkspace(data));
+  ipcMain.handle('tolou:workspace:backup', (_event, label) => desktopStore.createBackup(label));
+  ipcMain.handle('tolou:workspace:restore', (_event, backupPath) => desktopStore.restoreBackup(backupPath));
 }
 
 app.setName(APP_TITLE);
